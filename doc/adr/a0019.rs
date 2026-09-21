@@ -4,7 +4,7 @@ use slipway_knowledge::{Breaking, DocStatus};
 
 slipway_knowledge::adr!(19,
     title: "Текст инструмента — английский: вывод, создаваемые коммиты, порождённые файлы",
-    status: DocStatus::Active,
+    status: DocStatus::SupersededBy(crate::adr::a0022),
     subsystems: &[taxon!(Subsystem, Cli)],
     context: r"
         Инструмент печатает и записывает русский текст в репозиторий продукта:
