@@ -151,6 +151,23 @@ impl TempRepo {
             .expect("ввод не передан");
         Run::from(child.wait_with_output().expect("инструмент не завершился"))
     }
+
+    /// Путь рядом с рабочим деревом, в каталоге сценария: связанная рабочая
+    /// копия обязана лежать вне дерева репозитория.
+    pub fn beside(&self, name: &str) -> PathBuf {
+        self.case.join(name)
+    }
+
+    /// Инструмент в заданном каталоге: связанная рабочая копия — не корень
+    /// репозитория.
+    pub fn tool_in(&self, dir: &Path, args: &[&str]) -> Run {
+        let output = clean(BIN)
+            .current_dir(dir)
+            .args(args)
+            .output()
+            .expect("инструмент не запустился");
+        Run::from(output)
+    }
 }
 
 impl Drop for TempRepo {

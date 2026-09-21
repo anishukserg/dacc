@@ -184,7 +184,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             short(&commit)
         ))
     })?;
-    let verdict = proof::verdict(&context.repo.git_dir, &tree).ok_or_else(|| {
+    let verdict = proof::verdict(&context.repo.common_dir, &tree).ok_or_else(|| {
         refused(format!(
             "no proof for tree {} of commit {}: the gate did not pass on this tree here — the commit was made without the hook or on another machine",
             short(&tree),

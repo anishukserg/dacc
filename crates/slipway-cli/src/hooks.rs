@@ -110,7 +110,7 @@ fn pre_commit() -> u8 {
     let hash = proof::index_hash(&repo.root, &repo.config.journal_dir());
     let proven = hash
         .as_deref()
-        .and_then(|hash| proof::verdict(&repo.git_dir, hash));
+        .and_then(|hash| proof::verdict(&repo.common_dir, hash));
     if let (Some(hash), Some(verdict)) = (&hash, &proven) {
         println!(
             "pre-commit: the tree without the journal is already checked ({}: {verdict}) — checking the journal",
@@ -131,7 +131,7 @@ fn pre_commit() -> u8 {
     if proven.is_none() {
         match (hash, verdict) {
             (Some(hash), Some(verdict)) => {
-                if let Err(error) = proof::record(&repo.git_dir, &hash, &verdict) {
+                if let Err(error) = proof::record(&repo.common_dir, &hash, &verdict) {
                     eprintln!("pre-commit: proof not written: {error}");
                 }
             }
@@ -274,7 +274,7 @@ fn pre_push(input: impl BufRead) -> u8 {
             return 2;
         }
     };
-    let list = repo.git_dir.join("info").join(layout::EXTERNAL_NAMES);
+    let list = repo.common_dir.join("info").join(layout::EXTERNAL_NAMES);
     let names = gate::read_external_names(&list);
     if names.is_empty() {
         eprintln!(

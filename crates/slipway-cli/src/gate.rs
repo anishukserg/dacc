@@ -253,7 +253,7 @@ impl Args {
 struct Gate {
     root: PathBuf,
     tree: PathBuf,
-    git_dir: PathBuf,
+    common_dir: PathBuf,
     target: PathBuf,
     config: Config,
     journal_only: bool,
@@ -278,7 +278,7 @@ impl Gate {
         Ok(Gate {
             root: repo.root,
             tree,
-            git_dir: repo.git_dir,
+            common_dir: repo.common_dir,
             target,
             config,
             journal_only: args.journal_only,
@@ -501,7 +501,7 @@ impl Gate {
 
     /// Шаг 1: имена внешних проектов не встречаются в файлах дерева.
     fn external_names(&mut self) -> Result<(), Fail> {
-        let list = self.git_dir.join("info").join(layout::EXTERNAL_NAMES);
+        let list = self.common_dir.join("info").join(layout::EXTERNAL_NAMES);
         let patterns: Vec<String> = read_external_names(&list)
             .iter()
             .map(|name| name.to_lowercase())

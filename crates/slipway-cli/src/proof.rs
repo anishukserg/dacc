@@ -62,14 +62,18 @@ pub fn file_hashes(root: &Path, files: &[PathBuf]) -> Vec<Option<String>> {
     hashes
 }
 
-/// Путь доказательства для хэша.
-pub fn path(git_dir: &Path, hash: &str) -> PathBuf {
-    git_dir.join(layout::PROOFS_DIR).join(hash)
+/// Путь доказательства для хэша в общем каталоге git.
+///
+/// Доказательство принадлежит репозиторию, а не рабочей копии, в которой
+/// прошла калитка: сессии изолируются связанными копиями (решение 4), и
+/// проверка одного и того же дерева не должна исчезать вместе с копией.
+pub fn path(common_dir: &Path, hash: &str) -> PathBuf {
+    common_dir.join(layout::PROOFS_DIR).join(hash)
 }
 
 /// Сохраняет доказательство: время и вердикт калитки.
-pub fn record(git_dir: &Path, hash: &str, verdict: &str) -> io::Result<()> {
-    let file = path(git_dir, hash);
+pub fn record(common_dir: &Path, hash: &str, verdict: &str) -> io::Result<()> {
+    let file = path(common_dir, hash);
     if let Some(dir) = file.parent() {
         fs::create_dir_all(dir)?;
     }
@@ -80,8 +84,8 @@ pub fn record(git_dir: &Path, hash: &str, verdict: &str) -> io::Result<()> {
 }
 
 /// Вердикт сохранённого доказательства для хэша.
-pub fn verdict(git_dir: &Path, hash: &str) -> Option<String> {
-    let text = fs::read_to_string(path(git_dir, hash)).ok()?;
+pub fn verdict(common_dir: &Path, hash: &str) -> Option<String> {
+    let text = fs::read_to_string(path(common_dir, hash)).ok()?;
     text.lines().nth(1).map(str::to_owned)
 }
 
