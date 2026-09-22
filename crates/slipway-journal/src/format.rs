@@ -40,15 +40,15 @@ pub fn parse(text: &str) -> Result<Record, FormatError> {
         };
         let (key, value) = line
             .split_once('=')
-            .ok_or_else(|| fail("ожидалось `ключ = \"строка\"`".to_owned()))?;
+            .ok_or_else(|| fail("expected `key = \"string\"`".to_owned()))?;
         let key = key.trim();
         if !is_key(key) {
             return Err(fail(format!(
-                "ключ `{key}` — строчные латинские буквы, цифры и `_`, с буквы"
+                "key `{key}` is lowercase latin letters, digits and `_`, starting with a letter"
             )));
         }
         if record.get(key).is_some() {
-            return Err(fail(format!("ключ `{key}` повторён")));
+            return Err(fail(format!("key `{key}` is repeated")));
         }
         let value = parse_string(value.trim()).map_err(fail)?;
         record.fields.push((key.to_owned(), value));
@@ -89,7 +89,7 @@ fn parse_string(text: &str) -> Result<String, String> {
         .strip_prefix('"')
         .and_then(|rest| rest.strip_suffix('"'))
         .ok_or_else(|| {
-            "значение — строка в двойных кавычках и больше ничего в строке".to_owned()
+            "a value is a double-quoted string and nothing else on the line".to_owned()
         })?;
     let mut out = String::new();
     let mut chars = inner.chars();
@@ -100,14 +100,10 @@ fn parse_string(text: &str) -> Result<String, String> {
                 Some('\\') => out.push('\\'),
                 Some('n') => out.push('\n'),
                 Some('t') => out.push('\t'),
-                _ => {
-                    return Err(
-                        "в строке допустимы только экранирования \\\" \\\\ \\n \\t".to_owned()
-                    )
-                }
+                _ => return Err("a string allows only the escapes \\\" \\\\ \\n \\t".to_owned()),
             },
-            '"' => return Err("кавычка внутри строки не экранирована".to_owned()),
-            c if c.is_control() => return Err("управляющий символ в строке".to_owned()),
+            '"' => return Err("an unescaped quote inside a string".to_owned()),
+            c if c.is_control() => return Err("a control character in a string".to_owned()),
             c => out.push(c),
         }
     }
@@ -137,14 +133,14 @@ mod tests {
     #[test]
     fn anything_outside_the_subset_names_its_line() {
         for (text, line, reason) in [
-            ("event = started", 1, "в двойных кавычках"),
-            ("\n[table]", 2, "ожидалось"),
-            ("Event = \"x\"", 1, "строчные"),
-            ("a = \"x\"\na = \"y\"", 2, "повторён"),
-            ("a = 1", 1, "в двойных кавычках"),
-            ("a = \"x\" # хвост", 1, "в двойных кавычках"),
-            ("a = \"x\\q\"", 1, "экранирования"),
-            ("a = \"x\"y\"", 1, "не экранирована"),
+            ("event = started", 1, "double-quoted"),
+            ("\n[table]", 2, "expected"),
+            ("Event = \"x\"", 1, "lowercase"),
+            ("a = \"x\"\na = \"y\"", 2, "repeated"),
+            ("a = 1", 1, "double-quoted"),
+            ("a = \"x\" # хвост", 1, "double-quoted"),
+            ("a = \"x\\q\"", 1, "only the escapes"),
+            ("a = \"x\"y\"", 1, "unescaped quote"),
         ] {
             let error = parse(text).expect_err(text);
             assert_eq!(error.line, line, "{text}");

@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 pub fn parse_event(file: &str, text: &str) -> Result<Event, Violation> {
     let record = format::parse(text).map_err(|error| Violation {
         file: file.to_owned(),
-        reason: format!("строка {}: {}", error.line, error.reason),
+        reason: format!("line {}: {}", error.line, error.reason),
     })?;
     Event::from_record(file, &record).map_err(|reason| Violation {
         file: file.to_owned(),
@@ -47,7 +47,7 @@ pub fn read_dir(dir: &Path) -> io::Result<(Vec<Event>, Vec<Violation>)> {
         let parsed = String::from_utf8(bytes)
             .map_err(|_| Violation {
                 file: relative.clone(),
-                reason: "файл не в UTF-8".to_owned(),
+                reason: "the file is not UTF-8".to_owned(),
             })
             .and_then(|text| parse_event(&relative, &text));
         match parsed {

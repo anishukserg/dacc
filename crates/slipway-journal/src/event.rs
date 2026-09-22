@@ -101,7 +101,7 @@ impl Event {
     /// Событие из разобранного файла. Поля проверяются строго: лишнее,
     /// недостающее или неверно записанное поле — ошибка с названием поля.
     pub fn from_record(file: &str, record: &Record) -> Result<Event, String> {
-        let name = record.get("event").ok_or("нет поля event")?;
+        let name = record.get("event").ok_or("no event field")?;
         let (subject_key, own): (&str, &[&str]) = match name {
             "started" => ("work", &[]),
             "gate" => ("work", &["gate", "tree", "verdict"]),
@@ -110,20 +110,20 @@ impl Event {
             "closed" => ("slice", &[]),
             other => {
                 return Err(format!(
-                    "неизвестное событие `{other}`: started, gate, landed, abandoned, closed"
+                    "unknown event `{other}`: started, gate, landed, abandoned, closed"
                 ))
             }
         };
         for (key, _) in &record.fields {
             let known = key == "event" || key == "at" || key == subject_key;
             if !known && !own.contains(&key.as_str()) {
-                return Err(format!("лишнее поле `{key}` у события {name}"));
+                return Err(format!("extra field `{key}` on a {name} event"));
             }
         }
 
         let subject_text = record
             .get(subject_key)
-            .ok_or_else(|| format!("нет поля {subject_key} у события {name}"))?;
+            .ok_or_else(|| format!("no {subject_key} field on a {name} event"))?;
         let subject = Subject::parse(subject_text)
             .filter(|subject| {
                 matches!(
@@ -137,13 +137,13 @@ impl Event {
                 } else {
                     "s0001"
                 };
-                format!("поле {subject_key} — идентификатор вида {example}, а не «{subject_text}»")
+                format!("field {subject_key} is an identifier like {example}, not {subject_text:?}")
             })?;
 
-        let at = record.get("at").ok_or("нет поля at")?;
+        let at = record.get("at").ok_or("no at field")?;
         if !time::is_timestamp(at) {
             return Err(format!(
-                "поле at — время UTC вида 2026-09-11T03:15:00Z, а не «{at}»"
+                "field at is a UTC time like 2026-09-11T03:15:00Z, not {at:?}"
             ));
         }
 
@@ -152,7 +152,7 @@ impl Event {
                 .get(key)
                 .filter(|value| !value.trim().is_empty())
                 .map(str::to_owned)
-                .ok_or_else(|| format!("нет непустого поля {key} у события {name}"))
+                .ok_or_else(|| format!("no non-empty field {key} on a {name} event"))
         };
         let hash = |key: &str| {
             let value = required(key)?;
@@ -160,7 +160,7 @@ impl Event {
                 Ok(value)
             } else {
                 Err(format!(
-                    "поле {key} — хэш git из 40 или 64 строчных шестнадцатеричных символов"
+                    "field {key} is a git hash of 40 or 64 lowercase hexadecimal characters"
                 ))
             }
         };
@@ -178,7 +178,7 @@ impl Event {
                     None => Evidence::Gate,
                     Some("history") => Evidence::History,
                     Some(other) => {
-                        return Err(format!("поле evidence — только history, а не «{other}»"))
+                        return Err(format!("field evidence is only history, not {other:?}"))
                     }
                 },
             },
@@ -196,7 +196,7 @@ impl Event {
         };
         if !event.file_matches() {
             return Err(format!(
-                "имя файла не совпадает с событием: ожидалось {}",
+                "the file name does not match the event: expected {}",
                 relative_path(event.subject, &event.at, &event.kind, 0)
             ));
         }
@@ -332,19 +332,19 @@ mod tests {
         let file = "w0022/20260911T031500Z-started.toml";
         let base = "work = \"w0022\"\nat = \"2026-09-11T03:15:00Z\"\n";
         for (text, reason) in [
-            (base.to_owned(), "нет поля event"),
-            (format!("event = \"begun\"\n{base}"), "неизвестное событие"),
+            (base.to_owned(), "no event field"),
+            (format!("event = \"begun\"\n{base}"), "unknown event"),
             (
                 format!("event = \"started\"\n{base}owner = \"x\"\n"),
-                "лишнее поле `owner`",
+                "extra field `owner`",
             ),
             (
                 "event = \"started\"\nwork = \"s0022\"\nat = \"2026-09-11T03:15:00Z\"\n".to_owned(),
-                "идентификатор вида w0001",
+                "identifier like w0001",
             ),
             (
                 "event = \"started\"\nwork = \"w0022\"\nat = \"вчера\"\n".to_owned(),
-                "время UTC",
+                "UTC time",
             ),
         ] {
             let error = event(file, &text).expect_err(&text);
@@ -352,7 +352,7 @@ mod tests {
         }
         let gate = "event = \"gate\"\nwork = \"w0022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"XYZ\"\nverdict = \"ok\"\n";
         let error = event("w0022/20260911T031500Z-gate.toml", gate).unwrap_err();
-        assert!(error.contains("поле tree — хэш git"), "{error}");
+        assert!(error.contains("field tree is a git hash"), "{error}");
     }
 
     #[test]
@@ -361,7 +361,7 @@ mod tests {
         assert!(event("w0022/20260911T031500Z-started-2.toml", text).is_ok());
         let error = event("w0023/20260911T031500Z-started.toml", text).unwrap_err();
         assert!(
-            error.contains("ожидалось w0022/20260911T031500Z-started.toml"),
+            error.contains("expected w0022/20260911T031500Z-started.toml"),
             "{error}"
         );
     }

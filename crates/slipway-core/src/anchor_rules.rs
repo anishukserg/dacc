@@ -15,7 +15,7 @@ pub const ANCHOR_MODES: [&str; 3] = ["ref", "embed", "snippet"];
 pub fn check_anchor_id(id: &str) -> Result<(), String> {
     if !id.starts_with(|c: char| c.is_ascii_lowercase()) {
         return Err(format!(
-            "идентификатор разметки {id:?} должен начинаться со строчной латинской буквы"
+            "anchor id {id:?} must start with a lowercase latin letter"
         ));
     }
     if let Some(bad) = id
@@ -23,13 +23,11 @@ pub fn check_anchor_id(id: &str) -> Result<(), String> {
         .find(|c| !(c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-'))
     {
         return Err(format!(
-            "идентификатор разметки {id:?}: недопустимый символ {bad:?}; разрешены a-z, 0-9 и дефис"
+            "anchor id {id:?}: character {bad:?} is not allowed; allowed are a-z, 0-9 and a hyphen"
         ));
     }
     if KEYWORDS.contains(&anchor_ident(id).as_str()) {
-        return Err(format!(
-            "идентификатор разметки {id:?} совпадает с ключевым словом Rust"
-        ));
+        return Err(format!("anchor id {id:?} is a Rust keyword"));
     }
     Ok(())
 }
@@ -41,7 +39,7 @@ pub fn check_anchor_mode(mode: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "режим разметки {mode:?} неизвестен; допустимы ref, embed, snippet"
+            "anchor mode {mode:?} is unknown; allowed are ref, embed, snippet"
         ))
     }
 }

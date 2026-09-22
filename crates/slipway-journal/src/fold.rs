@@ -102,7 +102,7 @@ fn rank(kind: &Kind) -> u8 {
 fn close_slice(journal: &mut Journal, slice: u32, event: &Event) -> Result<(), String> {
     if let Some(previous) = journal.closed_slices.get(&slice) {
         return Err(format!(
-            "срез {} уже закрыт событием {previous}",
+            "slice {} is already closed by event {previous}",
             event.subject.id()
         ));
     }
@@ -115,20 +115,20 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
     let stage = journal.stage(work);
     if stage.is_finished() {
         let last = journal.last_event.get(&work).map_or("", String::as_str);
-        return Err(format!("работа {id} уже завершена событием {last}"));
+        return Err(format!("work {id} is already finished by event {last}"));
     }
     let next = match (&event.kind, stage) {
         (Kind::Started, Stage::Planned) => Stage::Started,
         (Kind::Started, _) => {
             let last = journal.last_event.get(&work).map_or("", String::as_str);
-            return Err(format!("работа {id} уже начата событием {last}"));
+            return Err(format!("work {id} is already started by event {last}"));
         }
         (Kind::Gate { tree, .. }, Stage::Started) => {
             journal.proofs.entry(work).or_default().push(tree.clone());
             Stage::Started
         }
         (Kind::Gate { .. }, _) => {
-            return Err(format!("проверка работы {id} до её начала"));
+            return Err(format!("gate on work {id} before its start"));
         }
         (
             Kind::Landed {
@@ -144,7 +144,7 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
                 .is_some_and(|trees| trees.contains(tree));
             if !proven {
                 return Err(format!(
-                    "приземление работы {id} без доказательства: нет события gate с деревом {tree}"
+                    "landing of work {id} without proof: no gate event with tree {tree}"
                 ));
             }
             Stage::Landed
@@ -155,7 +155,7 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
                 ..
             },
             _,
-        ) => return Err(format!("приземление работы {id} без её начала")),
+        ) => return Err(format!("landing of work {id} without its start")),
         (
             Kind::Landed {
                 evidence: Evidence::History,
@@ -171,12 +171,12 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
             _,
         ) => {
             return Err(format!(
-                "работа {id} уже в журнале: история — только для работы без событий"
+                "work {id} is already in the journal: history is only for work without events"
             ));
         }
         (Kind::Abandoned { .. }, _) => Stage::Abandoned,
         (Kind::Closed, _) => {
-            return Err("событие closed относится к срезу, а не к работе".to_owned())
+            return Err("a closed event belongs to a slice, not to work".to_owned())
         }
     };
     journal.works.insert(work, next);
@@ -245,33 +245,36 @@ mod tests {
     #[test]
     fn illegal_transitions_name_their_reason() {
         let cases: [(&[Event], &str); 6] = [
-            (&[work(1, gate(TREE_A))], "до её начала"),
-            (&[work(1, landed(TREE_A, Evidence::Gate))], "без её начала"),
+            (&[work(1, gate(TREE_A))], "before its start"),
+            (
+                &[work(1, landed(TREE_A, Evidence::Gate))],
+                "without its start",
+            ),
             (
                 &[
                     work(1, Kind::Started),
                     work(2, gate(TREE_B)),
                     work(3, landed(TREE_A, Evidence::Gate)),
                 ],
-                "без доказательства",
+                "without proof",
             ),
             (
                 &[work(1, Kind::Started), work(2, Kind::Started)],
-                "уже начата",
+                "is already started",
             ),
             (
                 &[
                     work(1, Kind::Started),
                     work(2, landed(TREE_A, Evidence::History)),
                 ],
-                "только для работы без событий",
+                "only for work without events",
             ),
             (
                 &[
                     work(1, Kind::Abandoned { reason: "x".into() }),
                     work(2, Kind::Started),
                 ],
-                "уже завершена",
+                "is already finished",
             ),
         ];
         for (events, reason) in cases {
@@ -296,7 +299,7 @@ mod tests {
         assert_eq!(journal.closed_slices.len(), 1);
         assert_eq!(violations.len(), 1);
         assert!(
-            violations[0].reason.contains("уже закрыт"),
+            violations[0].reason.contains("is already closed"),
             "{violations:?}"
         );
     }

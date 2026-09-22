@@ -81,7 +81,7 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
     while let Some(tree) = tokens.next() {
         let key = match tree {
             TokenTree::Ident(key) => key,
-            other => return Err((other.span(), "ожидается ключ id или mode".to_owned())),
+            other => return Err((other.span(), "expected the key id or mode".to_owned())),
         };
         last_key = key.span();
         match tokens.next() {
@@ -89,7 +89,7 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
             other => {
                 return Err((
                     span_or(other, key.span()),
-                    format!("после ключа {key} ожидается `=`"),
+                    format!("expected `=` after the key {key}"),
                 ))
             }
         }
@@ -99,14 +99,14 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
                 None => {
                     return Err((
                         lit.span(),
-                        "ожидается строка в двойных кавычках без экранирования".to_owned(),
+                        "expected a double-quoted string without escapes".to_owned(),
                     ))
                 }
             },
             other => {
                 return Err((
                     span_or(other, key.span()),
-                    format!("после `{key} =` ожидается строка"),
+                    format!("expected a string after `{key} =`"),
                 ))
             }
         };
@@ -116,12 +116,12 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
             other => {
                 return Err((
                     key.span(),
-                    format!("неизвестный ключ разметки {other:?}; допустимы id и mode"),
+                    format!("unknown anchor key {other:?}; allowed are id and mode"),
                 ))
             }
         };
         if slot.replace(value).is_some() {
-            return Err((key.span(), format!("ключ {key} указан дважды")));
+            return Err((key.span(), format!("key {key} is given twice")));
         }
         match tokens.next() {
             None => break,
@@ -129,13 +129,13 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
             Some(other) => {
                 return Err((
                     other.span(),
-                    "между аргументами ожидается запятая".to_owned(),
+                    "expected a comma between arguments".to_owned(),
                 ))
             }
         }
     }
 
-    let (id, id_span) = id.ok_or_else(|| (last_key, "у разметки нет id".to_owned()))?;
+    let (id, id_span) = id.ok_or_else(|| (last_key, "the anchor has no id".to_owned()))?;
     check_anchor_id(&id).map_err(|e| (id_span, e))?;
     if let Some((mode, mode_span)) = mode {
         check_anchor_mode(&mode).map_err(|e| (mode_span, e))?;

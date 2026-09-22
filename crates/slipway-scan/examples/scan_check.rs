@@ -11,5 +11,5 @@ fn main() {
             a.mode.as_str()
         );
     }
-    println!("всего: {}", anchors.len());
+    println!("total: {}", anchors.len());
 }
