@@ -6,7 +6,7 @@
 //! cargo slipway msg-check [--form-only] <message> | --range <range>
 //! cargo slipway gate [--repo <directory>] [--journal-only] [<tree>]
 //! cargo slipway hook pre-commit | commit-msg <message> | pre-push <remote> <url>
-//! cargo slipway hooks install
+//! cargo slipway hooks install [--force]
 //! cargo slipway work start | land | drop | state …
 //! cargo slipway slice close <sNNNN>
 //! cargo slipway journal hash [<revision>] | import --work <wNNNN> [--close-finished-slices]
@@ -41,7 +41,7 @@ const USAGE: &str = "cargo slipway — commit rules and the Slipway journal (dec
   cargo slipway msg-check [--form-only] <message> | --range <range>
   cargo slipway gate [--repo <directory>] [--journal-only] [<tree>]
   cargo slipway hook pre-commit | commit-msg <message> | pre-push <remote> <url>
-  cargo slipway hooks install
+  cargo slipway hooks install [--force]
   cargo slipway work start <wNNNN> | land <wNNNN> [--commit <revision>] | drop <wNNNN> --reason <reason> | state [<wNNNN>]
   cargo slipway slice close <sNNNN>
   cargo slipway journal hash [<revision>]

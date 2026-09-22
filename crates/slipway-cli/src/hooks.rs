@@ -44,14 +44,31 @@ pub fn run(args: &[OsString]) -> u8 {
     }
 }
 
-/// `cargo slipway hooks install`: недостающие хуки — однострочники, вызывающие
-/// установленный инструмент; существующие не трогаются. Git направляется в
-/// каталог хуков репозитория.
+/// Маркер нашего хука: по нему установка отличает свой файл от чужого.
+const HOOK_MARKER: &str = "Slipway rules (decision 14)";
+
+/// `cargo slipway hooks install [--force]`: ставит все хуки или не ставит ни
+/// одного.
+///
+/// Чужой файл в каталоге хуков — отказ до первой записи. Частичная установка
+/// выглядит успешной, а пропущенный commit-msg означает, что основание коммита
+/// не проверяется вовсе: проект получает вид установленного Slipway с
+/// выключенной проверкой (работа 50). Свой хук узнаётся по маркеру и
+/// переписывается, иначе обновление инструмента становится ручной работой.
+/// Git направляется в каталог хуков репозитория.
 pub fn install(args: &[OsString]) -> u8 {
-    if args.len() != 1 || args[0].to_str() != Some("install") {
-        eprintln!("hooks: install");
-        return 2;
-    }
+    let force = match args {
+        [command] if command.to_str() == Some("install") => false,
+        [command, flag]
+            if command.to_str() == Some("install") && flag.to_str() == Some("--force") =>
+        {
+            true
+        }
+        _ => {
+            eprintln!("hooks: install [--force]");
+            return 2;
+        }
+    };
     let repo = match git::Repo::discover(Path::new(".")) {
         Ok(repo) => repo,
         Err(problem) => {
@@ -60,14 +77,32 @@ pub fn install(args: &[OsString]) -> u8 {
         }
     };
     let dir = repo.root.join(layout::HOOKS_DIR);
+    let ours = |path: &Path| fs::read_to_string(path).is_ok_and(|text| text.contains(HOOK_MARKER));
+    let foreign: Vec<&str> = HOOKS
+        .iter()
+        .map(|(name, _)| *name)
+        .filter(|name| {
+            let path = dir.join(name);
+            path.exists() && !ours(&path)
+        })
+        .collect();
+    if !foreign.is_empty() && !force {
+        for name in &foreign {
+            eprintln!(
+                "hooks install: {}/{name} is not written by slipway — nothing is installed",
+                layout::HOOKS_DIR
+            );
+        }
+        eprintln!(
+            "hooks install: replace it with --force, or keep it and call `cargo slipway hook <name>` from it; a project check of the subject goes into `message_command` of slipway.toml"
+        );
+        return 1;
+    }
     for (name, call) in HOOKS {
         let path = dir.join(name);
-        if path.exists() {
-            println!("hook {name}: already present, left alone");
-            continue;
-        }
+        let existed = path.exists();
         let text = format!(
-            "#!/bin/sh\n# Slipway rules (decision 14): the hook calls the installed cargo slipway.\nexport RUSTUP_AUTO_INSTALL=0\nexec cargo slipway {call}\n"
+            "#!/bin/sh\n# {HOOK_MARKER}: the hook calls the installed cargo slipway.\nexport RUSTUP_AUTO_INSTALL=0\nexec cargo slipway {call}\n"
         );
         let written = fs::create_dir_all(&dir)
             .and_then(|()| fs::write(&path, text))
@@ -76,7 +111,8 @@ pub fn install(args: &[OsString]) -> u8 {
             eprintln!("hook {name} not written: {error}");
             return 2;
         }
-        println!("hook {name}: written");
+        let what = if existed { "updated" } else { "written" };
+        println!("hook {name}: {what}");
     }
     if !git::succeeds(&repo.root, &["config", "core.hooksPath", layout::HOOKS_DIR]) {
         eprintln!("core.hooksPath is not set");
