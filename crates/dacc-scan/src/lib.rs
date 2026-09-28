@@ -551,7 +551,7 @@ mod tests {
                 dacc_journal::Kind::Gate {
                     gate: "commit".into(),
                     tree: "a".repeat(40),
-                    verdict: "ok".into(),
+                    verdict: dacc_journal::GateVerdict::Prose("ok".into()),
                 },
             ),
             dacc_journal::Event::new(

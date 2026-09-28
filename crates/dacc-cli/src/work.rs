@@ -24,7 +24,7 @@ use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::{commit, config, git, layout, proof};
 use dacc_journal::event::relative_path;
-use dacc_journal::{fold, time, Event, Evidence, Journal, Kind, Stage, Subject};
+use dacc_journal::{fold, time, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -217,7 +217,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             format!("the tree of commit {} cannot be read", short(&commit)),
         )
     })?;
-    let verdict = proof::verdict(&context.repo.common_dir, &tree).ok_or_else(|| {
+    let verdict = gate_verdict(&context.repo.common_dir, &tree).ok_or_else(|| {
         refused(
             code::NO_PROOF,
             format!(
@@ -710,6 +710,37 @@ fn stage_text(stage: Stage) -> &'static str {
 
 fn short(hash: &str) -> &str {
     hash.get(..12).unwrap_or(hash)
+}
+
+/// Вердикт калитки для события gate из доказательства: структурный, если
+/// доказательство новое, иначе проза прежнего доказательства (решение 22).
+fn gate_verdict(common_dir: &Path, tree: &str) -> Option<GateVerdict> {
+    if let Some(fields) = proof::structured(common_dir, tree) {
+        let get = |key: &str| {
+            fields
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value.clone())
+        };
+        let number = |key: &str| get(key).and_then(|value| value.parse::<usize>().ok());
+        return Some(GateVerdict::Structured {
+            passed: number("passed")?,
+            total: number("total")?,
+            skipped: get("skipped")
+                .map(|skipped| {
+                    skipped
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|step| !step.is_empty())
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default(),
+            attacks: number("attacks")?,
+            msrv: get("msrv")?,
+        });
+    }
+    proof::verdict(common_dir, tree).map(GateVerdict::Prose)
 }
 
 /// Сообщение коммита события: тема, тело, трейлер основания и добавленные

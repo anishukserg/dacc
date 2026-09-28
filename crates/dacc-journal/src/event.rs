@@ -37,6 +37,25 @@ pub enum Evidence {
     History,
 }
 
+/// Вердикт калитки в событии gate (решение 22).
+///
+/// Журнал двуформатный: прежние события несут прозу, новые — структуру. Прозу
+/// прежних событий журнал читает без правки — файл события неизменен.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GateVerdict {
+    /// Прозаический вердикт прежнего события (решение 19).
+    Prose(String),
+    /// Структурный вердикт нового события: пройденные шаги, их общее число,
+    /// пропущенные, число прошедших атак и минимальный тулчейн.
+    Structured {
+        passed: usize,
+        total: usize,
+        skipped: Vec<String>,
+        attacks: usize,
+        msrv: String,
+    },
+}
+
 /// Вид события и его поля.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -44,7 +63,7 @@ pub enum Kind {
     Gate {
         gate: String,
         tree: String,
-        verdict: String,
+        verdict: GateVerdict,
     },
     Landed {
         commit: String,
@@ -98,7 +117,12 @@ impl Event {
         let name = record.get("event").ok_or("no event field")?;
         let (subject_key, own): (&str, &[&str]) = match name {
             "started" => ("work", &[]),
-            "gate" => ("work", &["gate", "tree", "verdict"]),
+            "gate" => (
+                "work",
+                &[
+                    "gate", "tree", "verdict", "passed", "total", "skipped", "attacks", "msrv",
+                ],
+            ),
             "landed" => ("work", &["commit", "tree", "evidence"]),
             "abandoned" => ("work", &["reason"]),
             "closed" => ("slice", &[]),
@@ -148,6 +172,12 @@ impl Event {
                 .map(str::to_owned)
                 .ok_or_else(|| format!("no non-empty field {key} on a {name} event"))
         };
+        let number = |key: &str| {
+            let value = required(key)?;
+            value
+                .parse::<usize>()
+                .map_err(|_| format!("field {key} is a non-negative number, not {value:?}"))
+        };
         let hash = |key: &str| {
             let value = required(key)?;
             if is_hash(&value) {
@@ -163,7 +193,23 @@ impl Event {
             "gate" => Kind::Gate {
                 gate: required("gate")?,
                 tree: hash("tree")?,
-                verdict: required("verdict")?,
+                verdict: match record.get("verdict") {
+                    Some(verdict) => GateVerdict::Prose(verdict.to_owned()),
+                    None => GateVerdict::Structured {
+                        passed: number("passed")?,
+                        total: number("total")?,
+                        skipped: record.get("skipped").map_or_else(Vec::new, |skipped| {
+                            skipped
+                                .split(',')
+                                .map(str::trim)
+                                .filter(|step| !step.is_empty())
+                                .map(str::to_owned)
+                                .collect()
+                        }),
+                        attacks: number("attacks")?,
+                        msrv: required("msrv")?,
+                    },
+                },
             },
             "landed" => Kind::Landed {
                 commit: hash("commit")?,
@@ -204,10 +250,10 @@ impl Event {
             Subject::Slice(_) => "slice",
         };
         let id = self.subject.id();
-        let mut fields: Vec<(&str, &str)> = vec![
-            ("event", self.kind.name()),
-            (subject_key, id),
-            ("at", &self.at),
+        let mut fields: Vec<(String, String)> = vec![
+            ("event".to_owned(), self.kind.name().to_owned()),
+            (subject_key.to_owned(), id.to_owned()),
+            ("at".to_owned(), self.at.clone()),
         ];
         match &self.kind {
             Kind::Started | Kind::Closed => {}
@@ -215,22 +261,42 @@ impl Event {
                 gate,
                 tree,
                 verdict,
-            } => fields.extend([
-                ("gate", gate.as_str()),
-                ("tree", tree),
-                ("verdict", verdict),
-            ]),
+            } => {
+                fields.push(("gate".to_owned(), gate.clone()));
+                fields.push(("tree".to_owned(), tree.clone()));
+                match verdict {
+                    GateVerdict::Prose(verdict) => {
+                        fields.push(("verdict".to_owned(), verdict.clone()));
+                    }
+                    GateVerdict::Structured {
+                        passed,
+                        total,
+                        skipped,
+                        attacks,
+                        msrv,
+                    } => {
+                        fields.push(("passed".to_owned(), passed.to_string()));
+                        fields.push(("total".to_owned(), total.to_string()));
+                        if !skipped.is_empty() {
+                            fields.push(("skipped".to_owned(), skipped.join(", ")));
+                        }
+                        fields.push(("attacks".to_owned(), attacks.to_string()));
+                        fields.push(("msrv".to_owned(), msrv.clone()));
+                    }
+                }
+            }
             Kind::Landed {
                 commit,
                 tree,
                 evidence,
             } => {
-                fields.extend([("commit", commit.as_str()), ("tree", tree)]);
+                fields.push(("commit".to_owned(), commit.clone()));
+                fields.push(("tree".to_owned(), tree.clone()));
                 if *evidence == Evidence::History {
-                    fields.push(("evidence", "history"));
+                    fields.push(("evidence".to_owned(), "history".to_owned()));
                 }
             }
-            Kind::Abandoned { reason } => fields.push(("reason", reason)),
+            Kind::Abandoned { reason } => fields.push(("reason".to_owned(), reason.clone())),
         }
         format::render(&fields)
     }
@@ -292,7 +358,21 @@ mod tests {
                 Kind::Gate {
                     gate: "commit".into(),
                     tree: TREE.into(),
-                    verdict: "GATE OK (11 из 11)".into(),
+                    verdict: GateVerdict::Prose("GATE OK (11 из 11)".into()),
+                },
+            ),
+            (
+                Subject::Work("w-022".to_owned()),
+                Kind::Gate {
+                    gate: "commit".into(),
+                    tree: TREE.into(),
+                    verdict: GateVerdict::Structured {
+                        passed: 11,
+                        total: 12,
+                        skipped: vec!["external names".to_owned()],
+                        attacks: 20,
+                        msrv: "1.83.0".to_owned(),
+                    },
                 },
             ),
             (
@@ -318,6 +398,39 @@ mod tests {
         assert_eq!(
             Event::new(Subject::Work("w-022".to_owned()), at, Kind::Started).file,
             "w-022/20260911T031500Z-started.toml"
+        );
+    }
+
+    /// Журнал двуформатный (решение 22): прежнее событие с прозой и новое со
+    /// структурой читаются одним и тем же разбором.
+    #[test]
+    fn prose_and_structured_gate_verdicts_are_both_read() {
+        let prose = "event = \"gate\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"0123456789abcdef0123456789abcdef01234567\"\nverdict = \"GATE OK (11 из 11)\"\n";
+        let read = event("w-022/20260911T031500Z-gate.toml", prose).unwrap();
+        assert_eq!(
+            read.kind,
+            Kind::Gate {
+                gate: "commit".into(),
+                tree: TREE.into(),
+                verdict: GateVerdict::Prose("GATE OK (11 из 11)".into()),
+            }
+        );
+
+        let structured = "event = \"gate\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"0123456789abcdef0123456789abcdef01234567\"\npassed = \"11\"\ntotal = \"12\"\nskipped = \"external names\"\nattacks = \"20\"\nmsrv = \"1.83.0\"\n";
+        let read = event("w-022/20260911T031500Z-gate.toml", structured).unwrap();
+        assert_eq!(
+            read.kind,
+            Kind::Gate {
+                gate: "commit".into(),
+                tree: TREE.into(),
+                verdict: GateVerdict::Structured {
+                    passed: 11,
+                    total: 12,
+                    skipped: vec!["external names".to_owned()],
+                    attacks: 20,
+                    msrv: "1.83.0".to_owned(),
+                },
+            }
         );
     }
 

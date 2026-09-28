@@ -114,7 +114,7 @@ fn state_name(stage: Stage) -> &'static str {
 mod tests {
     use super::*;
     use crate::Status;
-    use dacc_journal::{Evidence, Kind};
+    use dacc_journal::{Evidence, GateVerdict, Kind};
 
     const TREE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -171,7 +171,7 @@ mod tests {
             Kind::Gate {
                 gate: "commit".into(),
                 tree: TREE.into(),
-                verdict: "ok".into(),
+                verdict: GateVerdict::Prose("ok".into()),
             },
         )];
         let unreadable = Violation {

@@ -14,7 +14,7 @@ pub mod fold;
 pub mod format;
 pub mod time;
 
-pub use event::{Event, Evidence, Kind, Subject};
+pub use event::{Event, Evidence, GateVerdict, Kind, Subject};
 pub use fold::{fold, Journal, Stage, Violation};
 
 use std::fs;
@@ -106,7 +106,7 @@ mod tests {
                 Kind::Gate {
                     gate: "commit".into(),
                     tree: TREE.into(),
-                    verdict: "GATE OK".into(),
+                    verdict: GateVerdict::Prose("GATE OK".into()),
                 },
             ),
             Event::new(work, at, Kind::Started),

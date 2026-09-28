@@ -153,7 +153,7 @@ fn pre_commit() -> u8 {
             hash.get(..12).unwrap_or(hash)
         );
     }
-    let (code, verdict) = run_gate(&repo, &tree, proven.is_some());
+    let (code, verdict, fields) = run_gate(&repo, &tree, proven.is_some());
     if code != 0 {
         return code;
     }
@@ -167,7 +167,8 @@ fn pre_commit() -> u8 {
     if proven.is_none() {
         match (hash, verdict) {
             (Some(hash), Some(verdict)) => {
-                if let Err(error) = proof::record(&repo.common_dir, &hash, &verdict) {
+                let fields = fields.unwrap_or_default();
+                if let Err(error) = proof::record(&repo.common_dir, &hash, &verdict, &fields) {
                     eprintln!("pre-commit: proof not written: {error}");
                 }
             }
@@ -249,18 +250,23 @@ fn copy_if_changed(src: &Path, dst: &Path) -> io::Result<()> {
     fs::copy(src, dst).map(|_| ())
 }
 
+/// Результат калитки хука: код, вердикт прозой и структурные поля (решение 22).
+type GateRun = (u8, Option<String>, Option<Vec<(String, String)>>);
+
 /// Калитка из дерева коммита, если в нём есть сам инструмент: изменение правил
 /// проверяется изменёнными правилами. Иначе — калитка этого инструмента.
-/// Возвращает код и строку вердикта.
-fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> (u8, Option<String>) {
+/// Возвращает код, строку вердикта и структурные поля вердикта (решение 22);
+/// у внешней калитки полей нет — её вердикт пишется прозой.
+fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
     let mut args = vec![OsString::from("--repo"), repo.root.clone().into_os_string()];
     if journal_only {
         args.push(OsString::from("--journal-only"));
     }
     args.push(tree.as_os_str().to_owned());
     if !tree.join(layout::TOOL_MANIFEST).is_file() {
-        let (code, verdict) = gate::run_with_verdict(&args);
-        return (code, Some(verdict));
+        let (code, verdict, structured) = gate::run_for_proof(&args);
+        let fields = structured.map(|verdict| verdict.fields());
+        return (code, Some(verdict), fields);
     }
     let mut command = gate::cargo_command(tree, &repo.root.join(layout::GATE_TOOL_TARGET));
     command
@@ -273,7 +279,7 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> (u8, Option<St
         Ok(child) => child,
         Err(error) => {
             eprintln!("pre-commit: cargo did not start: {error}");
-            return (2, None);
+            return (2, None, None);
         }
     };
     // Вывод калитки передаётся дальше как есть; последняя строка GATE —
@@ -293,7 +299,7 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> (u8, Option<St
         .and_then(|status| status.code())
         .and_then(|code| u8::try_from(code).ok())
         .unwrap_or(1);
-    (code, verdict)
+    (code, verdict, None)
 }
 
 /// pre-push: в удалённый репозиторий не уходят ветки архива (решение 9),

@@ -195,6 +195,7 @@ fn advance_work(journal: &mut Journal, work: &str, event: &Event) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::GateVerdict;
 
     const TREE_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const TREE_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -211,7 +212,7 @@ mod tests {
         Kind::Gate {
             gate: "commit".into(),
             tree: tree.into(),
-            verdict: "GATE OK".into(),
+            verdict: GateVerdict::Prose("GATE OK".into()),
         }
     }
 

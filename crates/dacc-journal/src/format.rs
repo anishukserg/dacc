@@ -58,12 +58,12 @@ pub fn parse(text: &str) -> Result<Record, FormatError> {
 
 /// Текст записи: пары в заданном порядке. Управляющие символы, кроме перевода
 /// строки и табуляции, заменяются пробелом: подмножество их не допускает.
-pub fn render(fields: &[(&str, &str)]) -> String {
+pub fn render(fields: &[(impl AsRef<str>, impl AsRef<str>)]) -> String {
     let mut out = String::new();
     for (key, value) in fields {
-        out.push_str(key);
+        out.push_str(key.as_ref());
         out.push_str(" = \"");
-        for c in value.chars() {
+        for c in value.as_ref().chars() {
             match c {
                 '"' => out.push_str("\\\""),
                 '\\' => out.push_str("\\\\"),

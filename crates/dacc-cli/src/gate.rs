@@ -135,6 +135,27 @@ pub fn run_with_verdict(args: &[OsString]) -> (u8, String) {
     (code, verdict)
 }
 
+/// Калитка для доказательства: код возврата, человекочитаемый вердикт и
+/// структурный вердикт (решение 22), если калитка прошла. Печатает прозу на
+/// stdout — структура уходит только возвратом.
+pub fn run_for_proof(args: &[OsString]) -> (u8, String, Option<Verdict>) {
+    let outcome = Args::parse(args)
+        .and_then(|args| Gate::open(&args))
+        .and_then(Gate::check);
+    match outcome {
+        Ok(verdict) => {
+            let prose = verdict.text();
+            println!("{prose}");
+            (0, prose, Some(verdict))
+        }
+        Err(fail) => {
+            let prose = fail.text();
+            println!("{prose}");
+            (fail.exit_code, prose, None)
+        }
+    }
+}
+
 /// cargo в каталоге `dir` с каталогом сборки `build`. Отсутствующий тулчейн —
 /// отказ, а не загрузка внутри хука.
 pub fn cargo_command(dir: &Path, build: &Path) -> Command {
@@ -307,6 +328,24 @@ impl Verdict {
         }
         verdict.push('}');
         verdict
+    }
+
+    /// Поля структурного вердикта для доказательства и события журнала
+    /// (решение 22): ключи и значения в формате журнала. Калитка журнала атак
+    /// и тулчейна не считает, поэтому их полей у неё нет.
+    pub fn fields(&self) -> Vec<(String, String)> {
+        let mut fields = vec![
+            ("passed".to_owned(), self.passed.to_string()),
+            ("total".to_owned(), self.total.to_string()),
+        ];
+        if !self.skipped.is_empty() {
+            fields.push(("skipped".to_owned(), self.skipped.join(", ")));
+        }
+        if !self.journal_only {
+            fields.push(("attacks".to_owned(), self.attacks.unwrap_or(0).to_string()));
+            fields.push(("msrv".to_owned(), self.msrv.clone().unwrap_or_default()));
+        }
+        fields
     }
 }
 

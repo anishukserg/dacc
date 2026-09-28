@@ -71,19 +71,45 @@ pub fn path(common_dir: &Path, hash: &str) -> PathBuf {
     common_dir.join(layout::PROOFS_DIR).join(hash)
 }
 
-/// Сохраняет доказательство: время и вердикт калитки.
-pub fn record(common_dir: &Path, hash: &str, verdict: &str) -> io::Result<()> {
+/// Сохраняет доказательство: время, человекочитаемый вердикт и структурные поля
+/// вердикта (решение 22). Поля прежних доказательств отсутствуют.
+pub fn record(
+    common_dir: &Path,
+    hash: &str,
+    verdict: &str,
+    fields: &[(String, String)],
+) -> io::Result<()> {
     let file = path(common_dir, hash);
     if let Some(dir) = file.parent() {
         fs::create_dir_all(dir)?;
     }
-    fs::write(file, format!("{}\n{verdict}\n", dacc_journal::time::now()))
+    let mut text = format!("{}\n{verdict}\n", dacc_journal::time::now());
+    if !fields.is_empty() {
+        text.push_str(&dacc_journal::format::render(fields));
+    }
+    fs::write(file, text)
 }
 
-/// Вердикт сохранённого доказательства для хэша.
+/// Человекочитаемый вердикт сохранённого доказательства для хэша.
 pub fn verdict(common_dir: &Path, hash: &str) -> Option<String> {
     let text = fs::read_to_string(path(common_dir, hash)).ok()?;
     text.lines().nth(1).map(str::to_owned)
+}
+
+/// Структурные поля сохранённого доказательства (решение 22). Для прежнего
+/// доказательства с одной лишь прозой — `None`.
+pub fn structured(common_dir: &Path, hash: &str) -> Option<Vec<(String, String)>> {
+    let text = fs::read_to_string(path(common_dir, hash)).ok()?;
+    let mut lines = text.lines();
+    lines.next()?; // время
+    lines.next()?; // человекочитаемый вердикт
+    let fields_text = lines.collect::<Vec<_>>().join("\n");
+    if fields_text.trim().is_empty() {
+        return None;
+    }
+    dacc_journal::format::parse(&fields_text)
+        .ok()
+        .map(|record| record.fields)
 }
 
 fn hash_stdin(root: &Path, text: &str) -> Option<String> {
