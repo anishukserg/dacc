@@ -16,6 +16,7 @@
 //! с `--format json` — объект с полями `ok` и `sha`, либо `ok`, `reason` и
 //! `code` при отказе.
 
+use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::{git, layout, message};
 use std::ffi::OsString;
@@ -75,15 +76,18 @@ impl Args {
                 }
                 [flag, value, tail @ ..] if flag.to_str() == Some("--timeout") => {
                     let secs = value.to_str().and_then(|v| v.parse::<u64>().ok());
-                    let secs = secs.ok_or_else(|| refuse(2, "--timeout needs seconds"))?;
+                    let secs = secs.ok_or_else(|| {
+                        refuse(2, code::TIMEOUT_SECONDS, "--timeout needs seconds")
+                    })?;
                     timeout = Duration::from_secs(secs);
                     rest = tail;
                 }
                 [flag, value, tail @ ..] if flag.to_str() == Some("--format") => {
-                    let value = value
-                        .to_str()
-                        .ok_or_else(|| refuse(2, "--format value is not UTF-8"))?;
-                    format::parse(value).map_err(|problem| refuse(2, problem))?;
+                    let value = value.to_str().ok_or_else(|| {
+                        refuse(2, code::FORMAT_NOT_UTF8, "--format value is not UTF-8")
+                    })?;
+                    format::parse(value)
+                        .map_err(|problem| refuse(2, code::FORMAT_CHOICE, problem))?;
                     rest = tail;
                 }
                 [separator, tail @ ..] if separator.to_str() == Some("--") => {
@@ -99,12 +103,14 @@ impl Args {
                 {
                     return Err(refuse(
                         2,
+                        code::FLAG_NEEDS_VALUE,
                         format!("{} needs a value", flag.to_string_lossy()),
                     ))
                 }
                 [other, ..] => {
                     return Err(refuse(
                         2,
+                        code::UNKNOWN_ARGUMENT,
                         format!(
                             "unknown argument {}; paths are listed after --",
                             other.to_string_lossy()
@@ -116,10 +122,17 @@ impl Args {
         let message = message
             .map(|path| absolute(&path))
             .filter(|path| File::open(path).is_ok())
-            .ok_or_else(|| refuse(2, "-F <readable message file> is required"))?;
+            .ok_or_else(|| {
+                refuse(
+                    2,
+                    code::MESSAGE_FILE_REQUIRED,
+                    "-F <readable message file> is required",
+                )
+            })?;
         if rest.is_empty() {
             return Err(refuse(
                 2,
+                code::NO_PATHS_LISTED,
                 "no paths listed: committing everything changed is refused",
             ));
         }
@@ -137,15 +150,17 @@ fn absolute(path: &Path) -> PathBuf {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
-/// Отказ: код возврата и причина для вердикта.
+/// Отказ: код возврата, стабильный код причины и текст для вердикта.
 struct Refusal {
-    code: u8,
+    exit_code: u8,
+    refusal: Code,
     reason: String,
 }
 
-fn refuse(code: u8, reason: impl Into<String>) -> Refusal {
+fn refuse(exit_code: u8, refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
-        code,
+        exit_code,
+        refusal,
         reason: reason.into(),
     }
 }
@@ -167,7 +182,7 @@ impl Refusal {
                         println!("full output: {}", log.display());
                     }
                 }
-                println!("COMMIT REFUSED: {}", self.reason);
+                println!("COMMIT REFUSED: {} [{}]", self.reason, self.refusal);
             }
             Format::Json => {
                 if let Some(text) = log.and_then(|log| fs::read(log).ok()) {
@@ -182,36 +197,44 @@ impl Refusal {
                     }
                 }
                 println!(
-                    "{{\"ok\":false,\"reason\":{},\"code\":{}}}",
+                    "{{\"ok\":false,\"code\":{},\"reason\":{},\"exit_code\":{}}}",
+                    format::string(self.refusal),
                     format::string(&self.reason),
-                    self.code
+                    self.exit_code
                 );
             }
         }
-        self.code
+        self.exit_code
     }
 }
 
 fn commit(args: &Args) -> Result<String, Refusal> {
-    let repo = git::Repo::discover(Path::new(".")).map_err(|problem| refuse(2, problem))?;
+    let repo = git::Repo::discover(Path::new("."))
+        .map_err(|problem| refuse(2, code::REPO_DISCOVER, problem))?;
     let root = repo.root.as_path();
     let output = Output::open(args.log.as_deref())?;
 
-    let text = fs::read_to_string(&args.message)
-        .map_err(|_| refuse(2, "-F <readable message file> is required"))?;
+    let text = fs::read_to_string(&args.message).map_err(|_| {
+        refuse(
+            2,
+            code::MESSAGE_FILE_REQUIRED,
+            "-F <readable message file> is required",
+        )
+    })?;
     // Правила — из индекса, из того же дерева, что и проверяемое (решение 20).
     let checked = message::check_in_index(root, &text, true, Some(&args.message))
-        .map_err(|problem| refuse(2, problem))?;
+        .map_err(|problem| refuse(2, code::MESSAGE_CONFIG, problem))?;
     if !checked.problems.is_empty() {
         output.note(&checked.report());
         return Err(refuse(
             4,
+            code::MESSAGE_REFUSED,
             "message is not in the required form (decision 8)",
         ));
     }
 
     let _lock = Lock::acquire(&repo.git_dir.join(layout::COMMIT_LOCK), args.timeout)
-        .map_err(|problem| refuse(3, problem))?;
+        .map_err(|problem| refuse(3, code::LOCK_NOT_ACQUIRED, problem))?;
 
     // Путь, удалённый через `git rm`, уже убран и из рабочего дерева, и из
     // индекса: git add по нему не находит ничего и отказывает. Его удаление уже
@@ -225,7 +248,11 @@ fn commit(args: &Args) -> Result<String, Refusal> {
         let mut add = git::command(root);
         add.args(["add", "-A", "--"]).args(&to_add);
         if !output.run(&mut add) {
-            return Err(refuse(1, "git add failed on the listed paths"));
+            return Err(refuse(
+                1,
+                code::GIT_ADD_FAILED,
+                "git add failed on the listed paths",
+            ));
         }
     }
     let staged = git::command(root)
@@ -233,7 +260,11 @@ fn commit(args: &Args) -> Result<String, Refusal> {
         .args(&args.paths)
         .status();
     if staged.is_ok_and(|status| status.code() == Some(0)) {
-        return Err(refuse(1, "nothing to commit in the listed paths"));
+        return Err(refuse(
+            1,
+            code::NOTHING_TO_COMMIT,
+            "nothing to commit in the listed paths",
+        ));
     }
 
     let mut commit = git::command(root);
@@ -251,11 +282,17 @@ fn commit(args: &Args) -> Result<String, Refusal> {
             .status();
         return Err(refuse(
             4,
+            code::COMMIT_FAILED,
             "git commit created no commit: a hook refused or git itself failed (see the output)",
         ));
     }
-    git::read(root, &["rev-parse", "--short", "HEAD"])
-        .ok_or_else(|| refuse(4, "commit created, but HEAD cannot be read"))
+    git::read(root, &["rev-parse", "--short", "HEAD"]).ok_or_else(|| {
+        refuse(
+            4,
+            code::HEAD_NOT_READ,
+            "commit created, but HEAD cannot be read",
+        )
+    })
 }
 
 /// Путь удалён через `git rm`: его нет ни в рабочем дереве, ни в индексе, но он
@@ -291,12 +328,18 @@ impl Output {
             fs::create_dir_all(dir).map_err(|_| {
                 refuse(
                     2,
+                    code::LOG_NOT_OPEN,
                     format!("cannot create a directory for {}", path.display()),
                 )
             })?;
         }
-        let log = File::create(path)
-            .map_err(|_| refuse(2, format!("cannot open log {}", path.display())))?;
+        let log = File::create(path).map_err(|_| {
+            refuse(
+                2,
+                code::LOG_NOT_OPEN,
+                format!("cannot open log {}", path.display()),
+            )
+        })?;
         Ok(Output { log: Some(log) })
     }
 
@@ -444,7 +487,11 @@ mod tests {
 
     #[test]
     fn arguments_require_message_and_paths() {
-        let refusal = |list: &[&str]| Args::parse(&args(list)).err().map(|r| (r.code, r.reason));
+        let refusal = |list: &[&str]| {
+            Args::parse(&args(list))
+                .err()
+                .map(|r| (r.exit_code, r.reason))
+        };
         let (code, reason) = refusal(&["--", "a"]).unwrap();
         assert_eq!(code, 2);
         assert!(reason.contains("-F"), "{reason}");

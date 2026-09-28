@@ -20,6 +20,7 @@
 //! 1 — переход незаконен, нет доказательства или журнал не сворачивается;
 //! 2 — неверные аргументы или окружение; прочие коды — коды команды commit.
 
+use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::{commit, config, git, layout, proof};
 use dacc_journal::event::relative_path;
@@ -43,8 +44,9 @@ pub fn run_work(args: &[OsString]) -> u8 {
             if word == "--format" {
                 let value = iter
                     .next()
-                    .ok_or_else(|| usage("--format needs `json` or `text`"))?;
-                format = format::parse(&value).map_err(usage)?;
+                    .ok_or_else(|| usage(code::FORMAT_CHOICE, "--format needs `json` or `text`"))?;
+                format =
+                    format::parse(&value).map_err(|problem| usage(code::FORMAT_CHOICE, problem))?;
             } else {
                 rest.push(word);
             }
@@ -61,7 +63,7 @@ pub fn run_work(args: &[OsString]) -> u8 {
             ["drop", id, "--reason", reason] => abandon(id, reason, &trailers),
             ["state"] => state(None, format),
             ["state", id] => state(Some(id), format),
-            _ => Err(usage(WORK_USAGE)),
+            _ => Err(usage(code::USAGE, WORK_USAGE)),
         }
     }))
 }
@@ -76,27 +78,30 @@ pub fn run_slice(args: &[OsString]) -> u8 {
             .as_slice()
         {
             ["close", id] => close(id, &trailers),
-            _ => Err(usage(SLICE_USAGE)),
+            _ => Err(usage(code::USAGE, SLICE_USAGE)),
         }
     }))
 }
 
-/// Отказ команды: код и причина.
+/// Отказ команды: код возврата, стабильный код причины и текст.
 struct Refusal {
-    code: u8,
+    exit_code: u8,
+    refusal: Code,
     reason: String,
 }
 
-fn refused(reason: impl Into<String>) -> Refusal {
+fn refused(refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
-        code: 1,
+        exit_code: 1,
+        refusal,
         reason: reason.into(),
     }
 }
 
-fn usage(reason: impl Into<String>) -> Refusal {
+fn usage(refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
-        code: 2,
+        exit_code: 2,
+        refusal,
         reason: reason.into(),
     }
 }
@@ -105,8 +110,8 @@ fn finish(outcome: Result<u8, Refusal>) -> u8 {
     match outcome {
         Ok(code) => code,
         Err(refusal) => {
-            println!("WORK REFUSED: {}", refusal.reason);
-            refusal.code
+            println!("WORK REFUSED: {} [{}]", refusal.reason, refusal.refusal);
+            refusal.exit_code
         }
     }
 }
@@ -118,13 +123,14 @@ fn words(args: &[OsString]) -> Result<(Vec<String>, Vec<String>), Refusal> {
     let mut rest = args.iter().map(|arg| arg.to_string_lossy().into_owned());
     while let Some(word) = rest.next() {
         if word == "--trailer" {
-            let trailer = rest
-                .next()
-                .ok_or_else(|| usage("--trailer needs a trailer line"))?;
+            let trailer = rest.next().ok_or_else(|| {
+                usage(code::TRAILER_NEEDS_VALUE, "--trailer needs a trailer line")
+            })?;
             if !trailer.contains(": ") {
-                return Err(usage(format!(
-                    "trailer `{trailer}` must be of the form `Key: value`"
-                )));
+                return Err(usage(
+                    code::TRAILER_KEY_VALUE,
+                    format!("trailer `{trailer}` must be of the form `Key: value`"),
+                ));
             }
             trailers.push(trailer);
         } else {
@@ -140,16 +146,17 @@ fn start(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let work = context.work(id)?;
     let stage = context.journal.stage(&number);
     if stage != Stage::Planned {
-        return Err(refused(format!(
-            "work {id} is already {}",
-            stage_text(stage)
-        )));
+        return Err(refused(
+            code::WORK_STAGE,
+            format!("work {id} is already {}", stage_text(stage)),
+        ));
     }
     if let Some(slice) = &work.slice {
         if let Some(file) = context.journal.closed_slices.get(slice) {
-            return Err(refused(format!(
-                "slice {slice} of work {id} is closed by event {file}"
-            )));
+            return Err(refused(
+                code::SLICE_ALREADY_CLOSED,
+                format!("slice {slice} of work {id} is closed by event {file}"),
+            ));
         }
     }
     let area = work.area(id)?;
@@ -169,42 +176,56 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let work = context.work(id)?;
     let stage = context.journal.stage(&number);
     if stage != Stage::Started {
-        return Err(refused(format!(
-            "only a started work can be landed, and {id} is {}",
-            stage_text(stage)
-        )));
+        return Err(refused(
+            code::WORK_STAGE,
+            format!(
+                "only a started work can be landed, and {id} is {}",
+                stage_text(stage)
+            ),
+        ));
     }
     let root = &context.repo.root;
     let object = format!("{revision}^{{commit}}");
-    let commit = git::read(root, &["rev-parse", "--verify", "--quiet", &object])
-        .ok_or_else(|| refused(format!("revision {revision} is not a commit")))?;
+    let commit =
+        git::read(root, &["rev-parse", "--verify", "--quiet", &object]).ok_or_else(|| {
+            refused(
+                code::REVISION_NOT_COMMIT,
+                format!("revision {revision} is not a commit"),
+            )
+        })?;
     if !git::succeeds(root, &["merge-base", "--is-ancestor", &commit, "HEAD"]) {
-        return Err(refused(format!(
-            "commit {} is not in the history of HEAD",
-            short(&commit)
-        )));
+        return Err(refused(
+            code::COMMIT_NOT_ANCESTOR,
+            format!("commit {} is not in the history of HEAD", short(&commit)),
+        ));
     }
     let trailer = format!("Dacc-Work: {id}");
     let body = git::read(root, &["log", "-1", "--format=%B", &commit]).unwrap_or_default();
     if !body.lines().any(|line| line == trailer) {
-        return Err(refused(format!(
-            "commit {} is not based on work {id}: it has no `{trailer}` trailer",
-            short(&commit)
-        )));
+        return Err(refused(
+            code::COMMIT_NOT_BASED,
+            format!(
+                "commit {} is not based on work {id}: it has no `{trailer}` trailer",
+                short(&commit)
+            ),
+        ));
     }
     let journal = context.repo.config.journal_dir();
     let tree = proof::content_hash(root, &journal, &commit).ok_or_else(|| {
-        usage(format!(
-            "the tree of commit {} cannot be read",
-            short(&commit)
-        ))
+        usage(
+            code::TREE_NOT_READ,
+            format!("the tree of commit {} cannot be read", short(&commit)),
+        )
     })?;
     let verdict = proof::verdict(&context.repo.common_dir, &tree).ok_or_else(|| {
-        refused(format!(
-            "no proof for tree {} of commit {}: the gate did not pass on this tree here — the commit was made without the hook or on another machine",
-            short(&tree),
-            short(&commit)
-        ))
+        refused(
+            code::NO_PROOF,
+            format!(
+                "no proof for tree {} of commit {}: the gate did not pass on this tree here — the commit was made without the hook or on another machine",
+                short(&tree),
+                short(&commit)
+            ),
+        )
     })?;
     let area = work.area(id)?;
     let at = time::now();
@@ -237,17 +258,20 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
 
 fn abandon(id: &str, reason: &str, trailers: &[String]) -> Result<u8, Refusal> {
     if reason.trim().is_empty() {
-        return Err(usage("a non-empty reason is required: --reason <reason>"));
+        return Err(usage(
+            code::REASON_REQUIRED,
+            "a non-empty reason is required: --reason <reason>",
+        ));
     }
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
     let stage = context.journal.stage(&number);
     if stage.is_finished() {
-        return Err(refused(format!(
-            "work {id} is already {}",
-            stage_text(stage)
-        )));
+        return Err(refused(
+            code::WORK_STAGE,
+            format!("work {id} is already {}", stage_text(stage)),
+        ));
     }
     let area = work.area(id)?;
     let event = Event::new(
@@ -272,10 +296,13 @@ fn state(id: Option<&str>, format: Format) -> Result<u8, Refusal> {
     let works = context.works()?;
     if let (Some(id), Some(number)) = (id, selected.as_ref()) {
         if !works.iter().any(|(n, _)| n == number) {
-            return Err(refused(format!(
-                "{id} is not in the plan: no file {}/{id}.rs",
-                context.repo.config.work_dir()
-            )));
+            return Err(refused(
+                code::WORK_NOT_IN_PLAN,
+                format!(
+                    "{id} is not in the plan: no file {}/{id}.rs",
+                    context.repo.config.work_dir()
+                ),
+            ));
         }
     }
     let filtered: Vec<&(String, Record)> = works
@@ -339,17 +366,19 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let number = match Subject::parse(id) {
         Some(Subject::Slice(number)) => number,
         _ => {
-            return Err(usage(format!(
-                "{id} is not a slice id of the form s-versioning"
-            )))
+            return Err(usage(
+                code::SLICE_ID,
+                format!("{id} is not a slice id of the form s-versioning"),
+            ))
         }
     };
     let context = Context::open()?;
     let slice = context.slice(id)?;
     if let Some(file) = context.journal.closed_slices.get(&number) {
-        return Err(refused(format!(
-            "slice {id} is already closed by event {file}"
-        )));
+        return Err(refused(
+            code::SLICE_ALREADY_CLOSED,
+            format!("slice {id} is already closed by event {file}"),
+        ));
     }
     let works: Vec<(String, Record)> = context
         .works()?
@@ -357,7 +386,10 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
         .filter(|(_, work)| work.slice.as_deref() == Some(number.as_str()))
         .collect();
     let Some((first, first_work)) = works.first() else {
-        return Err(refused(format!("slice {id} has no works")));
+        return Err(refused(
+            code::SLICE_NO_WORKS,
+            format!("slice {id} has no works"),
+        ));
     };
     let unfinished: Vec<String> = works
         .iter()
@@ -365,10 +397,13 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
         .map(|(n, _)| n.clone())
         .collect();
     if !unfinished.is_empty() {
-        return Err(refused(format!(
-            "slice {id} is not closed: {} not finished",
-            unfinished.join(", ")
-        )));
+        return Err(refused(
+            code::SLICE_UNFINISHED,
+            format!(
+                "slice {id} is not closed: {} not finished",
+                unfinished.join(", ")
+            ),
+        ));
     }
     let area = first_work.area(first)?;
     let event = Event::new(Subject::Slice(number), time::now(), Kind::Closed);
@@ -391,16 +426,24 @@ impl Context {
     /// Открывает репозиторий и сворачивает журнал. Несворачиваемый журнал —
     /// отказ: новое событие поверх нарушения ничего не прояснит.
     fn open() -> Result<Context, Refusal> {
-        let repo = git::Repo::discover(Path::new(".")).map_err(usage)?;
+        let repo = git::Repo::discover(Path::new("."))
+            .map_err(|problem| usage(code::REPO_DISCOVER, problem))?;
         let dir = repo.root.join(repo.config.journal_dir());
-        let (events, read_violations) = dacc_journal::read_dir(&dir)
-            .map_err(|error| usage(format!("journal {} not read: {error}", dir.display())))?;
+        let (events, read_violations) = dacc_journal::read_dir(&dir).map_err(|error| {
+            usage(
+                code::JOURNAL_NOT_READ,
+                format!("journal {} not read: {error}", dir.display()),
+            )
+        })?;
         let (journal, fold_violations) = fold(&events);
         if let Some(violation) = read_violations.iter().chain(&fold_violations).next() {
-            return Err(refused(format!(
-                "journal does not fold: {}: {}",
-                violation.file, violation.reason
-            )));
+            return Err(refused(
+                code::JOURNAL_NOT_FOLD,
+                format!(
+                    "journal does not fold: {}: {}",
+                    violation.file, violation.reason
+                ),
+            ));
         }
         Ok(Context { repo, journal })
     }
@@ -420,14 +463,23 @@ impl Context {
         let path = self.repo.root.join(dir).join(format!("{id}.rs"));
         fs::read_to_string(&path)
             .map(|text| Record::parse(&text))
-            .map_err(|_| refused(format!("{id} is not in the plan: no file {dir}/{id}.rs")))
+            .map_err(|_| {
+                refused(
+                    code::WORK_NOT_IN_PLAN,
+                    format!("{id} is not in the plan: no file {dir}/{id}.rs"),
+                )
+            })
     }
 
     /// Все работы плана по порядку номеров.
     fn works(&self) -> Result<Vec<(String, Record)>, Refusal> {
         let dir = self.repo.root.join(self.repo.config.work_dir());
-        let entries = fs::read_dir(&dir)
-            .map_err(|error| usage(format!("plan {} not read: {error}", dir.display())))?;
+        let entries = fs::read_dir(&dir).map_err(|error| {
+            usage(
+                code::PLAN_NOT_READ,
+                format!("plan {} not read: {error}", dir.display()),
+            )
+        })?;
         let mut works = Vec::new();
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
@@ -472,9 +524,10 @@ impl Record {
     /// Область темы коммита — подсистема работы.
     fn area(&self, id: &str) -> Result<&str, Refusal> {
         self.area.as_deref().ok_or_else(|| {
-            refused(format!(
-                "the subsystem taxon!(Subsystem, …) of {id} cannot be read"
-            ))
+            refused(
+                code::SUBSYSTEM_NOT_READ,
+                format!("the subsystem taxon!(Subsystem, …) of {id} cannot be read"),
+            )
         })
     }
 }
@@ -492,6 +545,7 @@ pub fn run_import(args: &[OsString]) -> u8 {
             ["--work", basis, "--close-finished-slices"]
             | ["--close-finished-slices", "--work", basis] => import(basis, true, &trailers),
             _ => Err(usage(
+                code::USAGE,
                 "journal import --work <w-slug> [--close-finished-slices]",
             )),
         }
@@ -550,10 +604,10 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
         };
         let tree = proof::content_hash(root, &context.repo.config.journal_dir(), commit)
             .ok_or_else(|| {
-                usage(format!(
-                    "the tree of commit {} cannot be read",
-                    short(commit)
-                ))
+                usage(
+                    code::TREE_NOT_READ,
+                    format!("the tree of commit {} cannot be read", short(commit)),
+                )
             })?;
         events.push(Event::new(
             Subject::Work(number.clone()),
@@ -588,6 +642,7 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
 
     if events.is_empty() {
         return Err(refused(
+            code::NOTHING_TO_IMPORT,
             "nothing to import: planned works have no commits carrying their trailer",
         ));
     }
@@ -636,9 +691,10 @@ fn quoted_after(text: &str, marker: &str) -> Option<String> {
 fn work_number(id: &str) -> Result<String, Refusal> {
     match Subject::parse(id) {
         Some(Subject::Work(number)) => Ok(number),
-        _ => Err(usage(format!(
-            "{id} is not a work id of the form w-fix-gitignore"
-        ))),
+        _ => Err(usage(
+            code::NOT_WORK_ID,
+            format!("{id} is not a work id of the form w-fix-gitignore"),
+        )),
     }
 }
 
@@ -691,17 +747,20 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
             .and_then(|()| fs::write(&path, text));
         if let Err(error) = stored {
             remove(&written);
-            return Err(usage(format!(
-                "event {} not written: {error}",
-                path.display()
-            )));
+            return Err(usage(
+                code::EVENT_NOT_WRITTEN,
+                format!("event {} not written: {error}", path.display()),
+            ));
         }
         written.push(path);
     }
     let message_file = repo.git_dir.join(layout::JOURNAL_MESSAGE);
     if let Err(error) = fs::write(&message_file, message) {
         remove(&written);
-        return Err(usage(format!("commit message not written: {error}")));
+        return Err(usage(
+            code::COMMIT_MESSAGE_NOT_WRITTEN,
+            format!("commit message not written: {error}"),
+        ));
     }
     let mut args = vec![
         OsString::from("-F"),

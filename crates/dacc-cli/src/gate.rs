@@ -55,6 +55,7 @@
 //! `--format json` — объект с полями `ok`, `passed`, `total`, `attacks`, `msrv`,
 //! `msrv_attacks`, `skipped`, либо `step` и `code` при отказе.
 
+use crate::code::{self, Code};
 use crate::config::Config;
 use crate::format::{self, Format};
 use crate::{git, layout, proof};
@@ -126,8 +127,8 @@ pub fn run_with_verdict(args: &[OsString]) -> (u8, String) {
             Format::Json => (0, verdict.json()),
         },
         Err(fail) => match format {
-            Format::Text => (fail.code, fail.text()),
-            Format::Json => (fail.code, fail.json()),
+            Format::Text => (fail.exit_code, fail.text()),
+            Format::Json => (fail.exit_code, fail.json()),
         },
     };
     println!("{verdict}");
@@ -207,24 +208,26 @@ pub fn read_lossy(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// Отказ калитки: шаг и код возврата.
+/// Отказ калитки: шаг, стабильный код причины и код возврата.
 struct Fail {
     step: String,
-    code: u8,
+    refusal: Code,
+    exit_code: u8,
 }
 
 impl Fail {
-    /// Человекочитаемый вердикт отказа.
+    /// Человекочитаемый вердикт отказа: текст шага и код причины рядом.
     fn text(&self) -> String {
-        format!("GATE FAIL: {}", self.step)
+        format!("GATE FAIL: {} [{}]", self.step, self.refusal)
     }
 
-    /// Машинный вердикт отказа: шаг и код возврата полями.
+    /// Машинный вердикт отказа: код причины, шаг и код возврата полями.
     fn json(&self) -> String {
         format!(
-            "{{\"ok\":false,\"step\":{},\"code\":{}}}",
+            "{{\"ok\":false,\"code\":{},\"step\":{},\"exit_code\":{}}}",
+            format::string(self.refusal),
             format::string(&self.step),
-            self.code
+            self.exit_code
         )
     }
 }
@@ -311,7 +314,8 @@ impl Verdict {
 fn fail(step: impl Into<String>) -> Fail {
     Fail {
         step: step.into(),
-        code: 1,
+        refusal: code::STEP_FAILED,
+        exit_code: 1,
     }
 }
 
@@ -319,7 +323,8 @@ fn fail(step: impl Into<String>) -> Fail {
 fn start_fail(step: impl Into<String>) -> Fail {
     Fail {
         step: step.into(),
-        code: 2,
+        refusal: code::START_ERROR,
+        exit_code: 2,
     }
 }
 
@@ -1309,17 +1314,21 @@ mod tests {
         );
     }
 
-    /// Отказ калитки: шаг и код возврата полями.
+    /// Отказ калитки: шаг и код возврата полями, рядом — стабильный код причины.
     #[test]
     fn fail_renders_step_and_code() {
         let fail = Fail {
             step: "cargo clippy -D warnings".to_owned(),
-            code: 1,
+            refusal: code::STEP_FAILED,
+            exit_code: 1,
         };
-        assert_eq!(fail.text(), "GATE FAIL: cargo clippy -D warnings");
+        assert_eq!(
+            fail.text(),
+            "GATE FAIL: cargo clippy -D warnings [step-failed]"
+        );
         assert_eq!(
             fail.json(),
-            "{\"ok\":false,\"step\":\"cargo clippy -D warnings\",\"code\":1}"
+            "{\"ok\":false,\"code\":\"step-failed\",\"step\":\"cargo clippy -D warnings\",\"exit_code\":1}"
         );
     }
 }

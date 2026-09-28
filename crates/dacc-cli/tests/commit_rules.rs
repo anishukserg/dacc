@@ -118,7 +118,7 @@ fn log_takes_hook_output_and_terminal_keeps_refusal_lines() {
     assert_eq!(run.code, 4, "{}", run.output());
     assert!(
         run.stdout
-            .contains("  - work w-0099 is not in the commit tree"),
+            .contains("  - [work-not-in-tree] work w-0099 is not in the commit tree"),
         "{}",
         run.output()
     );

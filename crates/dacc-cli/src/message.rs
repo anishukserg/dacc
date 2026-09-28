@@ -35,6 +35,7 @@
 //! Код возврата: 0 — принято; 1 — отвергнуто (причины в stderr); 2 — ошибка
 //! запуска.
 
+use crate::code::{self, Code};
 use crate::config::Config;
 use crate::format::{self, Format};
 use crate::{git, layout};
@@ -141,9 +142,10 @@ fn run_file(file: &OsString, form_only: bool, format: Format) -> u8 {
     let Ok(text) = std::fs::read_to_string(file) else {
         match format {
             Format::Text => eprintln!("msg-check: a readable message file is required"),
-            Format::Json => {
-                println!("{{\"ok\":false,\"error\":\"a readable message file is required\"}}")
-            }
+            Format::Json => println!(
+                "{{\"ok\":false,\"code\":{},\"error\":\"a readable message file is required\"}}",
+                format::string(code::MESSAGE_FILE_REQUIRED)
+            ),
         }
         return 2;
     };
@@ -157,7 +159,10 @@ fn run_file(file: &OsString, form_only: bool, format: Format) -> u8 {
         Ok(checked) => {
             eprint!("{}", checked.report());
             if format == Format::Json {
-                println!("{{\"ok\":false,\"checked\":1,\"refused\":1}}");
+                println!(
+                    "{{\"ok\":false,\"code\":{},\"checked\":1,\"refused\":1}}",
+                    format::string(code::MESSAGE_REFUSED)
+                );
             }
             1
         }
@@ -211,7 +216,8 @@ fn run_range(range: &OsString, format: Format) -> u8 {
         match format {
             Format::Text => println!("MSG-CHECK REFUSED: {refused} of {}", commits.len()),
             Format::Json => println!(
-                "{{\"ok\":false,\"checked\":{},\"refused\":{refused}}}",
+                "{{\"ok\":false,\"code\":{},\"checked\":{},\"refused\":{refused}}}",
+                format::string(code::MESSAGE_REFUSED),
                 commits.len()
             ),
         }
@@ -219,10 +225,17 @@ fn run_range(range: &OsString, format: Format) -> u8 {
     }
 }
 
+/// Причина отказа сообщения: стабильный код и текст.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Problem {
+    pub code: Code,
+    pub text: String,
+}
+
 /// Итог проверки: причины отказа и правила, по которым проверяли.
 pub struct Checked {
     /// Причины отказа; пустой список — сообщение принято.
-    pub problems: Vec<String>,
+    pub problems: Vec<Problem>,
     config: Config,
     /// Вывод делегированной команды; показывается только при её отказе.
     output: String,
@@ -230,16 +243,18 @@ pub struct Checked {
 
 impl Checked {
     /// Текст отказа: ссылка на правила коммитов продукта и причины по одной в
-    /// строке. Без настройки называются правила DACC, а не документ чужого
-    /// реестра (решения 19 и 20).
+    /// строке, каждая со своим кодом. Без настройки называются правила DACC, а
+    /// не документ чужого реестра (решения 19 и 20).
     pub fn report(&self) -> String {
         let mut text = format!(
             "msg-check: message refused ({}):\n",
             self.config.commit_rules
         );
         for problem in &self.problems {
-            text.push_str("  - ");
-            text.push_str(problem);
+            text.push_str("  - [");
+            text.push_str(problem.code);
+            text.push_str("] ");
+            text.push_str(&problem.text);
             text.push('\n');
         }
         // Вывод делегированной команды — с отступом под её причиной: за этот
@@ -335,7 +350,7 @@ fn delegated(
     config: &Config,
     text: &str,
     file: Option<&Path>,
-) -> Result<Option<(String, String)>, String> {
+) -> Result<Option<(Problem, String)>, String> {
     let Some(words) = config.message_command.as_deref() else {
         return Ok(None);
     };
@@ -374,7 +389,10 @@ fn delegated(
         String::from_utf8_lossy(&out.stderr)
     );
     Ok(Some((
-        format!("subject refused by `{}` (code {code})", words.join(" ")),
+        Problem {
+            code: code::DELEGATED_REFUSED,
+            text: format!("subject refused by `{}` (code {code})", words.join(" ")),
+        },
         shown,
     )))
 }
@@ -439,7 +457,7 @@ pub fn problems(
     scopes: &[String],
     exists: Option<&dyn Fn(&str) -> bool>,
     config: &Config,
-) -> Vec<String> {
+) -> Vec<Problem> {
     let mut errors = Vec::new();
     let lines: Vec<&str> = text.lines().filter(|line| !line.starts_with('#')).collect();
     let subject = lines.first().copied().unwrap_or("");
@@ -455,21 +473,28 @@ pub fn problems(
     let works = trailer_ids(text, WORK_TRAILER, 'w', &mut errors);
     let slices = trailer_ids(text, SLICE_TRAILER, 's', &mut errors);
     if works.is_empty() && slices.is_empty() {
-        errors.push(
-            "no Dacc-Work: w-slug or Dacc-Slice: s-slug trailer — the commit has no basis in the plan"
+        errors.push(Problem {
+            code: code::BASIS_TRAILER_MISSING,
+            text: "no Dacc-Work: w-slug or Dacc-Slice: s-slug trailer — the commit has no basis in the plan"
                 .to_owned(),
-        );
+        });
     } else if let Some(exists) = exists {
         for work in works {
             let path = format!("{}/{work}.rs", config.work_dir());
             if !exists(&path) {
-                errors.push(format!("work {work} is not in the commit tree ({path})"));
+                errors.push(Problem {
+                    code: code::WORK_NOT_IN_TREE,
+                    text: format!("work {work} is not in the commit tree ({path})"),
+                });
             }
         }
         for slice in slices {
             let path = format!("{}/{slice}.rs", config.slice_dir());
             if !exists(&path) {
-                errors.push(format!("slice {slice} is not in the commit tree ({path})"));
+                errors.push(Problem {
+                    code: code::SLICE_NOT_IN_TREE,
+                    text: format!("slice {slice} is not in the commit tree ({path})"),
+                });
             }
         }
     }
@@ -484,42 +509,58 @@ fn subject_problems(
     after: Option<&str>,
     scopes: &[String],
     config: &Config,
-    errors: &mut Vec<String>,
+    errors: &mut Vec<Problem>,
 ) {
     match parse_subject(subject) {
         Some((kind, subject_scopes, summary)) => {
             if !config.commit_types.iter().any(|known| known == kind) {
-                errors.push(format!(
-                    "type [{kind}] is not in the set: {}",
-                    config.commit_types.join(" ")
-                ));
+                errors.push(Problem {
+                    code: code::TYPE_NOT_IN_SET,
+                    text: format!(
+                        "type [{kind}] is not in the set: {}",
+                        config.commit_types.join(" ")
+                    ),
+                });
             }
             for scope in subject_scopes.split(',') {
                 if !scopes.iter().any(|known| known == scope) {
-                    errors.push(format!(
-                        "scope ({scope}) is not a subsystem axis value: {}",
-                        scopes.join(" ")
-                    ));
+                    errors.push(Problem {
+                        code: code::SCOPE_NOT_AXIS,
+                        text: format!(
+                            "scope ({scope}) is not a subsystem axis value: {}",
+                            scopes.join(" ")
+                        ),
+                    });
                 }
             }
             if summary.ends_with('.') {
-                errors.push("subject ends with a period".to_owned());
+                errors.push(Problem {
+                    code: code::SUBJECT_PERIOD,
+                    text: "subject ends with a period".to_owned(),
+                });
             }
             let length = subject.chars().count();
             if length > config.subject_limit {
-                errors.push(format!(
-                    "subject is longer than {} characters ({length})",
-                    config.subject_limit
-                ));
+                errors.push(Problem {
+                    code: code::SUBJECT_TOO_LONG,
+                    text: format!(
+                        "subject is longer than {} characters ({length})",
+                        config.subject_limit
+                    ),
+                });
             }
         }
-        None => errors.push(format!(
-            "subject is not in the form [TYPE](scope): summary — `{subject}`"
-        )),
+        None => errors.push(Problem {
+            code: code::SUBJECT_FORM,
+            text: format!("subject is not in the form [TYPE](scope): summary — `{subject}`"),
+        }),
     }
 
     if after.is_some_and(|line| !line.is_empty()) {
-        errors.push("a blank line must follow the subject".to_owned());
+        errors.push(Problem {
+            code: code::SUBJECT_BLANK_LINE,
+            text: "a blank line must follow the subject".to_owned(),
+        });
     }
 }
 
@@ -528,7 +569,7 @@ fn trailer_ids<'a>(
     text: &'a str,
     key: &str,
     prefix: char,
-    errors: &mut Vec<String>,
+    errors: &mut Vec<Problem>,
 ) -> Vec<&'a str> {
     let lines: Vec<&str> = text.lines().filter(|line| line.starts_with(key)).collect();
     if lines
@@ -536,7 +577,10 @@ fn trailer_ids<'a>(
         .any(|line| trailer_id(line, key, prefix).is_none())
     {
         let name = key.trim_end_matches(':');
-        errors.push(format!("trailer {name} is not in the form {prefix}-slug"));
+        errors.push(Problem {
+            code: code::TRAILER_FORM_INVALID,
+            text: format!("trailer {name} is not in the form {prefix}-slug"),
+        });
     }
     lines
         .iter()
@@ -625,7 +669,7 @@ mod tests {
         ] {
             assert_eq!(
                 problems(message, &scopes(), Some(&planned), &Config::default()),
-                Vec::<String>::new(),
+                Vec::<Problem>::new(),
                 "{message}"
             );
         }
@@ -683,7 +727,7 @@ mod tests {
         for (message, expected) in cases {
             let found = problems(message, &scopes(), Some(&planned), &Config::default());
             assert!(
-                found.iter().any(|problem| problem.contains(expected)),
+                found.iter().any(|problem| problem.text.contains(expected)),
                 "«{message}»: ожидалось «{expected}», получено {found:?}"
             );
         }
@@ -710,12 +754,12 @@ mod tests {
         let long = format!("[CHANGE](cli): {}\n\nDacc-Work: w-001", "я".repeat(70));
         assert_eq!(
             problems(&long, &scopes(), None, &config),
-            Vec::<String>::new()
+            Vec::<Problem>::new()
         );
         assert!(
             problems(&long, &scopes(), None, &Config::default())
                 .iter()
-                .any(|problem| problem.contains("longer than 72 characters (85)")),
+                .any(|problem| problem.text.contains("longer than 72 characters (85)")),
             "прежний предел не применён к контрольному сообщению"
         );
 
@@ -728,7 +772,7 @@ mod tests {
         assert!(
             refused
                 .iter()
-                .any(|problem| problem == "type [FIX] is not in the set: FEAT CHANGE"),
+                .any(|problem| problem.text == "type [FIX] is not in the set: FEAT CHANGE"),
             "{refused:?}"
         );
 
@@ -738,7 +782,7 @@ mod tests {
         assert!(
             missing
                 .iter()
-                .any(|problem| problem.contains("docs/registry/work/w-002.rs")),
+                .any(|problem| problem.text.contains("docs/registry/work/w-002.rs")),
             "{missing:?}"
         );
         let message = "[FEAT](cli): суть\n\nDacc-Work: w-001";
@@ -760,7 +804,7 @@ mod tests {
         let accepted = format!("{subject}\nтело\n\nDacc-Work: w-001\n");
         assert_eq!(
             problems(&accepted, &[], Some(&planned), &config),
-            Vec::<String>::new()
+            Vec::<Problem>::new()
         );
         // Без делегирования та же тема отвергается — контроль на то, что дело в
         // настройке, а не в самой теме.
@@ -782,7 +826,7 @@ mod tests {
         ] {
             let found = problems(&message, &[], Some(&planned), &config);
             assert!(
-                found.iter().any(|problem| problem.contains(expected)),
+                found.iter().any(|problem| problem.text.contains(expected)),
                 "«{message}»: ожидалось «{expected}», получено {found:?}"
             );
         }

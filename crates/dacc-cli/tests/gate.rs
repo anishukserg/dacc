@@ -197,7 +197,7 @@ fn a_failing_project_command_fails_the_gate() {
     assert_eq!(run.code, 1, "{}", run.output());
     assert_eq!(
         run.verdict(),
-        "GATE FAIL: project command: false (code 1)",
+        "GATE FAIL: project command: false (code 1) [step-failed]",
         "{}",
         run.output()
     );

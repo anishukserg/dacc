@@ -21,6 +21,7 @@
 // распространяются, а атаки выполняются под RUSTC_BOOTSTRAP (решение 12).
 #![doc(test(attr(forbid(unstable_features))))]
 
+mod code;
 mod commit;
 mod config;
 mod format;
