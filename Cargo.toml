@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "doc", "examples/demo-doc", "examples/demo-product"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.83"
 # Лицензия и публичный адрес — решение 17.
@@ -20,13 +20,13 @@ unstable_features = "forbid"
 
 [workspace.dependencies]
 # Версия у path-зависимостей обязательна публикуемым крейтам (решение 13).
-dacc-core = { path = "crates/dacc-core", version = "0.1.0" }
-dacc-knowledge = { path = "crates/dacc-knowledge", version = "0.1.0" }
-dacc-work = { path = "crates/dacc-work", version = "0.1.0" }
-dacc-scan = { path = "crates/dacc-scan", version = "0.1.0" }
-dacc-derive = { path = "crates/dacc-derive", version = "0.1.0" }
-dacc-journal = { path = "crates/dacc-journal", version = "0.1.0" }
-dacc-access = { path = "crates/dacc-access", version = "0.1.0" }
+dacc-core = { path = "crates/dacc-core", version = "0.1.1" }
+dacc-knowledge = { path = "crates/dacc-knowledge", version = "0.1.1" }
+dacc-work = { path = "crates/dacc-work", version = "0.1.1" }
+dacc-scan = { path = "crates/dacc-scan", version = "0.1.1" }
+dacc-derive = { path = "crates/dacc-derive", version = "0.1.1" }
+dacc-journal = { path = "crates/dacc-journal", version = "0.1.1" }
+dacc-access = { path = "crates/dacc-access", version = "0.1.1" }
 syn = { version = "2", features = ["full", "extra-traits", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 chrono = { version = "0.4.32", default-features = false, features = ["std"] }
