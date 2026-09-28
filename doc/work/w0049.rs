@@ -1,9 +1,9 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(49,
+dacc_work::work!(49,
     title: NonEmptyStr::new("Чем записывается обязательство без исполнителя"),
     slice: crate::slice::s0015,
     origin: WorkOrigin::Inquiry {

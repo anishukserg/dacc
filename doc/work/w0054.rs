@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(54,
+dacc_work::work!(54,
     title: NonEmptyStr::new("Инлайн-ссылки на якоря в прозе решений"),
     slice: crate::slice::s0001,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_024),

@@ -1,10 +1,10 @@
 # Участие
 
-Slipway ведёт собственную работу по своей методологии: у каждого коммита есть основание в плане, и каждый коммит проходит калитку. Отсюда порядок участия.
+DACC ведёт собственную работу по своей методологии: у каждого коммита есть основание в плане, и каждый коммит проходит калитку. Отсюда порядок участия.
 
 ## Вопросы и проблемы
 
-Открывайте [issue](https://github.com/anishukserg/slipway/issues): ошибка, неясное место в [SLIPWAY.md](SLIPWAY.md) или [GUARANTEES.md](GUARANTEES.md), механизм, который у вас не работает, — последнее ценнее всего. Об уязвимостях — не в issues, а приватно, как описано в [SECURITY.md](SECURITY.md).
+Открывайте [issue](https://github.com/anishukserg/dacc/issues): ошибка, неясное место в [DACC.md](DACC.md) или [GUARANTEES.md](GUARANTEES.md), механизм, который у вас не работает, — последнее ценнее всего. Об уязвимостях — не в issues, а приватно, как описано в [SECURITY.md](SECURITY.md).
 
 ## Pull request
 
@@ -21,7 +21,7 @@ Pull request — предложение, и кнопкой слияния он �
 
 ```bash
 cargo test --workspace
-cargo run -p slipway-cli -- gate
+cargo run -p dacc-cli -- gate
 ```
 
 ## Коммиты
@@ -29,11 +29,11 @@ cargo run -p slipway-cli -- gate
 Правила — решение 8, [doc/adr/adr-2026-008.rs](doc/adr/adr-2026-008.rs):
 
 - тема — тип в квадратных скобках, сразу за ним область в круглых, затем двоеточие и суть; тип из набора `FEAT FIX REFACTOR TEST DOCS ADR PLAN CHORE`, область — подсистема из [doc/taxonomy.rs](doc/taxonomy.rs) в нижнем регистре; не длиннее 72 символов и без точки в конце. Примеры — в `git log` этого репозитория;
-- трейлер `Slipway-Work: wNNNN` — работа, которая есть в дереве коммита; коммит закрытия среза несёт `Slipway-Slice: sNNNN`;
-- коммит — через `cargo slipway commit -F <message> -- <paths>`: хук pre-commit выполняет калитку на дереве коммита, commit-msg проверяет сообщение;
-- хуки ставит `cargo run -p slipway-cli -- hooks install`.
+- трейлер `Dacc-Work: wNNNN` — работа, которая есть в дереве коммита; коммит закрытия среза несёт `Dacc-Slice: sNNNN`;
+- коммит — через `cargo dacc commit -F <message> -- <paths>`: хук pre-commit выполняет калитку на дереве коммита, commit-msg проверяет сообщение;
+- хуки ставит `cargo run -p dacc-cli -- hooks install`.
 
-Состояние работы — не поле записи, а журнал: `cargo slipway work start` и `land`, `cargo slipway slice close` (решение 15).
+Состояние работы — не поле записи, а журнал: `cargo dacc work start` и `land`, `cargo dacc slice close` (решение 15).
 
 ## Лицензия
 

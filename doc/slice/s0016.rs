@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(16,
+dacc_work::slice!(16,
     title: NonEmptyStr::new("Порождённый сканом текст — английский"),
     thrust: crate::thrust::t0002,
     outcome: NonEmptyStr::new(

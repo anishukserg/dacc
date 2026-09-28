@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(20,
+dacc_work::work!(20,
     title: NonEmptyStr::new("Блокировка коммита без номера процесса ждала до тайм-аута"),
     slice: crate::slice::s0006,
     origin: WorkOrigin::Divergence {

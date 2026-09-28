@@ -15,7 +15,7 @@ include!(concat!(env!("OUT_DIR"), "/anchors.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use slipway_knowledge::DocStatus;
+    use dacc_knowledge::DocStatus;
 
     #[test]
     fn registry_is_complete() {
@@ -43,7 +43,7 @@ mod tests {
     fn work_origin_cannot_point_at_live_decision() {
         // Тип принимает только SupersededRef, а такие константы порождаются
         // лишь для замещённых решений.
-        fn retire(_: slipway_core::SupersededRef) {}
+        fn retire(_: dacc_core::SupersededRef) {}
         retire(superseded::adr_text_sql_path);
     }
 
@@ -59,10 +59,10 @@ mod tests {
     fn breaking_decision_carries_migration() {
         let d = &adr_page_format_v4::DECISION;
         match d.breaking {
-            slipway_knowledge::Breaking::Yes { migration } => {
+            dacc_knowledge::Breaking::Yes { migration } => {
                 assert_eq!(migration.len(), 2);
             }
-            slipway_knowledge::Breaking::No => panic!("ожидалось ломающее решение"),
+            dacc_knowledge::Breaking::No => panic!("ожидалось ломающее решение"),
         }
         assert!(matches!(d.status, DocStatus::Active));
     }

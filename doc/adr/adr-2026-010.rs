@@ -1,14 +1,14 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Документы реестра лежат в корне крейта, без каталога src",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Work)],
     context: r"
         Реестр — прежде всего документы, которые читает человек. Путь
-        crates/slipway-meta/src/adr/a0001.rs давал пять уровней до решения,
+        crates/dacc-meta/src/adr/a0001.rs давал пять уровней до решения,
         и уровень src ничего не сообщал: это умолчание Cargo для библиотек,
         а не смысл.
 
@@ -35,7 +35,7 @@ slipway_knowledge::adr!(
         "Скрипт, читающий реестр по путям, держит эти пути в одном месте в своём начале.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_001, crate::rfc::rfc_2026_002],

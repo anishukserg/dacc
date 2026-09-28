@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(31,
+dacc_work::work!(31,
     title: NonEmptyStr::new("Шаг ссылок в markdown принимал код за ссылку"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {

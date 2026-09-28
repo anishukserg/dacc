@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Носитель задач остаётся Rust; трение измеряется по заранее объявленному критерию",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],
@@ -24,7 +24,7 @@ slipway_knowledge::adr!(
         работы заводятся только на текущие срезы.
 
         Синтаксис снимается генератором `work new` и измеряется на самом
-        Slipway по первым десяти единицам, заведённым генератором.
+        DACC по первым десяти единицам, заведённым генератором.
     ",
     trade_offs: &[
         "Плюс: ссылка на несуществующее решение, спецификацию или срез не компилируется",
@@ -38,7 +38,7 @@ slipway_knowledge::adr!(
         "Единицы работы заводятся только на текущие срезы, не больше пяти на срез.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

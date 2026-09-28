@@ -1,9 +1,9 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(52,
+dacc_work::work!(52,
     title: NonEmptyStr::new("Как адресовать документы знания читаемым идентификатором"),
     slice: crate::slice::s0017,
     origin: WorkOrigin::Inquiry {

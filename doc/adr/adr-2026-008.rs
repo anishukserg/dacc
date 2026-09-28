@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Правила коммитов: форма сообщения, основание из плана, явные пути, проверка дерева коммита",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
@@ -22,18 +22,18 @@ slipway_knowledge::adr!(
         Тема — `[ТИП](область): суть`: тип из закрытого набора FEAT, FIX,
         REFACTOR, TEST, DOCS, ADR, PLAN, CHORE; область — значения оси
         подсистем в нижнем регистре через запятую; не длиннее 72 символов, без
-        точки в конце. Каждый коммит несёт трейлер `Slipway-Work: wNNNN`, и
+        точки в конце. Каждый коммит несёт трейлер `Dacc-Work: wNNNN`, и
         единица работы обязана существовать в дереве этого коммита; коммит
-        закрытия среза вместо него несёт `Slipway-Slice: sNNNN` (решение 15).
+        закрытия среза вместо него несёт `Dacc-Slice: sNNNN` (решение 15).
 
-        Коммит делается командой `cargo slipway commit` (решение 14):
+        Коммит делается командой `cargo dacc commit` (решение 14):
         сообщение проверяется до блокировки и хуков, пути перечисляются явно,
         параллельный коммит ждёт блокировку, вердикт — последней строкой
         `COMMIT OK <sha>` или `COMMIT REFUSED: <причина>`; «отвергнут» и
         «нечего коммитить» имеют разные коды.
 
         Хук pre-commit выгружает дерево коммита и гоняет на нём калитку
-        `cargo slipway gate`: внешние имена по локальному списку; относительные
+        `cargo dacc gate`: внешние имена по локальному списку; относительные
         ссылки в markdown; форматирование; clippy без предупреждений; сборку
         всех целей с константными проверками реестров, тесты и атаки с полом по
         числу прошедших doctest; документацию без битых ссылок; проверки
@@ -61,7 +61,7 @@ slipway_knowledge::adr!(
         "Пол числа doctest в калитке только растёт; понижение — изменение правила с ревью.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

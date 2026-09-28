@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Stable-тулчейн; коды ошибок атак сверяются под RUSTC_BOOTSTRAP",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
@@ -58,7 +58,7 @@ slipway_knowledge::adr!(
         "Атаки не считаются пройденными, если в той же калитке не прошла пробная атака.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(15,
+dacc_work::work!(15,
     title: NonEmptyStr::new("Сборка и атаки на минимальной версии Rust"),
     slice: crate::slice::s0005,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_012),

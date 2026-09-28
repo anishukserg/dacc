@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Журнал работы: событие — файл плоского TOML, свёртка при сборке реестра, доказательство по хэшу дерева без журнала",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],
@@ -30,8 +30,8 @@ slipway_knowledge::adr!(
         подмножество TOML: пары ключ = "строка" и комментарии. Файл события не
         изменяется и не удаляется после коммита.
 
-        Разбор и автомат — крейт slipway-journal без зависимостей. Его
-        подключают скан при сборке реестра и инструмент; slipway-cli получает
+        Разбор и автомат — крейт dacc-journal без зависимостей. Его
+        подключают скан при сборке реестра и инструмент; dacc-cli получает
         эту зависимость по этому решению.
 
         Автомат работы: без событий → started → landed или abandoned; gate
@@ -54,7 +54,7 @@ slipway_knowledge::adr!(
         переиспользует доказательство того же дерева. Калитка отвергает
         изменение и удаление файлов журнала и приземление, чей коммит
         отсутствует или чьё дерево расходится с событием. Коммит, основанием
-        которого служит срез, несёт трейлер Slipway-Slice: sNNNN — это
+        которого служит срез, несёт трейлер Dacc-Slice: sNNNN — это
         дополняет решение 8.
     "#,
     trade_offs: &[
@@ -72,7 +72,7 @@ slipway_knowledge::adr!(
         "Поле события появляется вместе с механизмом, который его читает (решение 5).",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

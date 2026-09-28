@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(46,
+dacc_work::work!(46,
     title: NonEmptyStr::new("Пол измеряет исполненные атаки, а не любые doctest"),
     slice: crate::slice::s0001,
     origin: WorkOrigin::Divergence {

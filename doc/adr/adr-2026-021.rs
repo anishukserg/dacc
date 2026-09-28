@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Проекция реестра: экспорт из скомпилированного реестра, каналы публикации, сайт на mdBook",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Access), taxon!(Subsystem, Methodology)],
@@ -41,14 +41,14 @@ slipway_knowledge::adr!(
         Документ несёт канал; публикация выполняется для одного канала;
         документ без канала не публикуется. Ссылка из публикуемого документа в
         документ другого канала — отказ экспорта и, значит, отказ калитки. У
-        самого Slipway канал один.
+        самого DACC канал один.
 
         Публикуется только дерево, прошедшее калитку; страница несёт коммит, из
         которого собрана; шаг калитки сверяет, что опубликованное совпадает с
         порождённым из реестра. Место — GitHub Pages из CI, только с master.
 
         Рендерер — mdBook: мы отдаём Markdown и не сопровождаем рендерер.
-        Приложение-исследователь графа — отдельное решение с оценкой; Slipway
+        Приложение-исследователь графа — отдельное решение с оценкой; DACC
         служит ему полигоном меньшего объёма.
 
         Порядок: первой делается дорожная карта — она не требует изменений
@@ -72,7 +72,7 @@ slipway_knowledge::adr!(
         "Новый формат проекции появляется вместе с его потребителем (решение 5).",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 21),
+    decided_at: dacc_core::date!(2026, 9, 21),
     breaking: Breaking::Yes {
         migration: nonempty_str![
             "Объявить значения каналов продукта рядом с таксономией.",

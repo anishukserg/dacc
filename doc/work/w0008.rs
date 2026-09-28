@@ -1,8 +1,8 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::WorkOrigin;
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(8,
+dacc_work::work!(8,
     title: NonEmptyStr::new("Правила коммитов: проверка сообщения, калитка на дереве коммита, обёртка коммита"),
     slice: crate::slice::s0003,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_008),

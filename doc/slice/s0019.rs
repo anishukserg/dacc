@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(19,
+dacc_work::slice!(19,
     title: NonEmptyStr::new("Находки пилота в калитке"),
     thrust: crate::thrust::t0004,
     outcome: NonEmptyStr::new(

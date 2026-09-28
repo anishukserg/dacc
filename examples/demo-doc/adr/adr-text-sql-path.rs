@@ -1,9 +1,9 @@
 //! Замещённое решение: ссылка на замещающее — путь к константе, а не число.
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Текстовый SQL как единственный путь исполнения",
     status: DocStatus::SupersededBy(crate::adr::adr_direct_plan),
     subsystems: &[taxon!(Subsystem, Executor)],
@@ -16,7 +16,7 @@ slipway_knowledge::adr!(
     trade_offs: &["Плюс: простота", "Минус: разбор текста на горячем пути"],
     constraints: &[],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 3, 1),
+    decided_at: dacc_core::date!(2026, 3, 1),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[],

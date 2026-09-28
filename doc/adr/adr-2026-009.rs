@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Репозиторий методологии не содержит внешних артефактов",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology)],
@@ -42,7 +42,7 @@ slipway_knowledge::adr!(
         "Публикуется только история, начатая с чистого коммита; прежняя история не публикуется ни веткой, ни тегом.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[],

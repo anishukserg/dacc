@@ -2,4 +2,4 @@
 # commit-msg по решениям 8 и 14: форма сообщения и основание из плана в дереве коммита.
 root=$(git rev-parse --show-toplevel) || exit 2
 export CARGO_TARGET_DIR="$root/target/tool" RUSTUP_AUTO_INSTALL=0
-exec cargo run --quiet --locked --manifest-path "$root/Cargo.toml" -p slipway-cli -- hook commit-msg "$1"
+exec cargo run --quiet --locked --manifest-path "$root/Cargo.toml" -p dacc-cli -- hook commit-msg "$1"

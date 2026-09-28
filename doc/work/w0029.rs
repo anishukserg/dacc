@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(29,
+dacc_work::work!(29,
     title: NonEmptyStr::new("Калитка и основания коммитов в GitHub Actions"),
     slice: crate::slice::s0010,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_018),

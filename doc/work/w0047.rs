@@ -1,9 +1,9 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(47,
+dacc_work::work!(47,
     title: NonEmptyStr::new("Как новый потребитель получает раскладку реестра"),
     slice: crate::slice::s0008,
     origin: WorkOrigin::Inquiry {

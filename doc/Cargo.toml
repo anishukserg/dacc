@@ -1,10 +1,10 @@
 [package]
-name = "slipway-doc"
+name = "dacc-doc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Документы самого Slipway: решения, спецификации и план, записанные по его же методологии"
+description = "Документы самого DACC: решения, спецификации и план, записанные по его же методологии"
 # Документы проекта, а не библиотека: не публикуются (решение 11).
 publish = false
 
@@ -13,7 +13,7 @@ publish = false
 [lib]
 path = "lib.rs"
 
-# Строгий профиль lints продукта (решение 16). Реестр Slipway — первый
+# Строгий профиль lints продукта (решение 16). Реестр DACC — первый
 # потребитель порождённого кода и держит профиль на уровне forbid, чтобы
 # ловилось и глушение через allow. Cargo не соединяет workspace = true с
 # добавками, поэтому запреты рабочего пространства повторены. Тот же профиль —
@@ -40,14 +40,14 @@ private_intra_doc_links = "forbid"
 unescaped_backticks = "forbid"
 
 [dependencies]
-slipway-core = { workspace = true }
-slipway-knowledge = { workspace = true }
-slipway-work = { workspace = true }
-slipway-access = { workspace = true }
+dacc-core = { workspace = true }
+dacc-knowledge = { workspace = true }
+dacc-work = { workspace = true }
+dacc-access = { workspace = true }
 chrono = { workspace = true }
 
 [build-dependencies]
-slipway-scan = { workspace = true }
+dacc-scan = { workspace = true }
 
 # Дорожная карта — первая проекция реестра (решение 21): печатает план из
 # скомпилированного реестра, а не из повторного разбора.

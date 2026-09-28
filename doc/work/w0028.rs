@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(28,
+dacc_work::work!(28,
     title: NonEmptyStr::new("Лицензия, README и метаданные публикации"),
     slice: crate::slice::s0009,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_017),

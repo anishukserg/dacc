@@ -1,0 +1,49 @@
+//! Служебные команды журнала (решение 15).
+//!
+//! ```text
+//! cargo dacc journal hash [<revision>]
+//! cargo dacc journal import --work <wNNNN> [--close-finished-slices] [--trailer <trailer>]…
+//! ```
+//!
+//! `hash` печатает хэш дерева ревизии без каталога журнала — тот, к которому
+//! привязано доказательство готовности. `import` восстанавливает прошлое по
+//! трейлерам истории: работа с коммитом по трейлеру приземляется из истории.
+
+use crate::{git, proof, work};
+use std::ffi::OsString;
+use std::path::Path;
+
+/// `cargo dacc journal …`.
+pub fn run(args: &[OsString]) -> u8 {
+    match args.first().and_then(|name| name.to_str()) {
+        Some("hash") if args.len() <= 2 => hash(args.get(1).and_then(|rev| rev.to_str())),
+        Some("import") => work::run_import(&args[1..]),
+        _ => {
+            eprintln!(
+                "journal: hash [<revision>] | import --work <wNNNN> [--close-finished-slices]"
+            );
+            2
+        }
+    }
+}
+
+fn hash(revision: Option<&str>) -> u8 {
+    let repo = match git::Repo::discover(Path::new(".")) {
+        Ok(repo) => repo,
+        Err(problem) => {
+            eprintln!("journal hash: {problem}");
+            return 2;
+        }
+    };
+    let revision = revision.unwrap_or("HEAD");
+    match proof::content_hash(&repo.root, &repo.config.journal_dir(), revision) {
+        Some(hash) => {
+            println!("{hash}");
+            0
+        }
+        None => {
+            eprintln!("journal hash: revision {revision} cannot be read");
+            2
+        }
+    }
+}

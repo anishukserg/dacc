@@ -1,8 +1,8 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::WorkOrigin;
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(9,
+dacc_work::work!(9,
     title: NonEmptyStr::new("Убрать внешние артефакты и каталог spec/"),
     slice: crate::slice::s0003,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_009),

@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(55,
+dacc_work::work!(55,
     title: NonEmptyStr::new("Публикация крейтов знания в crates.io"),
     slice: crate::slice::s0018,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_025),

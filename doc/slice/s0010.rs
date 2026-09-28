@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(10,
+dacc_work::slice!(10,
     title: NonEmptyStr::new("CI и порядок участия в публичном репозитории"),
     thrust: crate::thrust::t0002,
     outcome: NonEmptyStr::new(

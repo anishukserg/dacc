@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(18,
+dacc_work::slice!(18,
     title: NonEmptyStr::new("Публикация и точка входа раскладки"),
     thrust: crate::thrust::t0004,
     outcome: NonEmptyStr::new(

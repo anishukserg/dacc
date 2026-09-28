@@ -1,4 +1,4 @@
-# Калитка Slipway в CI (решение 18): те же шаги, что у pre-commit, и проверка
+# Калитка DACC в CI (решение 18): те же шаги, что у pre-commit, и проверка
 # основания каждого коммита на пути в master. Actions — только GitHub и
 # закреплены полным хэшем коммита; токен — только на чтение.
 name: gate
@@ -61,10 +61,10 @@ jobs:
       # пропустит шаг и назовёт его в вердикте.
       - name: Список внешних имён из секрета
         env:
-          NAMES: ${{ secrets.SLIPWAY_EXTERNAL_NAMES }}
+          NAMES: ${{ secrets.DACC_EXTERNAL_NAMES }}
         run: |
           if [ -z "$NAMES" ]; then
-            echo "секрета SLIPWAY_EXTERNAL_NAMES нет — калитка пропустит шаг внешних имён"
+            echo "секрета DACC_EXTERNAL_NAMES нет — калитка пропустит шаг внешних имён"
             exit 0
           fi
           printf '%s\n' "$NAMES" | while IFS= read -r line; do
@@ -73,10 +73,10 @@ jobs:
           done
           info="$(git rev-parse --absolute-git-dir)/info"
           mkdir -p "$info"
-          printf '%s\n' "$NAMES" > "$info/slipway-external-names"
+          printf '%s\n' "$NAMES" > "$info/dacc-external-names"
 
       - name: Калитка
-        run: cargo run --quiet --locked -p slipway-cli -- gate
+        run: cargo run --quiet --locked -p dacc-cli -- gate
 
       - name: Основания коммитов
         env:
@@ -102,4 +102,4 @@ jobs:
               exit 0
               ;;
           esac
-          cargo run --quiet --locked -p slipway-cli -- msg-check --range "$range"
+          cargo run --quiet --locked -p dacc-cli -- msg-check --range "$range"

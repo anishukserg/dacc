@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Идентификатор документа знания — slug из имени файла, а не число в макросе",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],
@@ -27,7 +27,7 @@ slipway_knowledge::adr!(
         нумерует себя, реестр адресует его по имени файла.
 
         Алфавит slug совпадает с якорями разметки — общее правило
-        `check_slug_id` в `slipway-core`: латиница в нижнем регистре, цифры,
+        `check_slug_id` в `dacc-core`: латиница в нижнем регистре, цифры,
         дефис, с буквы, без подчёркивания и не ключевое слово. Отображение в
         имя константы — замена дефиса на подчёркивание, поэтому оно инъективно:
         два документа не могут дать одну константу. Регистр запрещён, чтобы
@@ -58,7 +58,7 @@ slipway_knowledge::adr!(
         "Слой работы сохраняет числовые идентификаторы до контентно-адресуемой привязки журнала.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 28),
+    decided_at: dacc_core::date!(2026, 9, 28),
     breaking: Breaking::Yes {
         migration: nonempty_str![
             "Переименовать файлы adr/ и rfc/ в slug-имена.",

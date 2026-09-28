@@ -1,9 +1,9 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(2,
+dacc_work::work!(2,
     title: NonEmptyStr::new("Проза, пережившая переименование символа (атака E3)"),
     slice: crate::slice::s0001,
     origin: WorkOrigin::Inquiry {

@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::DocStatus;
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::DocStatus;
 
-slipway_knowledge::rfc!(
+dacc_knowledge::rfc!(
     title: "Слой работы: происхождение, обратимость, гейты, журнал",
     status: DocStatus::Draft,
     target: &[taxon!(Subsystem, Work)],
@@ -30,6 +30,6 @@ slipway_knowledge::rfc!(
         "Событие журнала не изменяется после записи; состояние — свёртка.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     decided_by: &[crate::adr::adr_2026_002, crate::adr::adr_2026_003],
 );

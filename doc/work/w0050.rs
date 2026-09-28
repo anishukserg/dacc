@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(50,
+dacc_work::work!(50,
     title: NonEmptyStr::new("Установка хуков не оставляет частичную установку"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {

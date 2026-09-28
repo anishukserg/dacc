@@ -1,8 +1,8 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::WorkOrigin;
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(7,
+dacc_work::work!(7,
     title: NonEmptyStr::new("Перенести открытые пункты ревью в план и удалить статусный файл"),
     slice: crate::slice::s0002,
     origin: WorkOrigin::Toil {

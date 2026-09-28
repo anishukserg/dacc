@@ -1,10 +1,10 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(6,
-    title: NonEmptyStr::new("Правила коммитов, калитка и хуки — инструмент cargo slipway"),
+dacc_work::slice!(6,
+    title: NonEmptyStr::new("Правила коммитов, калитка и хуки — инструмент cargo dacc"),
     thrust: crate::thrust::t0004,
     outcome: NonEmptyStr::new(
-        "Коммиты Slipway проходят через cargo slipway commit; хуки — однострочники, вызывающие инструмент, а калитку и pre-push выполняет он; каталога tools/ со скриптами bash нет; сценарии прежнего самотеста — интеграционные тесты крейта slipway-cli."
+        "Коммиты DACC проходят через cargo dacc commit; хуки — однострочники, вызывающие инструмент, а калитку и pre-push выполняет он; каталога tools/ со скриптами bash нет; сценарии прежнего самотеста — интеграционные тесты крейта dacc-cli."
     ),
     specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Crate,

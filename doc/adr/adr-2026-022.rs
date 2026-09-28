@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Вывод инструмента — машинный контракт: JSON по запросу, коды причин, структурный вердикт",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Access)],
@@ -67,7 +67,7 @@ slipway_knowledge::adr!(
         "Прежние события журнала не переписываются.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 21),
+    decided_at: dacc_core::date!(2026, 9, 21),
     breaking: Breaking::Yes {
         migration: nonempty_str![
             "Обновить инструмент до версии, читающей события обоих видов, прежде чем записывать новые события.",

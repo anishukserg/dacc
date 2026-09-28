@@ -3,4 +3,4 @@
 # вершины, внешние имена в истории.
 root=$(git rev-parse --show-toplevel) || exit 2
 export CARGO_TARGET_DIR="$root/target/tool" RUSTUP_AUTO_INSTALL=0
-exec cargo run --quiet --locked --manifest-path "$root/Cargo.toml" -p slipway-cli -- hook pre-push "$@"
+exec cargo run --quiet --locked --manifest-path "$root/Cargo.toml" -p dacc-cli -- hook pre-push "$@"

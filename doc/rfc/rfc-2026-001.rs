@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::DocStatus;
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::DocStatus;
 
-slipway_knowledge::rfc!(
+dacc_knowledge::rfc!(
     title: "Слой знания: реестр решений, спецификаций и разметки кода",
     status: DocStatus::Active,
     target: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],
@@ -37,6 +37,6 @@ slipway_knowledge::rfc!(
         "Ошибка в записи разметки отвергается на месте, а не превращается молча в отсутствие разметки.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     decided_by: &[crate::adr::adr_2026_001, crate::adr::adr_2026_004],
 );

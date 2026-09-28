@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(3,
+dacc_work::slice!(3,
     title: NonEmptyStr::new("Правила коммитов и репозиторий без внешних артефактов"),
     thrust: crate::thrust::t0002,
     outcome: NonEmptyStr::new(

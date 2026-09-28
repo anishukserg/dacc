@@ -1,9 +1,9 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(35,
+dacc_work::work!(35,
     title: NonEmptyStr::new("Какую проекцию реестра мы публикуем"),
     slice: crate::slice::s0013,
     origin: WorkOrigin::Inquiry {

@@ -1,9 +1,9 @@
 //! Действующее решение.
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Прямая передача плана из ORM в исполнитель",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Executor), taxon!(Subsystem, Storage)],
@@ -19,7 +19,7 @@ slipway_knowledge::adr!(
     ],
     constraints: &["Запрещён текстовый SQL на пути прямого исполнителя."],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 8),
+    decided_at: dacc_core::date!(2026, 9, 8),
     breaking: Breaking::No,
     code_refs: &[crate::anchor::plan_ir],
     related_rfcs: &[],

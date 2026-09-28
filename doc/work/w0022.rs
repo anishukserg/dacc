@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(22,
+dacc_work::work!(22,
     title: NonEmptyStr::new("Доказательство готовности по хэшу дерева без журнала"),
     slice: crate::slice::s0007,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_015),

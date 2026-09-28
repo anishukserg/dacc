@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(57,
+dacc_work::work!(57,
     title: NonEmptyStr::new("Обход дерева в калитке уважает .gitignore"),
     slice: crate::slice::s0019,
     origin: WorkOrigin::Divergence {

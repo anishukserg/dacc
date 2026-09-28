@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(15,
+dacc_work::slice!(15,
     title: NonEmptyStr::new("Обязательства и открытые вопросы в реестре"),
     thrust: crate::thrust::t0003,
     outcome: NonEmptyStr::new(

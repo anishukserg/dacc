@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(5,
+dacc_work::work!(5,
     title: NonEmptyStr::new("Журнал событий: формат, автомат переходов, свёртка при сборке реестра"),
     slice: crate::slice::s0007,
     origin: WorkOrigin::Specification(crate::rfc::rfc_2026_002),

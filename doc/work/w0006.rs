@@ -1,9 +1,9 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(6,
+dacc_work::work!(6,
     title: NonEmptyStr::new("Где исполняется проверка на пути в основную ветку при агентной разработке"),
     slice: crate::slice::s0002,
     origin: WorkOrigin::Inquiry {
@@ -16,6 +16,6 @@ slipway_work::work!(6,
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(
-        "ADR: определение CiGate через независимость вердикта и его потребителя, а не через место исполнения; сверено с двумя известными схемами — проверкой на закрытии работы без удалённого CI и удалённым CI на каждый push; первый набор проверок для Slipway."
+        "ADR: определение CiGate через независимость вердикта и его потребителя, а не через место исполнения; сверено с двумя известными схемами — проверкой на закрытии работы без удалённого CI и удалённым CI на каждый push; первый набор проверок для DACC."
     ),
 );

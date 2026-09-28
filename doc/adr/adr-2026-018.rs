@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Путь изменений в master публичного репозитория: калитка в CI, перенос внешних pull request, приватные сообщения об уязвимостях",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
@@ -11,7 +11,7 @@ slipway_knowledge::adr!(
         на машине сопровождающего. Хук обходится одним флагом, а правка на
         сайте, коммит без установленных хуков и слияние кнопкой не проходят
         через хуки вовсе. GUARANTEES.md называет CI и защищённую ветку внешним
-        требованием методологии; у самого Slipway их не было.
+        требованием методологии; у самого DACC их не было.
 
         Внешний pull request не может пройти правила коммитов: трейлер
         основания ссылается на работу из плана, который ведёт сопровождающий.
@@ -34,15 +34,15 @@ slipway_knowledge::adr!(
         master и ручной запуск. Он выгружает всю историю, ставит тулчейн из
         rust-toolchain.toml и минимальную версию из rust-version, ставит
         cargo-deny из выпущенного архива с закреплённой версией и контрольной
-        суммой, загружает базу уязвимостей и выполняет cargo slipway gate — те
-        же шаги, что у pre-commit. Затем cargo slipway msg-check --range
+        суммой, загружает базу уязвимостей и выполняет cargo dacc gate — те
+        же шаги, что у pre-commit. Затем cargo dacc msg-check --range
         проверяет сообщение каждого коммита диапазона по дереву этого коммита:
         у push — от прежней вершины до новой, у pull request — от базы до
         головы.
 
         Workflow получает только право чтения содержимого. Actions — только
         GitHub, закреплены полным хэшем коммита. Список внешних имён хранится
-        в секрете SLIPWAY_EXTERNAL_NAMES, записывается в каталог git перед
+        в секрете DACC_EXTERNAL_NAMES, записывается в каталог git перед
         калиткой, и каждое имя маскируется в журнале прогона. Pull request из
         форка секрета не получает, и шаг внешних имён у него не выполняется.
 
@@ -70,7 +70,7 @@ slipway_knowledge::adr!(
         "Коммиты, созданные кнопками слияния GitHub, в master не попадают.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

@@ -1,27 +1,27 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
-    title: "Документы Slipway — один крейт в каталоге doc/",
+dacc_knowledge::adr!(
+    title: "Документы DACC — один крейт в каталоге doc/",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Work)],
     context: r"
-        Решения и спецификации лежали в крейте slipway-meta, план — в
-        slipway-plan, оба в crates/ рядом с библиотеками методологии и под тем
-        же префиксом slipway-*. По имени нельзя было отличить библиотеку со
-        схемой документов (slipway-knowledge, slipway-work) от самих
+        Решения и спецификации лежали в крейте dacc-meta, план — в
+        dacc-plan, оба в crates/ рядом с библиотеками методологии и под тем
+        же префиксом dacc-*. По имени нельзя было отличить библиотеку со
+        схемой документов (dacc-knowledge, dacc-work) от самих
         документов, а план ссылался на решения через чужой крейт.
 
         Рассматривались три раскладки: один крейт в каталоге doc/; два крейта
-        doc/knowledge и doc/plan; один крейт crates/slipway-doc. Код продукта
+        doc/knowledge и doc/plan; один крейт crates/dacc-doc. Код продукта
         не зависит от крейта документов ни в одной из них — build.rs реестра
         читает исходники кода, а не наоборот, — поэтому пересборка продукта
         выбор не решала.
     ",
     decision: r"
-        Все документы Slipway — решения, спецификации, направления, срезы,
-        единицы работы и таксономия — лежат в одном крейте slipway-doc в
+        Все документы DACC — решения, спецификации, направления, срезы,
+        единицы работы и таксономия — лежат в одном крейте dacc-doc в
         каталоге doc/ корня репозитория: doc/adr/, doc/rfc/, doc/thrust/,
         doc/slice/, doc/work/, doc/taxonomy.rs. Внутри крейта документы
         ссылаются друг на друга путями crate::. Крейт не публикуется. В crates/
@@ -48,7 +48,7 @@ slipway_knowledge::adr!(
         "Отсутствующий каталог перечисленного типа документов — ошибка сборки, а не пустой реестр.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_001, crate::rfc::rfc_2026_002],

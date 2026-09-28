@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(45,
+dacc_work::work!(45,
     title: NonEmptyStr::new("Отказ настройки называет форму числа; диапазон покрывает корневой коммит"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {

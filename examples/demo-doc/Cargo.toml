@@ -13,7 +13,7 @@ publish = false
 path = "lib.rs"
 
 # Строгий профиль lints продукта (решение 16) — тот же, что в doc/Cargo.toml.
-# Демо-реестр задействует эмиттеры, которых нет в документах Slipway: разметку
+# Демо-реестр задействует эмиттеры, которых нет в документах DACC: разметку
 # кода и замещённые решения. Меняется в обоих манифестах одним коммитом.
 [lints.rust]
 unsafe_code = "forbid"
@@ -37,9 +37,9 @@ private_intra_doc_links = "forbid"
 unescaped_backticks = "forbid"
 
 [dependencies]
-slipway-core = { workspace = true }
-slipway-knowledge = { workspace = true }
+dacc-core = { workspace = true }
+dacc-knowledge = { workspace = true }
 chrono = { workspace = true }
 
 [build-dependencies]
-slipway-scan = { workspace = true }
+dacc-scan = { workspace = true }

@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Гипотезы и критерии выхода пилота L1",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology)],
@@ -28,7 +28,7 @@ slipway_knowledge::adr!(
         время от удаления до ошибки сборки. Порог: тот же прогон. Отказ:
         расхождение, найденное только ревью.
 
-        Срок — тридцать дней. Вердикт выносит сопровождающий Slipway вместе с
+        Срок — тридцать дней. Вердикт выносит сопровождающий DACC вместе с
         ведущим пилотного проекта; отказ любой гипотезы — вердикт «не принято»
         с названной причиной.
     ",
@@ -42,7 +42,7 @@ slipway_knowledge::adr!(
         "Отказ пилота фиксируется вердиктом с названной гипотезой и причиной.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 28),
+    decided_at: dacc_core::date!(2026, 9, 28),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_001],

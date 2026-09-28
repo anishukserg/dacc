@@ -1,13 +1,13 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Зависимости проверяются cargo-deny: лицензии, уязвимости, дубли, источники",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
     context: r"
-        Крейты Slipway подключают продукты, и каждая внешняя зависимость
+        Крейты DACC подключают продукты, и каждая внешняя зависимость
         методологии становится зависимостью продукта — с её лицензией,
         уязвимостями и источником. До решения это ничем не проверялось.
 
@@ -45,7 +45,7 @@ slipway_knowledge::adr!(
         "Без сохранённой базы уязвимостей калитка отказывает; база ставится командой cargo deny fetch.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002],

@@ -1,13 +1,13 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
-    title: "Slipway публикуется на GitHub под лицензией Apache-2.0",
+dacc_knowledge::adr!(
+    title: "DACC публикуется на GitHub под лицензией Apache-2.0",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology)],
     context: r"
-        Репозиторий Slipway становится публичным. Манифест рабочего
+        Репозиторий DACC становится публичным. Манифест рабочего
         пространства объявлял лицензию MIT OR Apache-2.0, но файлов лицензии
         не было, а у публикуемых крейтов не было ссылки на репозиторий,
         README, ключевых слов и категорий. Проверка перед публикацией нашла
@@ -19,12 +19,12 @@ slipway_knowledge::adr!(
         условие об уведомлении об изменениях. Выбрана Apache-2.0.
     ",
     decision: r"
-        Slipway распространяется под лицензией Apache-2.0. Полный текст —
+        DACC распространяется под лицензией Apache-2.0. Полный текст —
         файл LICENSE в корне; в каждом публикуемом крейте LICENSE — ссылка на
         него, чтобы текст лицензии входил в пакет крейта. Поле license
         рабочего пространства — Apache-2.0.
 
-        Публичный адрес — https://github.com/anishukserg/slipway; публикуется
+        Публичный адрес — https://github.com/anishukserg/dacc; публикуется
         ветка master, локальные ветки archive/* не публикуются.
 
         Вход на странице репозитория — README.md в корне: что это, с чего
@@ -37,7 +37,7 @@ slipway_knowledge::adr!(
         "Плюс: явный патентный грант авторов и условие об уведомлении об изменениях",
         "Плюс: текст лицензии входит в пакет каждого публикуемого крейта",
         "Плюс: страницы репозитория и крейтов объясняют, что это и откуда читать",
-        "Минус: без MIT крейты Slipway нельзя включить в проект под GPLv2",
+        "Минус: без MIT крейты DACC нельзя включить в проект под GPLv2",
         "Минус: LICENSE в крейтах — символическая ссылка; при выгрузке без их поддержки пакет крейта получит текст пути вместо лицензии",
         "Минус: README — ещё один текст, который может разойтись с реестром; калитка проверяет в нём только относительные ссылки",
     ],
@@ -46,7 +46,7 @@ slipway_knowledge::adr!(
         "Новый публикуемый крейт получает LICENSE, README.md и поля repository, readme, keywords и categories в той же работе.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 11),
+    decided_at: dacc_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[],

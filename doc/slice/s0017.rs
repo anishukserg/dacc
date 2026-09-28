@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(17,
+dacc_work::slice!(17,
     title: NonEmptyStr::new("Читаемые идентификаторы документов знания"),
     thrust: crate::thrust::t0003,
     outcome: NonEmptyStr::new(

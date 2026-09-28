@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::DocStatus;
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::DocStatus;
 
-slipway_knowledge::rfc!(
+dacc_knowledge::rfc!(
     title: "Слой доступа: интроспекция вместо поиска по файлам",
     status: DocStatus::Draft,
     target: &[taxon!(Subsystem, Access), taxon!(Subsystem, Cli)],
@@ -29,6 +29,6 @@ slipway_knowledge::rfc!(
         "Законный отказ отличается от сбоя полем legitimate.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     decided_by: &[],
 );

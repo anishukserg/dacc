@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(14,
+dacc_work::work!(14,
     title: NonEmptyStr::new("Stable-тулчейн и сверка кодов ошибок атак"),
     slice: crate::slice::s0005,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_012),

@@ -8,7 +8,7 @@
 // Разметка — атрибут-маркер: он проверяет свои аргументы и возвращает элемент
 // без изменений. Константы ссылок порождает скан (RFC-0001), поэтому ставить
 // разметку можно где угодно, включая методы внутри `impl`.
-use slipway_derive::doc_anchor;
+use dacc_derive::doc_anchor;
 
 #[doc_anchor(id = "plan-ir", mode = "snippet")]
 pub struct PlanIr {
@@ -30,7 +30,7 @@ impl PlanIr {
 }
 
 pub mod page {
-    use slipway_derive::doc_anchor;
+    use dacc_derive::doc_anchor;
 
     /// Заголовок страницы данных: формат версии 4.
     #[doc_anchor(id = "page-header", mode = "ref")]

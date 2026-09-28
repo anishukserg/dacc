@@ -1,14 +1,14 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(26,
-    title: NonEmptyStr::new("Доставка крейтов Slipway в сторонний проект"),
+dacc_work::work!(26,
+    title: NonEmptyStr::new("Доставка крейтов DACC в сторонний проект"),
     slice: crate::slice::s0008,
     origin: WorkOrigin::Inquiry {
         question: NonEmptyStr::new(
-            "Как крейты Slipway попадают в сторонний проект, чья политика зависимостей допускает только crates.io, так, чтобы CI проекта собирал реестр с закреплённой версией?"
+            "Как крейты DACC попадают в сторонний проект, чья политика зависимостей допускает только crates.io, так, чтобы CI проекта собирал реестр с закреплённой версией?"
         ),
         produces: InquiryOutcome::Adr,
         timebox_days: NonZeroU16::new(2).unwrap(),

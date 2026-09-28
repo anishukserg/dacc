@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(51,
+dacc_work::work!(51,
     title: NonEmptyStr::new("Порождённый сканом текст и его ошибки — на английском"),
     slice: crate::slice::s0016,
     origin: WorkOrigin::Divergence {

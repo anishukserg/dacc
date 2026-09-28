@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(1,
+dacc_work::slice!(1,
     title: NonEmptyStr::new("Закрыть атаки на слой знания"),
     thrust: crate::thrust::t0001,
     outcome: NonEmptyStr::new(

@@ -1,7 +1,7 @@
-//! Документы самого Slipway: решения, спецификации, план работ и журнал.
+//! Документы самого DACC: решения, спецификации, план работ и журнал.
 //!
-//! Методология, применённая к себе: решения о том, как устроен Slipway, и
-//! работа над ним ведутся по правилам Slipway. Это первое её испытание — и
+//! Методология, применённая к себе: решения о том, как устроен DACC, и
+//! работа над ним ведутся по правилам DACC. Это первое её испытание — и
 //! первое место, где несоблюдение собственных правил стало бы видно
 //! немедленно.
 //!
@@ -73,7 +73,7 @@ mod tests {
     /// направление.
     #[test]
     fn roadmap_renders_the_plan() {
-        let out = slipway_work::roadmap::render_roadmap(
+        let out = dacc_work::roadmap::render_roadmap(
             ALL_THRUSTS,
             ALL_SLICES,
             ALL_WORK,
@@ -88,7 +88,7 @@ mod tests {
     /// Экспорт (решение 21): JSON графа и XML среза непусты и несут версию.
     #[test]
     fn export_renders_json_and_xml() {
-        let json = slipway_access::export_graph(
+        let json = dacc_access::export_graph(
             ALL,
             ALL_SPECS,
             ALL_THRUSTS,
@@ -98,10 +98,10 @@ mod tests {
             CLOSED_SLICES,
             COMMIT,
         );
-        assert!(json.contains("\"schema\": \"slipway-registry\""), "{json}");
+        assert!(json.contains("\"schema\": \"dacc-registry\""), "{json}");
         assert!(json.contains("\"id\": \"adr-2026-021\""), "{json}");
 
-        let xml = slipway_access::export_slice(ALL, ALL_SPECS, "проекция", COMMIT);
+        let xml = dacc_access::export_slice(ALL, ALL_SPECS, "проекция", COMMIT);
         assert!(xml.contains("<registry version="), "{xml}");
         assert!(xml.contains("<decision id=\"adr-2026-021\""), "{xml}");
     }

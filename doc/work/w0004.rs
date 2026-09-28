@@ -1,8 +1,8 @@
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
 use crate::taxonomy::Subsystem;
-use slipway_work::WorkOrigin;
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(4,
+dacc_work::work!(4,
     title: NonEmptyStr::new("Генератор `work new` и замер трения заведения задач"),
     slice: crate::slice::s0002,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_005),

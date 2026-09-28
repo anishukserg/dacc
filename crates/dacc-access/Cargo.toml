@@ -1,0 +1,22 @@
+[package]
+name = "dacc-access"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "DACC: слой доступа — экспорт скомпилированного реестра в JSON и XML"
+readme = "README.md"
+keywords = ["planning", "export", "compile-time", "methodology", "registry"]
+categories = ["development-tools"]
+
+[lints]
+workspace = true
+
+[dependencies]
+dacc-core = { workspace = true }
+dacc-knowledge = { workspace = true }
+dacc-work = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }

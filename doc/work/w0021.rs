@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(21,
+dacc_work::work!(21,
     title: NonEmptyStr::new("Путь, удалённый через git rm, не коммитился"),
     slice: crate::slice::s0006,
     origin: WorkOrigin::Divergence {

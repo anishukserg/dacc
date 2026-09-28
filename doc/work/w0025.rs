@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::WorkOrigin;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
 
-slipway_work::work!(25,
+dacc_work::work!(25,
     title: NonEmptyStr::new("Порождённый код и макросы регистрации под строгим профилем lints"),
     slice: crate::slice::s0008,
     origin: WorkOrigin::Decision(crate::adr::adr_2026_016),

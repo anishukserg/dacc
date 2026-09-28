@@ -1,6 +1,6 @@
-use slipway_core::{BlastRadius, NonEmptyStr};
+use dacc_core::{BlastRadius, NonEmptyStr};
 
-slipway_work::slice!(11,
+dacc_work::slice!(11,
     title: NonEmptyStr::new("Дефекты инструмента, найденные при письме документов и внедрении"),
     thrust: crate::thrust::t0002,
     outcome: NonEmptyStr::new(

@@ -1,15 +1,15 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
-    title: "Доставка крейтов Slipway в сторонний проект — публикация в crates.io",
+dacc_knowledge::adr!(
+    title: "Доставка крейтов DACC в сторонний проект — публикация в crates.io",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge)],
     context: r"
-        Пилот уровня знания на стороннем проекте требует, чтобы крейты Slipway
+        Пилот уровня знания на стороннем проекте требует, чтобы крейты DACC
         попали в проект, чья политика зависимостей допускает только crates.io:
-        deny.toml запрещает неизвестные реестры и git-источники. Крейты Slipway
+        deny.toml запрещает неизвестные реестры и git-источники. Крейты DACC
         сегодня — path-зависимости рабочего пространства, в crates.io не
         опубликованы.
 
@@ -27,9 +27,9 @@ slipway_knowledge::adr!(
 
         Публикуются вместе, одним выпуском, потому что делят версию рабочего
         пространства. Для L1 публикуются пять крейтов в порядке зависимости:
-        slipway-core и slipway-journal (без зависимостей), затем
-        slipway-knowledge и slipway-derive (на core), затем slipway-scan (на
-        core и journal). slipway-journal попадает транзитивно — скан реестра
+        dacc-core и dacc-journal (без зависимостей), затем
+        dacc-knowledge и dacc-derive (на core), затем dacc-scan (на
+        core и journal). dacc-journal попадает транзитивно — скан реестра
         лежит одним крейтом со знанием, планом и журналом. Документы и примеры
         остаются непубликуемыми.
 
@@ -50,7 +50,7 @@ slipway_knowledge::adr!(
         "Выпуск публикует пять крейтов в порядке зависимости — они делят версию рабочего пространства.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 28),
+    decided_at: dacc_core::date!(2026, 9, 28),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_001],

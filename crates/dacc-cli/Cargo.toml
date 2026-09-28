@@ -1,0 +1,26 @@
+[package]
+name = "dacc-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "DACC: правила коммитов, калитка и хуки — команда cargo dacc"
+readme = "README.md"
+keywords = ["cargo-subcommand", "git-hooks", "commit-message", "journal", "methodology"]
+categories = ["development-tools::cargo-plugins", "command-line-utilities"]
+
+# Бинарь с именем cargo-dacc вызывается как `cargo dacc`.
+[[bin]]
+name = "cargo-dacc"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+# Хук собирает инструмент, и сборка не тянет граф крейтов: внешних
+# зависимостей нет (решение 14). Единственная зависимость — dacc-journal
+# того же рабочего пространства без собственных зависимостей: автомат журнала
+# у сборки реестра и у инструмента один (решение 15).
+[dependencies]
+dacc-journal = { workspace = true }

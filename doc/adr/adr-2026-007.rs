@@ -1,8 +1,8 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Хореография, сосуществование сессий, прогноз и метрики — расширения вне нормативного ядра",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Work)],
@@ -17,7 +17,7 @@ slipway_knowledge::adr!(
         ненормативные практики до пилота, которому они понадобятся.
 
         В коде расширения — выключенные по умолчанию возможности сборки;
-        публичная поверхность для продукта — фасадный крейт и cargo-slipway.
+        публичная поверхность для продукта — фасадный крейт и cargo-dacc.
     ",
     trade_offs: &[
         "Плюс: поверхность внедрения сокращается до нужного на L1–L2",
@@ -29,7 +29,7 @@ slipway_knowledge::adr!(
         "Практика становится нормой только после пилота, где она нужна, и с названным породившим отказом.",
     ],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
     related_rfcs: &[crate::rfc::rfc_2026_002, crate::rfc::rfc_2026_003],

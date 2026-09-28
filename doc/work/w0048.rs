@@ -1,9 +1,9 @@
 use crate::taxonomy::Subsystem;
-use slipway_core::{taxon, BlastRadius, NonEmptyStr};
-use slipway_work::{InquiryOutcome, WorkOrigin};
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::{InquiryOutcome, WorkOrigin};
 use std::num::NonZeroU16;
 
-slipway_work::work!(48,
+dacc_work::work!(48,
     title: NonEmptyStr::new("Ярусы калитки и её бюджет"),
     slice: crate::slice::s0002,
     origin: WorkOrigin::Inquiry {

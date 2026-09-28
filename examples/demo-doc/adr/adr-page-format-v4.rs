@@ -1,9 +1,9 @@
 //! Ломающее решение: инструкции миграции лежат внутри варианта.
 use crate::taxonomy::Subsystem;
-use slipway_core::{nonempty_str, taxon};
-use slipway_knowledge::{Breaking, DocStatus};
+use dacc_core::{nonempty_str, taxon};
+use dacc_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(
+dacc_knowledge::adr!(
     title: "Версия 4 формата страницы данных",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Storage)],
@@ -16,7 +16,7 @@ slipway_knowledge::adr!(
     trade_offs: &["Минус: файлы версии 3 требуют перекодирования"],
     constraints: &["Страницы версии 3 обязаны читаться до конца срока поддержки."],
     authors: nonempty_str!["Анищук Сергей"],
-    decided_at: slipway_core::date!(2026, 9, 10),
+    decided_at: dacc_core::date!(2026, 9, 10),
     // Отметить ломающим и не приложить инструкции — невыразимо.
     breaking: Breaking::Yes {
         migration: nonempty_str![
