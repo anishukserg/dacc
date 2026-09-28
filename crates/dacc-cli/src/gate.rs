@@ -308,7 +308,9 @@ impl Gate {
         // Команда проекта — сразу после журнала и до шагов cargo: дешёвые
         // проверки DACC отказывают первыми, а команда проекта обычно сама
         // включает fmt, clippy и тесты, поэтому эти шаги здесь пропускаются
-        // (решение 28).
+        // (решение 28). Признак делегирования вычисляется один раз, чтобы шесть
+        // стандартных шагов cargo не повторяли одно и то же условие.
+        let delegated = self.config.gate_command.is_some();
         self.project_command()?;
 
         // Дальше запускается cargo. Без манифеста в самом дереве cargo пошёл бы
@@ -322,7 +324,7 @@ impl Gate {
         }
         let target = self.target.clone();
 
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let mut fmt = self.cargo(&target);
             fmt.args(["fmt", "--manifest-path"])
                 .arg(&manifest)
@@ -330,7 +332,7 @@ impl Gate {
             self.cargo_step("cargo fmt --check", "fmt", &mut fmt)?;
         }
 
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let mut clippy = self.cargo(&target);
             clippy
                 .args(["clippy", "--manifest-path"])
@@ -347,7 +349,7 @@ impl Gate {
         }
 
         // Doctest-атаки выполняются отдельным шагом под RUSTC_BOOTSTRAP.
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let mut test = self.cargo(&target);
             test.args(["test", "--manifest-path"]).arg(&manifest).args([
                 "--workspace",
@@ -385,7 +387,7 @@ impl Gate {
             )));
         }
 
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let mut doc = self.cargo(&target);
             doc.env("RUSTDOCFLAGS", "-D warnings")
                 .args(["doc", "--manifest-path"])
@@ -406,7 +408,7 @@ impl Gate {
             })?;
         let toolchain = format!("+{msrv}");
 
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let mut msrv_check = self.cargo(&self.build_dir("msrv"));
             msrv_check
                 .arg(&toolchain)
@@ -441,7 +443,7 @@ impl Gate {
         // Политика по сохранённой базе, без сети: коммит от сети не зависит.
         // Базу обновляет pre-push; без базы шаг отказывает (решение 13). Шаг
         // заменяется командой проекта, когда она задана (решение 28).
-        if self.config.gate_command.is_none() {
+        if !delegated {
             let policy = self.tree.join(layout::DENY_POLICY);
             if !policy.is_file() {
                 return Err(fail(
