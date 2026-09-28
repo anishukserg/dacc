@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-config-refusal"
+at = "2026-09-28T18:17:45Z"
+commit = "ad8ecebb52452d239b28e18e247fb24adc5eefb1"
+tree = "65d003d6d32ad9fc1f037db799eb2022833ecccd"
