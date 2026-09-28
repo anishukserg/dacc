@@ -341,6 +341,16 @@ pub fn emit_anchor_refs(anchors: &[ScannedAnchor]) -> String {
     out
 }
 
+/// Точка входа разметки кода (решение 27): скан исходников с `#[doc_anchor]` и
+/// запись констант-ссылок в `anchors.rs`. Перезапуск по изменению исходников
+/// объявляет потребительский build.rs.
+pub fn emit_anchors(src_dirs: &[&Path], out_dir: &Path) -> Result<(), super::ScanError> {
+    let anchors = scan_anchors(src_dirs)?;
+    fs::write(out_dir.join("anchors.rs"), emit_anchor_refs(&anchors))
+        .map_err(|error| super::ScanError::Io(format!("anchors.rs: {error}")))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,6 +413,26 @@ impl PlanIR {
         let out = emit_anchor_refs(&found);
         assert!(out.contains("pub const plan_ir: AnchorId = AnchorId::__from_scan(\"plan-ir\")"));
         assert!(out.contains("pub const plan_validate: AnchorId"));
+    }
+
+    /// Точка входа разметки (решение 27): скан исходников и запись модуля.
+    #[test]
+    fn emit_anchors_writes_the_module() {
+        let root = std::env::temp_dir().join(format!("slipway-anchors-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/lib.rs"),
+            "#[doc_anchor(id = \"plan-ir\")]\npub struct PlanIr;\n",
+        )
+        .unwrap();
+        let out = root.join("out");
+        fs::create_dir_all(&out).unwrap();
+
+        emit_anchors(&[&root.join("src")], &out).unwrap();
+
+        let anchors = fs::read_to_string(out.join("anchors.rs")).unwrap();
+        assert!(anchors.contains("pub const plan_ir: AnchorId"), "{anchors}");
     }
 
     /// Атака E4: неизвестный режим молча становился `ref`.

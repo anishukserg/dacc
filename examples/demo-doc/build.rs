@@ -1,45 +1,29 @@
-//! Скан реестра решений и порождение модуля констант в `OUT_DIR`.
-//!
-//! Пишет ТОЛЬКО в `OUT_DIR`: запись в каталог крейта ломала бы
-//! `cargo package --locked` и обновляла бы mtime собственного триггера
-//! перезапуска.
+//! Скан реестра решений и разметки кода продукта, порождение модулей констант
+//! в `OUT_DIR` (решение 27: точки входа вместо ручной оркестровки).
 
 use std::{env, fs, path::PathBuf};
 
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let adr_dir = manifest.join("adr");
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    let decisions = match slipway_scan::scan_decisions(&adr_dir) {
-        Ok(d) => d,
-        Err(e) => {
-            println!("cargo::error=slipway: {e}");
-            std::process::exit(1);
-        }
+    // Решения: идентификатор — slug из имени файла (решение 23).
+    let decisions = match slipway_scan::scan_decisions(&manifest.join("adr")) {
+        Ok(decisions) => decisions,
+        Err(error) => fail(&error),
     };
+    fs::write(out.join("registry.rs"), slipway_scan::emit_refs(&decisions)).unwrap();
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    fs::write(
-        out_dir.join("registry.rs"),
-        slipway_scan::emit_refs(&decisions),
-    )
-    .unwrap();
-
-    // Разметка кода продукта: порождает константы, на которые ссылаются решения.
-    let product_src = manifest.join("../demo-product/src");
-    let anchors = match slipway_scan::scan_anchors(&[&product_src]) {
-        Ok(a) => a,
-        Err(e) => {
-            println!("cargo::error=slipway: {e}");
-            std::process::exit(1);
-        }
-    };
-    fs::write(
-        out_dir.join("anchors.rs"),
-        slipway_scan::anchors::emit_anchor_refs(&anchors),
-    )
-    .unwrap();
+    // Разметка кода продукта: точка входа (решение 27).
+    if let Err(error) = slipway_scan::emit_anchors(&[&manifest.join("../demo-product/src")], &out) {
+        fail(&error);
+    }
 
     println!("cargo::rerun-if-changed=adr");
     println!("cargo::rerun-if-changed=../demo-product/src");
+}
+
+fn fail(error: &slipway_scan::ScanError) -> ! {
+    println!("cargo::error=slipway: {error}");
+    std::process::exit(1)
 }

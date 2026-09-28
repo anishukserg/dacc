@@ -19,7 +19,7 @@
 pub mod anchors;
 pub mod journal;
 pub mod plan;
-pub use anchors::{scan_anchors, AnchorMode, ScannedAnchor};
+pub use anchors::{emit_anchors, scan_anchors, AnchorMode, ScannedAnchor};
 
 use std::{fmt::Write as _, fs, path::Path};
 
@@ -462,6 +462,55 @@ pub fn emit_spec_refs(specs: &[ScannedSlug]) -> String {
     out
 }
 
+/// Библиотечная точка входа раскладки реестра (решение 27): скан решений,
+/// спецификаций, плана и журнала, порождение и запись всех файлов в `out_dir`.
+/// build.rs потребителя сводится к одному вызову; каталоги реестра ожидаются в
+/// корне `registry_dir` — он же корень крейта документов.
+pub fn emit_registry(registry_dir: &Path, out_dir: &Path) -> Result<(), ScanError> {
+    let decisions = scan_decisions(&registry_dir.join("adr"))?;
+    write_file(out_dir, "adr.rs", &emit_refs(&decisions))?;
+
+    let specs = scan_specs(&registry_dir.join("rfc"))?;
+    write_file(out_dir, "rfc.rs", &emit_spec_refs(&specs))?;
+
+    let thrusts = plan::scan_plan(&registry_dir.join("thrust"), &plan::THRUSTS)?;
+    let slices = plan::scan_plan(&registry_dir.join("slice"), &plan::SLICES)?;
+    let work = plan::scan_plan(&registry_dir.join("work"), &plan::WORK)?;
+    let mut code = plan::emit_plan(&thrusts, &plan::THRUSTS);
+    code.push_str(&plan::emit_plan(&slices, &plan::SLICES));
+    code.push_str(&plan::emit_plan(&work, &plan::WORK));
+    code.push_str(&plan::emit_work_checks(&work));
+    write_file(out_dir, "plan.rs", &code)?;
+
+    let journal = journal::scan_journal(&registry_dir.join("journal"), &work)?;
+    write_file(out_dir, "journal.rs", &journal)?;
+
+    write_file(out_dir, "commit.rs", &commit_constant())?;
+
+    for dir in ["adr", "rfc", "thrust", "slice", "work", "journal"] {
+        println!("cargo::rerun-if-changed={dir}");
+    }
+    Ok(())
+}
+
+fn write_file(out_dir: &Path, name: &str, text: &str) -> Result<(), ScanError> {
+    fs::write(out_dir.join(name), text).map_err(|error| ScanError::Io(format!("{name}: {error}")))
+}
+
+/// Коммит, из которого собран реестр; вне репозитория git — неизвестен.
+fn commit_constant() -> String {
+    let commit = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .unwrap_or_default();
+    format!(
+        "/// The git commit this registry was built from.\npub static COMMIT: &str = {commit:?};\n"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,5 +705,26 @@ mod tests {
     fn mention_in_prose_is_not_a_bypass() {
         let text = "slipway_knowledge::adr!(status: DocStatus::Active, context: r#\"вызов __from_scan руками запрещён\"#,);";
         assert!(parse_decision(text, "adr-2026-001").is_ok());
+    }
+
+    /// Точка входа раскладки (решение 27): пишет все порождённые файлы реестра.
+    #[test]
+    fn emit_registry_writes_all_generated_files() {
+        let root = std::env::temp_dir().join(format!("slipway-registry-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for dir in ["adr", "rfc", "thrust", "slice", "work", "journal"] {
+            fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        fs::write(root.join("adr/adr-direct-plan.rs"), ACTIVE).unwrap();
+        let out = root.join("out");
+        fs::create_dir_all(&out).unwrap();
+
+        emit_registry(&root, &out).unwrap();
+
+        for name in ["adr.rs", "rfc.rs", "plan.rs", "journal.rs", "commit.rs"] {
+            assert!(out.join(name).is_file(), "{name} is missing");
+        }
+        let adr = fs::read_to_string(out.join("adr.rs")).unwrap();
+        assert!(adr.contains("adr_direct_plan"), "{adr}");
     }
 }
