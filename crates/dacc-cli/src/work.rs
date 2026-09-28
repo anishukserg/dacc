@@ -411,7 +411,7 @@ impl Record {
                 .and_then(|at| text.get(at + SLICE.len()..))
                 .and_then(|rest| rest.split([',', ')']).next())
                 .filter(|slug| !slug.is_empty())
-                .map(|slug| format!("s{slug}")),
+                .map(|slug| format!("s{}", slug.replace('_', "-"))),
             area: text
                 .find(TAXON)
                 .and_then(|at| text[at + TAXON.len()..].split_once(')'))
