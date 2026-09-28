@@ -151,7 +151,7 @@ impl Config {
                 "commit_types" => config.commit_types = types(key, value)?,
                 "subject_limit" => {
                     config.subject_limit = value.parse().map_err(|_| {
-                        format!("key `{key}` takes a number of characters, not `{value}`")
+                        format!("key `{key}` takes a number of characters, not `{value}`; a valid entry is `72`")
                     })?;
                 }
                 "commit_rules" => config.commit_rules = value.to_owned(),
@@ -162,7 +162,7 @@ impl Config {
                 "subject_imported" => config.subject_imported = template(key, value)?,
                 "doctest_floor" => {
                     config.doctest_floor = value.parse().map_err(|_| {
-                        format!("key `{key}` takes a number of passed doctests, not `{value}`")
+                        format!("key `{key}` takes a number of passed doctests, not `{value}`; a valid entry is `20`")
                     })?;
                 }
                 "gate_command" => config.gate_command = Some(command(key, value)?),
@@ -350,6 +350,19 @@ mod tests {
         ] {
             let problem = Config::parse(text).expect_err(text);
             assert!(problem.contains(expected), "{text}: {problem}");
+        }
+    }
+
+    /// Отказ по числовому ключу показывает годную запись в кавычках — что
+    /// писать вместо неверного значения, а не только сам ключ.
+    #[test]
+    fn numeric_refusal_shows_a_valid_entry() {
+        for (text, valid) in [
+            ("subject_limit = \"много\"\n", "a valid entry is `72`"),
+            ("doctest_floor = \"половина\"\n", "a valid entry is `20`"),
+        ] {
+            let problem = Config::parse(text).expect_err(text);
+            assert!(problem.contains(valid), "{text}: {problem}");
         }
     }
 

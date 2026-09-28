@@ -92,7 +92,7 @@ jobs:
               ;;
             push)
               if [ -z "${BEFORE//0/}" ]; then
-                range="$AFTER~1..$AFTER"
+                range="$AFTER"
               else
                 range="$BEFORE..$AFTER"
               fi
