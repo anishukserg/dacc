@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-gate-tiers"
+at = "2026-09-28T18:09:38Z"
+commit = "b4e6994f4cb415f8b901bbc612963c8f59eaf609"
+tree = "149d3cdcfb9eecc7906d6b6d0a7c68fee8d2c09b"
