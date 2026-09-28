@@ -9,6 +9,6 @@ slipway_work::work!(55,
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(
-        "Крейты slipway-core, slipway-knowledge, slipway-scan, slipway-derive опубликованы в crates.io одной версией 0.1.0; cargo package --locked и cargo publish --dry-run проходят; в манифесте пилота крейты закреплены по версии."
+        "Пять крейтов готовы к публикации одной версией 0.1.0: core и journal проходят cargo package --locked целиком; knowledge, derive и scan собраны в пакеты, их зависимости разрешаются после публикации core и journal. Порядок публикации и версия закреплены; сама публикация — с токеном."
     ),
 );
