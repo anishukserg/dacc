@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-structured-verdict"
+at = "2026-09-28T17:36:36Z"
+gate = "commit"
+tree = "0727a20486004fb2163635176bc5dde20cc6c0be"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"

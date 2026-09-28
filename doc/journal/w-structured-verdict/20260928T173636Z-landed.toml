@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-structured-verdict"
+at = "2026-09-28T17:36:36Z"
+commit = "c512cfa4f99decc2db0da3b356e7d8e773244dc2"
+tree = "0727a20486004fb2163635176bc5dde20cc6c0be"
