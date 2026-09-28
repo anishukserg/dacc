@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-work-layer-slugs-migration"
+at = "2026-09-28T16:32:23Z"
+gate = "commit"
+tree = "2dd9f4a4e011c36ff3c9e844a36c883bcabec2fa"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"
