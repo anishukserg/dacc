@@ -79,7 +79,7 @@ impl Default for Config {
             subject_abandoned: "[PLAN]({scope}): work {id} abandoned".to_owned(),
             subject_slice_closed: "[PLAN]({scope}): slice {id} closed".to_owned(),
             subject_imported: "[PLAN]({scope}): journal restored from history".to_owned(),
-            doctest_floor: 36,
+            doctest_floor: 20,
             gate_command: None,
             message_command: None,
         }
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(config.doc_manifest(), "doc/Cargo.toml");
         assert_eq!(config.subject_limit, 72);
         assert_eq!(config.commit_rules, "commit rules");
-        assert_eq!(config.doctest_floor, 36);
+        assert_eq!(config.doctest_floor, 20);
         assert_eq!(config.gate_command, None);
         assert_eq!(config.message_command, None);
         assert!(config.commit_types.contains(&"CHORE".to_owned()));

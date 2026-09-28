@@ -360,10 +360,10 @@ impl Gate {
         // своё, и зашитое число Slipway отказывало бы в чужом всегда
         // (решение 20).
         let floor = self.config.doctest_floor;
-        let doctests = count_doctests(&log);
-        if doctests < floor {
+        let attacks = count_attacks(&log);
+        if attacks < floor {
             return Err(fail(format!(
-                "doctest passed {doctests} at floor {floor} — attacks were not run or were removed"
+                "attacks passed {attacks} at floor {floor} — attacks were not run or were removed"
             )));
         }
 
@@ -409,10 +409,10 @@ impl Gate {
             .args(["--workspace", "--doc", "--no-fail-fast", "--locked"]);
         let label = format!("attacks on {msrv}: cargo test --doc");
         let log = self.cargo_step(&label, "msrv-attacks", &mut msrv_attacks)?;
-        let msrv_doctests = count_doctests(&log);
-        if msrv_doctests < floor {
+        let msrv_attacks = count_attacks(&log);
+        if msrv_attacks < floor {
             return Err(fail(format!(
-                "on {msrv} doctest passed {msrv_doctests} at floor {floor} — attacks were not run or were removed"
+                "on {msrv} attacks passed {msrv_attacks} at floor {floor} — attacks were not run or were removed"
             )));
         }
 
@@ -438,7 +438,7 @@ impl Gate {
         self.cargo_step("cargo deny check", "deny", &mut deny)?;
 
         let mut verdict = format!(
-            "GATE OK ({} of {}; doctest {doctests}, on {msrv} — {msrv_doctests}",
+            "GATE OK ({} of {}; attacks {attacks}, on {msrv} — {msrv_attacks}",
             self.passed,
             total(&self.config)
         );
@@ -919,23 +919,27 @@ fn minimum_rust(manifest: &str) -> Option<String> {
     })
 }
 
-/// Число прошедших doctest в журнале cargo test.
-fn count_doctests(log: &Path) -> usize {
+/// Число прошедших атакующих doctest в журнале cargo test: только doctest,
+/// объявленные падающими при компиляции (работа 46). Обычные примеры пола не
+/// набирают — иначе обещание «атаки не удалены» держалось бы доброй волей.
+fn count_attacks(log: &Path) -> usize {
     read_lossy(log)
         .lines()
-        .filter(|line| is_passed_doctest(line))
+        .filter(|line| is_passed_attack(line))
         .count()
 }
 
-/// `test <файл> - <элемент> (line N)[ - compile fail] ... ok`.
-fn is_passed_doctest(line: &str) -> bool {
+/// `test <файл> - <элемент> (line N) - compile fail ... ok`.
+fn is_passed_attack(line: &str) -> bool {
     let Some(rest) = line
         .strip_prefix("test ")
         .and_then(|rest| rest.strip_suffix(" ... ok"))
     else {
         return false;
     };
-    let rest = rest.strip_suffix(" - compile fail").unwrap_or(rest);
+    let Some(rest) = rest.strip_suffix(" - compile fail") else {
+        return false;
+    };
     let Some(open) = rest.rfind("(line ") else {
         return false;
     };
@@ -984,20 +988,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn passed_doctests_are_counted_by_their_line_form() {
-        for line in [
-            "test crates/slipway-core/src/nonempty.rs - nonempty::NonEmpty (line 12) ... ok",
-            "test crates/slipway-knowledge/src/attacks.rs - attacks (line 11) - compile fail ... ok",
-        ] {
-            assert!(is_passed_doctest(line), "{line}");
-        }
+    fn only_attacks_are_counted_toward_the_floor() {
+        // Обычный doctest чтения реестра пола атак не набирает (работа 46).
+        assert!(!is_passed_attack(
+            "test crates/slipway-core/src/nonempty.rs - nonempty::NonEmpty (line 12) ... ok"
+        ));
+        // Атакующий doctest — набирает.
+        assert!(is_passed_attack(
+            "test crates/slipway-knowledge/src/attacks.rs - attacks (line 11) - compile fail ... ok"
+        ));
         for line in [
             "test attacks::e1 ... ok",
             "test crates/a.rs - x (line 3) ... FAILED",
-            "test crates/a.rs - x (line three) ... ok",
-            "test result: ok. 36 passed; 0 failed",
+            "test crates/a.rs - x (line three) - compile fail ... ok",
+            "test result: ok. 20 passed; 0 failed",
         ] {
-            assert!(!is_passed_doctest(line), "{line}");
+            assert!(!is_passed_attack(line), "{line}");
         }
     }
 
