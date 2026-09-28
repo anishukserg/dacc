@@ -62,6 +62,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "slipway-access"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "slipway-core",
+ "slipway-knowledge",
+ "slipway-work",
+]
+
+[[package]]
 name = "slipway-cli"
 version = "0.1.0"
 dependencies = [
@@ -84,6 +94,7 @@ name = "slipway-doc"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "slipway-access",
  "slipway-core",
  "slipway-knowledge",
  "slipway-scan",

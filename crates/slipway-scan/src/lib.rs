@@ -416,10 +416,13 @@ pub fn emit_refs(decisions: &[ScannedSlug]) -> String {
         );
     }
 
-    out.push_str("\n/// All decisions of the registry.\npub static ALL: &[&slipway_knowledge::ArchitectureDecision] = &[\n");
+    out.push_str(
+        "\n/// All decisions of the registry: the slug id and the document.\npub static ALL: &[(&str, &slipway_knowledge::ArchitectureDecision)] = &[\n",
+    );
     for d in decisions {
         let ident = slug_ident(&d.slug);
-        let _ = writeln!(out, "    &{ident}::DECISION,");
+        let slug = d.slug.as_str();
+        let _ = writeln!(out, "    ({slug:?}, &{ident}::DECISION),");
     }
     out.push_str("];\n");
     out
@@ -447,10 +450,13 @@ pub fn emit_spec_refs(specs: &[ScannedSlug]) -> String {
         );
     }
     out.push_str("}\n\n");
-    out.push_str("\n/// All specifications of the registry.\npub static ALL_SPECS: &[&slipway_knowledge::DomainSpecification] = &[\n");
+    out.push_str(
+        "\n/// All specifications of the registry: the slug id and the document.\npub static ALL_SPECS: &[(&str, &slipway_knowledge::DomainSpecification)] = &[\n",
+    );
     for s in specs {
         let ident = slug_ident(&s.slug);
-        let _ = writeln!(out, "    &{ident}::SPEC,");
+        let slug = s.slug.as_str();
+        let _ = writeln!(out, "    ({slug:?}, &{ident}::SPEC),");
     }
     out.push_str("];\n");
     out

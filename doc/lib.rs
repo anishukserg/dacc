@@ -40,10 +40,10 @@ mod tests {
     fn registries_are_not_empty() {
         assert!(!ALL.is_empty(), "реестр решений пуст");
         assert!(!ALL_SPECS.is_empty(), "реестр спецификаций пуст");
-        for d in ALL {
+        for (_, d) in ALL {
             assert!(!d.title.trim().is_empty(), "решение без заголовка");
         }
-        for s in ALL_SPECS {
+        for (_, s) in ALL_SPECS {
             assert!(!s.title.trim().is_empty(), "спецификация без заголовка");
         }
     }
@@ -83,5 +83,26 @@ mod tests {
         );
         assert!(out.contains("Built from commit"), "{out}");
         assert!(out.contains("## t0001 —"), "{out}");
+    }
+
+    /// Экспорт (решение 21): JSON графа и XML среза непусты и несут версию.
+    #[test]
+    fn export_renders_json_and_xml() {
+        let json = slipway_access::export_graph(
+            ALL,
+            ALL_SPECS,
+            ALL_THRUSTS,
+            ALL_SLICES,
+            ALL_WORK,
+            WORK_STATES,
+            CLOSED_SLICES,
+            COMMIT,
+        );
+        assert!(json.contains("\"schema\": \"slipway-registry\""), "{json}");
+        assert!(json.contains("\"id\": \"adr-2026-021\""), "{json}");
+
+        let xml = slipway_access::export_slice(ALL, ALL_SPECS, "проекция", COMMIT);
+        assert!(xml.contains("<registry version="), "{xml}");
+        assert!(xml.contains("<decision id=\"adr-2026-021\""), "{xml}");
     }
 }

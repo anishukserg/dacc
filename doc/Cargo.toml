@@ -43,6 +43,7 @@ unescaped_backticks = "forbid"
 slipway-core = { workspace = true }
 slipway-knowledge = { workspace = true }
 slipway-work = { workspace = true }
+slipway-access = { workspace = true }
 chrono = { workspace = true }
 
 [build-dependencies]
@@ -53,3 +54,8 @@ slipway-scan = { workspace = true }
 [[bin]]
 name = "roadmap"
 path = "roadmap.rs"
+
+# Экспорт реестра (решение 21): JSON всего графа или XML среза по вопросу.
+[[bin]]
+name = "export"
+path = "export.rs"
