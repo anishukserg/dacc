@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-external-gate-structured"
+at = "2026-09-28T17:47:14Z"
+commit = "db1d870737c5330942d6a9a686a1a21f3ce18ce7"
+tree = "2ae39f0035ba9cbef405ae312b0a84d97ac366b3"
