@@ -2,11 +2,11 @@
 //! человек руками, и сразу коммитит их по правилам коммитов.
 //!
 //! ```text
-//! cargo dacc work start <wNNNN> [--trailer <trailer>]…
-//! cargo dacc work land <wNNNN> [--commit <revision>] [--trailer <trailer>]…
-//! cargo dacc work drop <wNNNN> --reason <reason> [--trailer <trailer>]…
-//! cargo dacc work state [<wNNNN>]
-//! cargo dacc slice close <sNNNN> [--trailer <trailer>]…
+//! cargo dacc work start <w-slug> [--trailer <trailer>]…
+//! cargo dacc work land <w-slug> [--commit <revision>] [--trailer <trailer>]…
+//! cargo dacc work drop <w-slug> --reason <reason> [--trailer <trailer>]…
+//! cargo dacc work state [<w-slug>]
+//! cargo dacc slice close <s-slug> [--trailer <trailer>]…
 //! ```
 //!
 //! Незаконный переход, отсутствующая работа и приземление без доказательства
@@ -27,9 +27,9 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const WORK_USAGE: &str = "work start <wNNNN> | land <wNNNN> [--commit <revision>] | drop <wNNNN> --reason <reason> | state [<wNNNN>]";
+const WORK_USAGE: &str = "work start <w-slug> | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
 
-const SLICE_USAGE: &str = "slice close <sNNNN>";
+const SLICE_USAGE: &str = "slice close <s-slug>";
 
 /// `cargo dacc work …`.
 pub fn run_work(args: &[OsString]) -> u8 {
@@ -123,17 +123,17 @@ fn start(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
-    let stage = context.journal.stage(number);
+    let stage = context.journal.stage(&number);
     if stage != Stage::Planned {
         return Err(refused(format!(
             "work {id} is already {}",
             stage_text(stage)
         )));
     }
-    if let Some(slice) = work.slice {
-        if let Some(file) = context.journal.closed_slices.get(&slice) {
+    if let Some(slice) = &work.slice {
+        if let Some(file) = context.journal.closed_slices.get(slice) {
             return Err(refused(format!(
-                "slice s{slice:04} of work {id} is closed by event {file}"
+                "slice {slice} of work {id} is closed by event {file}"
             )));
         }
     }
@@ -152,7 +152,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
-    let stage = context.journal.stage(number);
+    let stage = context.journal.stage(&number);
     if stage != Stage::Started {
         return Err(refused(format!(
             "only a started work can be landed, and {id} is {}",
@@ -194,7 +194,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let area = work.area(id)?;
     let at = time::now();
     let gate = Event::new(
-        Subject::Work(number),
+        Subject::Work(number.clone()),
         at.clone(),
         Kind::Gate {
             gate: "commit".to_owned(),
@@ -227,7 +227,7 @@ fn abandon(id: &str, reason: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
-    let stage = context.journal.stage(number);
+    let stage = context.journal.stage(&number);
     if stage.is_finished() {
         return Err(refused(format!(
             "work {id} is already {}",
@@ -255,8 +255,8 @@ fn state(id: Option<&str>) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let selected = id.map(work_number).transpose()?;
     let works = context.works()?;
-    if let (Some(id), Some(number)) = (id, selected) {
-        if !works.iter().any(|(n, _)| *n == number) {
+    if let (Some(id), Some(number)) = (id, selected.as_ref()) {
+        if !works.iter().any(|(n, _)| n == number) {
             return Err(refused(format!(
                 "{id} is not in the plan: no file {}/{id}.rs",
                 context.repo.config.work_dir()
@@ -265,24 +265,17 @@ fn state(id: Option<&str>) -> Result<u8, Refusal> {
     }
     for (number, work) in works
         .iter()
-        .filter(|(n, _)| selected.is_none_or(|selected| selected == *n))
+        .filter(|(n, _)| selected.as_ref().is_none_or(|selected| selected == n))
     {
-        let slice = work
-            .slice
-            .map_or_else(|| "s????".to_owned(), |s| format!("s{s:04}"));
+        let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
         println!(
-            "w{number:04}  {:<22}  {slice}  {}",
-            stage_text(context.journal.stage(*number)),
+            "{number}  {:<22}  {slice}  {}",
+            stage_text(context.journal.stage(number)),
             work.title
         );
     }
     if selected.is_none() {
-        let closed: Vec<String> = context
-            .journal
-            .closed_slices
-            .keys()
-            .map(|slice| format!("s{slice:04}"))
-            .collect();
+        let closed: Vec<String> = context.journal.closed_slices.keys().cloned().collect();
         if closed.is_empty() {
             println!("no closed slices");
         } else {
@@ -295,7 +288,11 @@ fn state(id: Option<&str>) -> Result<u8, Refusal> {
 fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let number = match Subject::parse(id) {
         Some(Subject::Slice(number)) => number,
-        _ => return Err(usage(format!("{id} is not a slice id of the form s0001"))),
+        _ => {
+            return Err(usage(format!(
+                "{id} is not a slice id of the form s-versioning"
+            )))
+        }
     };
     let context = Context::open()?;
     let slice = context.slice(id)?;
@@ -304,18 +301,18 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
             "slice {id} is already closed by event {file}"
         )));
     }
-    let works: Vec<(u32, Record)> = context
+    let works: Vec<(String, Record)> = context
         .works()?
         .into_iter()
-        .filter(|(_, work)| work.slice == Some(number))
+        .filter(|(_, work)| work.slice.as_deref() == Some(number.as_str()))
         .collect();
     let Some((first, first_work)) = works.first() else {
         return Err(refused(format!("slice {id} has no works")));
     };
     let unfinished: Vec<String> = works
         .iter()
-        .filter(|(n, _)| !context.journal.stage(*n).is_finished())
-        .map(|(n, _)| format!("w{n:04}"))
+        .filter(|(n, _)| !context.journal.stage(n).is_finished())
+        .map(|(n, _)| n.clone())
         .collect();
     if !unfinished.is_empty() {
         return Err(refused(format!(
@@ -323,7 +320,7 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
             unfinished.join(", ")
         )));
     }
-    let area = first_work.area(&format!("w{first:04}"))?;
+    let area = first_work.area(first)?;
     let event = Event::new(Subject::Slice(number), time::now(), Kind::Closed);
     let message = message(
         &config::fill(&context.repo.config.subject_slice_closed, area, id),
@@ -377,7 +374,7 @@ impl Context {
     }
 
     /// Все работы плана по порядку номеров.
-    fn works(&self) -> Result<Vec<(u32, Record)>, Refusal> {
+    fn works(&self) -> Result<Vec<(String, Record)>, Refusal> {
         let dir = self.repo.root.join(self.repo.config.work_dir());
         let entries = fs::read_dir(&dir)
             .map_err(|error| usage(format!("plan {} not read: {error}", dir.display())))?;
@@ -391,7 +388,7 @@ impl Context {
             let text = fs::read_to_string(entry.path()).unwrap_or_default();
             works.push((number, Record::parse(&text)));
         }
-        works.sort_by_key(|(number, _)| *number);
+        works.sort_by_key(|(number, _)| number.clone());
         Ok(works)
     }
 }
@@ -399,7 +396,7 @@ impl Context {
 /// То, что команды читают из текста файла работы или среза.
 struct Record {
     title: String,
-    slice: Option<u32>,
+    slice: Option<String>,
     area: Option<String>,
 }
 
@@ -411,8 +408,10 @@ impl Record {
             title: quoted_after(text, "title: NonEmptyStr::new(").unwrap_or_default(),
             slice: text
                 .find(SLICE)
-                .and_then(|at| text.get(at + SLICE.len()..at + SLICE.len() + 4))
-                .and_then(|digits| digits.parse().ok()),
+                .and_then(|at| text.get(at + SLICE.len()..))
+                .and_then(|rest| rest.split([',', ')']).next())
+                .filter(|slug| !slug.is_empty())
+                .map(|slug| format!("s{slug}")),
             area: text
                 .find(TAXON)
                 .and_then(|at| text[at + TAXON.len()..].split_once(')'))
@@ -430,7 +429,7 @@ impl Record {
     }
 }
 
-/// `cargo dacc journal import --work <wNNNN> [--close-finished-slices]`.
+/// `cargo dacc journal import --work <w-slug> [--close-finished-slices]`.
 pub fn run_import(args: &[OsString]) -> u8 {
     finish(words(args).and_then(|(words, trailers)| {
         match words
@@ -443,7 +442,7 @@ pub fn run_import(args: &[OsString]) -> u8 {
             ["--work", basis, "--close-finished-slices"]
             | ["--close-finished-slices", "--work", basis] => import(basis, true, &trailers),
             _ => Err(usage(
-                "journal import --work <wNNNN> [--close-finished-slices]",
+                "journal import --work <w-slug> [--close-finished-slices]",
             )),
         }
     }))
@@ -491,7 +490,9 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
     let mut events = Vec::new();
     let mut imported = std::collections::BTreeSet::new();
     for (number, _) in &works {
-        if *number == basis_number || context.journal.stage(*number) != Stage::Planned {
+        if number.as_str() == basis_number.as_str()
+            || context.journal.stage(number) != Stage::Planned
+        {
             continue;
         }
         let Some(commit) = latest.get(number) else {
@@ -505,7 +506,7 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
                 ))
             })?;
         events.push(Event::new(
-            Subject::Work(*number),
+            Subject::Work(number.clone()),
             at.clone(),
             Kind::Landed {
                 commit: commit.clone(),
@@ -513,24 +514,24 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
                 evidence: Evidence::History,
             },
         ));
-        imported.insert(*number);
+        imported.insert(number.clone());
     }
 
     let mut closed = Vec::new();
     if close_slices {
         let mut finished = std::collections::BTreeMap::new();
         for (number, work) in &works {
-            let Some(slice) = work.slice else {
+            let Some(slice) = &work.slice else {
                 continue;
             };
-            let done = context.journal.stage(*number).is_finished() || imported.contains(number);
-            let all = finished.entry(slice).or_insert(true);
+            let done = context.journal.stage(number).is_finished() || imported.contains(number);
+            let all = finished.entry(slice.clone()).or_insert(true);
             *all = *all && done;
         }
         for (slice, done) in finished {
             if done && !context.journal.closed_slices.contains_key(&slice) {
+                closed.push(slice.clone());
                 events.push(Event::new(Subject::Slice(slice), at.clone(), Kind::Closed));
-                closed.push(format!("s{slice:04}"));
             }
         }
     }
@@ -581,11 +582,13 @@ fn quoted_after(text: &str, marker: &str) -> Option<String> {
     None
 }
 
-/// Номер работы из `wNNNN`.
-fn work_number(id: &str) -> Result<u32, Refusal> {
+/// Номер работы из `w-slug`.
+fn work_number(id: &str) -> Result<String, Refusal> {
     match Subject::parse(id) {
         Some(Subject::Work(number)) => Ok(number),
-        _ => Err(usage(format!("{id} is not a work id of the form w0001"))),
+        _ => Err(usage(format!(
+            "{id} is not a work id of the form w-fix-gitignore"
+        ))),
     }
 }
 
@@ -624,7 +627,7 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
         let mut relative = event.file.clone();
         while journal.join(&relative).exists() {
             attempt += 1;
-            relative = relative_path(event.subject, &event.at, &event.kind, attempt);
+            relative = relative_path(&event.subject, &event.at, &event.kind, attempt);
         }
         let path = journal.join(&relative);
         let text = Event {

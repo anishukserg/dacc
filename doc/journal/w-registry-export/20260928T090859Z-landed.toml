@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-registry-export"
+at = "2026-09-28T09:08:59Z"
+commit = "0863c0353af2c18bed657c1057f022999eaed9d3"
+tree = "9d6c075f12d4c399a13f06e222f56d6c5ad7879e"

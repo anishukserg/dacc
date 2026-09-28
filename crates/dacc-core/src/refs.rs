@@ -11,8 +11,8 @@
 //! `__from_scan` в тексте реестра отвергает сам скан (`dacc-scan`, сила
 //! `BuildScript`); вне файлов реестра обход остаётся выразимым.
 //!
-//! Виды ссылок не смешиваются: у одних внутри число (слой работы), у других —
-//! slug (слой знания):
+//! Виды ссылок не смешиваются: ссылка на гейт несёт число, ссылки на документы
+//! знания и слоя работы — slug:
 //!
 //! ```compile_fail,E0308
 //! let gate = dacc_core::GateRef::__from_scan(2);
@@ -92,18 +92,20 @@ declare_ref! {
 }
 
 declare_ref! {
-    /// Ссылка на направление (Thrust).
-    ThrustRef(u32), "2"
+    /// Ссылка на направление (Thrust). Несёт slug из имени файла, а не
+    /// порядковый номер.
+    ThrustRef(&'static str), "\"t-pilot\""
 }
 
 declare_ref! {
-    /// Ссылка на срез (Slice).
-    SliceRef(u32), "2"
+    /// Ссылка на срез (Slice). Несёт slug из имени файла, а не порядковый номер.
+    SliceRef(&'static str), "\"s-versioning\""
 }
 
 declare_ref! {
-    /// Ссылка на единицу работы (WorkItem).
-    WorkRef(u32), "2"
+    /// Ссылка на единицу работы (WorkItem). Несёт slug из имени файла, а не
+    /// порядковый номер.
+    WorkRef(&'static str), "\"w-fix-gitignore\""
 }
 
 macro_rules! numbered {
@@ -116,7 +118,7 @@ macro_rules! numbered {
     )*};
 }
 
-numbered!(GateRef, ThrustRef, SliceRef, WorkRef);
+numbered!(GateRef);
 
 macro_rules! slug_ref {
     ($($name:ident),*) => {$(
@@ -125,11 +127,37 @@ macro_rules! slug_ref {
             pub const fn as_str(self) -> &'static str {
                 self.0
             }
+
+            /// Побайтовое сравнение slug в `const`: `==` для `&str` нестабилен
+            /// в константах, поэтому константные проверки сравнивают байты.
+            pub const fn is(self, other: &str) -> bool {
+                let a = self.0.as_bytes();
+                let b = other.as_bytes();
+                if a.len() != b.len() {
+                    return false;
+                }
+                let mut i = 0;
+                while i < a.len() {
+                    if a[i] != b[i] {
+                        return false;
+                    }
+                    i += 1;
+                }
+                true
+            }
         }
     )*};
 }
 
-slug_ref!(AdrRef, RfcRef, SupersededRef, BreakingRef);
+slug_ref!(
+    AdrRef,
+    RfcRef,
+    SupersededRef,
+    BreakingRef,
+    ThrustRef,
+    SliceRef,
+    WorkRef
+);
 
 impl AnchorId {
     pub const fn as_str(self) -> &'static str {
@@ -149,6 +177,15 @@ mod tests {
     #[test]
     fn slug_refs_keep_their_id() {
         assert_eq!(AdrRef::__from_scan("adr-2026-001").as_str(), "adr-2026-001");
+        assert_eq!(ThrustRef::__from_scan("t-pilot").as_str(), "t-pilot");
+        assert_eq!(
+            SliceRef::__from_scan("s-versioning").as_str(),
+            "s-versioning"
+        );
+        assert_eq!(
+            WorkRef::__from_scan("w-fix-gitignore").as_str(),
+            "w-fix-gitignore"
+        );
     }
 
     #[test]

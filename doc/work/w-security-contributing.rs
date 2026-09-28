@@ -1,0 +1,14 @@
+use crate::taxonomy::Subsystem;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
+
+dacc_work::work!("w-security-contributing",
+    title: NonEmptyStr::new("SECURITY.md и CONTRIBUTING.md"),
+    slice: crate::slice::s_ci_and_contributing,
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_018),
+    taxon: taxon!(Subsystem, Methodology),
+    radius: BlastRadius::Local,
+    outcome: NonEmptyStr::new(
+        "SECURITY.md описывает приватное сообщение об уязвимости и что в него включить; CONTRIBUTING.md — issues, перенос внешних pull request сопровождающим, правила коммитов, калитку и хуки; ссылки в обоих разрешаются."
+    ),
+);

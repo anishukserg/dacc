@@ -37,19 +37,19 @@ impl Stage {
 #[derive(Debug, Default)]
 pub struct Journal {
     /// Стадия каждой работы, у которой есть законные события.
-    pub works: BTreeMap<u32, Stage>,
+    pub works: BTreeMap<String, Stage>,
     /// Закрытые срезы и файл закрывшего события.
-    pub closed_slices: BTreeMap<u32, String>,
+    pub closed_slices: BTreeMap<String, String>,
     /// Последнее законное событие каждой работы.
-    pub last_event: BTreeMap<u32, String>,
+    pub last_event: BTreeMap<String, String>,
     /// Деревья из событий gate каждой работы — доказательства.
-    pub proofs: BTreeMap<u32, Vec<String>>,
+    pub proofs: BTreeMap<String, Vec<String>>,
 }
 
 impl Journal {
     /// Стадия работы; работа без событий запланирована.
-    pub fn stage(&self, work: u32) -> Stage {
-        self.works.get(&work).copied().unwrap_or(Stage::Planned)
+    pub fn stage(&self, work: &str) -> Stage {
+        self.works.get(work).copied().unwrap_or(Stage::Planned)
     }
 }
 
@@ -73,7 +73,7 @@ pub fn fold(events: &[Event]) -> (Journal, Vec<Violation>) {
     let mut journal = Journal::default();
     let mut violations = Vec::new();
     for event in ordered {
-        let outcome = match event.subject {
+        let outcome = match &event.subject {
             Subject::Slice(slice) => close_slice(&mut journal, slice, event),
             Subject::Work(work) => advance_work(&mut journal, work, event),
         };
@@ -99,32 +99,38 @@ fn rank(kind: &Kind) -> u8 {
     }
 }
 
-fn close_slice(journal: &mut Journal, slice: u32, event: &Event) -> Result<(), String> {
-    if let Some(previous) = journal.closed_slices.get(&slice) {
+fn close_slice(journal: &mut Journal, slice: &str, event: &Event) -> Result<(), String> {
+    if let Some(previous) = journal.closed_slices.get(slice) {
         return Err(format!(
             "slice {} is already closed by event {previous}",
             event.subject.id()
         ));
     }
-    journal.closed_slices.insert(slice, event.file.clone());
+    journal
+        .closed_slices
+        .insert(slice.to_owned(), event.file.clone());
     Ok(())
 }
 
-fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), String> {
+fn advance_work(journal: &mut Journal, work: &str, event: &Event) -> Result<(), String> {
     let id = event.subject.id();
     let stage = journal.stage(work);
     if stage.is_finished() {
-        let last = journal.last_event.get(&work).map_or("", String::as_str);
+        let last = journal.last_event.get(work).map_or("", String::as_str);
         return Err(format!("work {id} is already finished by event {last}"));
     }
     let next = match (&event.kind, stage) {
         (Kind::Started, Stage::Planned) => Stage::Started,
         (Kind::Started, _) => {
-            let last = journal.last_event.get(&work).map_or("", String::as_str);
+            let last = journal.last_event.get(work).map_or("", String::as_str);
             return Err(format!("work {id} is already started by event {last}"));
         }
         (Kind::Gate { tree, .. }, Stage::Started) => {
-            journal.proofs.entry(work).or_default().push(tree.clone());
+            journal
+                .proofs
+                .entry(work.to_owned())
+                .or_default()
+                .push(tree.clone());
             Stage::Started
         }
         (Kind::Gate { .. }, _) => {
@@ -140,7 +146,7 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
         ) => {
             let proven = journal
                 .proofs
-                .get(&work)
+                .get(work)
                 .is_some_and(|trees| trees.contains(tree));
             if !proven {
                 return Err(format!(
@@ -179,8 +185,10 @@ fn advance_work(journal: &mut Journal, work: u32, event: &Event) -> Result<(), S
             return Err("a closed event belongs to a slice, not to work".to_owned())
         }
     };
-    journal.works.insert(work, next);
-    journal.last_event.insert(work, event.file.clone());
+    journal.works.insert(work.to_owned(), next);
+    journal
+        .last_event
+        .insert(work.to_owned(), event.file.clone());
     Ok(())
 }
 
@@ -196,7 +204,7 @@ mod tests {
     }
 
     fn work(second: u32, kind: Kind) -> Event {
-        Event::new(Subject::Work(22), at(second), kind)
+        Event::new(Subject::Work("w-022".to_owned()), at(second), kind)
     }
 
     fn gate(tree: &str) -> Kind {
@@ -228,8 +236,8 @@ mod tests {
         ];
         let (journal, violations) = fold(&events);
         assert!(violations.is_empty(), "{violations:?}");
-        assert_eq!(journal.stage(22), Stage::Landed);
-        assert_eq!(journal.stage(23), Stage::Planned);
+        assert_eq!(journal.stage("w-022"), Stage::Landed);
+        assert_eq!(journal.stage("w-023"), Stage::Planned);
     }
 
     #[test]
@@ -288,14 +296,15 @@ mod tests {
 
     #[test]
     fn history_lands_a_planned_work_and_slices_close_once() {
-        let close = |second| Event::new(Subject::Slice(7), at(second), Kind::Closed);
+        let close =
+            |second| Event::new(Subject::Slice("s-007".to_owned()), at(second), Kind::Closed);
         let events = [
             work(1, landed(TREE_A, Evidence::History)),
             close(2),
             close(3),
         ];
         let (journal, violations) = fold(&events);
-        assert_eq!(journal.stage(22), Stage::LandedFromHistory);
+        assert_eq!(journal.stage("w-022"), Stage::LandedFromHistory);
         assert_eq!(journal.closed_slices.len(), 1);
         assert_eq!(violations.len(), 1);
         assert!(

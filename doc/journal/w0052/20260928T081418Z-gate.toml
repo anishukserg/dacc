@@ -1,6 +1,0 @@
-event = "gate"
-work = "w0052"
-at = "2026-09-28T08:14:18Z"
-gate = "commit"
-tree = "c0b7198cdf292c9283ad5fe0f508dd7121a2545b"
-verdict = "GATE OK (12 of 12; doctest 36, on 1.83.0 — 36)"

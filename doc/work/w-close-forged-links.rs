@@ -1,0 +1,19 @@
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use crate::taxonomy::Subsystem;
+use dacc_work::WorkOrigin;
+
+dacc_work::work!("w-close-forged-links",
+    title: NonEmptyStr::new(
+        "Закрыть подделку ссылок, дубли идентификаторов, молчаливые ошибки разметки, смешение осей и пустые строки"
+    ),
+    slice: crate::slice::s_close_knowledge_attacks,
+    origin: WorkOrigin::Divergence {
+        specification: crate::rfc::rfc_2026_001,
+        violated: NonEmptyStr::new("Ссылка на живое решение из позиции «замещённое» не компилируется."),
+    },
+    taxon: taxon!(Subsystem, Knowledge),
+    radius: BlastRadius::Crate,
+    outcome: NonEmptyStr::new(
+        "Атакующие тесты падали на 7c29847 и проходят после починки: 23 doctest-атаки с контролями, 20 тестов скана."
+    ),
+);

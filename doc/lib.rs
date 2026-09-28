@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn work_is_planned_within_wip() {
         for s in ALL_SLICES {
-            let n = ALL_WORK.iter().filter(|w| w.slice.index() == s.id).count();
+            let n = ALL_WORK.iter().filter(|w| w.slice.as_str() == s.id).count();
             assert!(
                 n <= 5,
                 "срез «{}» несёт {n} единиц работы",
@@ -82,7 +82,7 @@ mod tests {
             COMMIT,
         );
         assert!(out.contains("Built from commit"), "{out}");
-        assert!(out.contains("## t0001 —"), "{out}");
+        assert!(out.contains("## t-honest-guarantees —"), "{out}");
     }
 
     /// Экспорт (решение 21): JSON графа и XML среза непусты и несут версию.

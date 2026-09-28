@@ -70,7 +70,7 @@ pub fn export_graph(
         let _ = write!(
             out,
             "\n    {{\"id\": \"{}\", \"title\": \"{}\"}}",
-            numbered('t', t.id),
+            escape(t.id),
             escape(t.title.as_str()),
         );
     }
@@ -84,9 +84,9 @@ pub fn export_graph(
         let _ = write!(
             out,
             "\n    {{\"id\": \"{}\", \"title\": \"{}\", \"thrust\": \"{}\", \"specification\": \"{}\", \"closed\": {}}}",
-            numbered('s', s.id),
+            escape(s.id),
             escape(s.title.as_str()),
-            numbered('t', s.thrust.index()),
+            escape(s.thrust.as_str()),
             s.specification.as_str(),
             is_closed(closed, s.id),
         );
@@ -101,9 +101,9 @@ pub fn export_graph(
         let _ = write!(
             out,
             "\n    {{\"id\": \"{}\", \"title\": \"{}\", \"slice\": \"{}\", \"origin\": \"{}\", \"taxon\": \"{}\", \"state\": \"{}\"}}",
-            numbered('w', w.id),
+            escape(w.id),
             escape(w.title.as_str()),
-            numbered('s', w.slice.index()),
+            escape(w.slice.as_str()),
             escape(&origin_name(&w.origin)),
             escape(w.taxon.as_str()),
             state_name(work_state(states, w.id)),
@@ -164,12 +164,8 @@ fn adr_refs(refs: &[AdrRef]) -> String {
         .join(", ")
 }
 
-fn numbered(prefix: char, id: u32) -> String {
-    format!("{prefix}{id:04}")
-}
-
-fn is_closed(closed: &[SliceRef], id: u32) -> bool {
-    closed.iter().any(|c| c.index() == id)
+fn is_closed(closed: &[SliceRef], id: &str) -> bool {
+    closed.iter().any(|c| c.as_str() == id)
 }
 
 fn origin_name(origin: &WorkOrigin) -> String {
@@ -194,10 +190,10 @@ fn state_name(state: WorkState) -> &'static str {
     }
 }
 
-fn work_state(states: &[(WorkRef, WorkState)], id: u32) -> WorkState {
+fn work_state(states: &[(WorkRef, WorkState)], id: &str) -> WorkState {
     states
         .iter()
-        .find(|(r, _)| r.index() == id)
+        .find(|(r, _)| r.as_str() == id)
         .map_or(WorkState::Planned, |(_, s)| *s)
 }
 
@@ -246,29 +242,29 @@ mod tests {
             decided_by: DECIDED_BY,
         };
         let thrust = Thrust {
-            id: 3,
+            id: "t-003",
             title: NonEmptyStr::new("Спецификация — компилируемый реестр"),
             outcome: NonEmptyStr::new("Норма в реестре"),
         };
         let slice = Slice {
-            id: 13,
+            id: "s-013",
             title: NonEmptyStr::new("Публикуемая проекция"),
-            thrust: dacc_core::ThrustRef::__from_scan(3),
+            thrust: dacc_core::ThrustRef::__from_scan("t-003"),
             outcome: NonEmptyStr::new("Реестр отдаётся проекцией"),
             specification: dacc_core::RfcRef::__from_scan("rfc-2026-003"),
             max_radius: BlastRadius::Crate,
         };
         let work = WorkItem {
-            id: 36,
+            id: "w-036",
             title: NonEmptyStr::new("Дорожная карта"),
-            slice: dacc_core::SliceRef::__from_scan(13),
+            slice: dacc_core::SliceRef::__from_scan("s-013"),
             origin: dacc_work::WorkOrigin::Decision(dacc_core::AdrRef::__from_scan("adr-2026-021")),
             taxon: taxon!(Subsystem, Access),
             radius: BlastRadius::Local,
             outcome: NonEmptyStr::new("Карта из скомпилированного реестра"),
         };
-        let states = [(dacc_core::WorkRef::__from_scan(36), WorkState::Landed)];
-        let closed = [dacc_core::SliceRef::__from_scan(13)];
+        let states = [(dacc_core::WorkRef::__from_scan("w-036"), WorkState::Landed)];
+        let closed = [dacc_core::SliceRef::__from_scan("s-013")];
 
         let out = export_graph(
             &[("adr-2026-021", &decision)],
@@ -288,7 +284,7 @@ mod tests {
             out.contains("\"related_rfcs\": [\"rfc-2026-003\"]"),
             "{out}"
         );
-        assert!(out.contains("\"thrust\": \"t0003\""), "{out}");
+        assert!(out.contains("\"thrust\": \"t-003\""), "{out}");
         assert!(out.contains("\"closed\": true"), "{out}");
         assert!(out.contains("\"state\": \"landed\""), "{out}");
     }

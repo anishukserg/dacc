@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-gate-command-replaces"
+at = "2026-09-28T11:42:41Z"
+gate = "commit"
+tree = "616791a600940165fe1f16b329a26296cf2d174c"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"

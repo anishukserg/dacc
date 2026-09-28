@@ -89,10 +89,10 @@ mod tests {
     #[test]
     fn same_second_events_follow_the_automaton() {
         let at = "2026-09-11T10:00:00Z".to_owned();
-        let work = Subject::Work(22);
+        let work = Subject::Work("w-022".to_owned());
         let events = [
             Event::new(
-                work,
+                work.clone(),
                 at.clone(),
                 Kind::Landed {
                     commit: TREE.into(),
@@ -101,7 +101,7 @@ mod tests {
                 },
             ),
             Event::new(
-                work,
+                work.clone(),
                 at.clone(),
                 Kind::Gate {
                     gate: "commit".into(),
@@ -113,6 +113,6 @@ mod tests {
         ];
         let (journal, violations) = fold(&events);
         assert!(violations.is_empty(), "{violations:?}");
-        assert_eq!(journal.stage(22), Stage::Landed);
+        assert_eq!(journal.stage("w-022"), Stage::Landed);
     }
 }

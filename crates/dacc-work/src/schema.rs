@@ -10,7 +10,7 @@ use std::num::NonZeroU16;
 /// Направление: исход на месяцы, ради которого режутся срезы.
 #[derive(Debug)]
 pub struct Thrust {
-    pub id: u32,
+    pub id: &'static str,
     pub title: NonEmptyStr,
     /// Наблюдаемый исход. Формулировка обязана быть проверяемой, а не оценочной.
     pub outcome: NonEmptyStr,
@@ -19,7 +19,7 @@ pub struct Thrust {
 /// Срез: вертикальное изменение на недели, закрываемое по исходу, а не по календарю.
 #[derive(Debug)]
 pub struct Slice {
-    pub id: u32,
+    pub id: &'static str,
     pub title: NonEmptyStr,
     pub thrust: ThrustRef,
     pub outcome: NonEmptyStr,
@@ -32,7 +32,7 @@ pub struct Slice {
 /// Единица работы: от половины дня до недели.
 #[derive(Debug)]
 pub struct WorkItem {
-    pub id: u32,
+    pub id: &'static str,
     pub title: NonEmptyStr,
     pub slice: SliceRef,
     pub origin: WorkOrigin,
@@ -125,10 +125,27 @@ impl WorkOrigin {
 pub const fn radius_within_slice(work: &WorkItem, slices: &[&Slice]) -> bool {
     let mut i = 0;
     while i < slices.len() {
-        if slices[i].id == work.slice.index() {
+        if slug_eq(slices[i].id, work.slice.as_str()) {
             return work.radius as u8 <= slices[i].max_radius as u8;
         }
         i += 1;
     }
     false
+}
+
+/// Побайтовое сравнение slug в `const`: `==` для `&str` нестабилен в константах.
+const fn slug_eq(a: &str, b: &str) -> bool {
+    let a = a.as_bytes();
+    let b = b.as_bytes();
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
 }

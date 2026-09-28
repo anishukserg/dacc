@@ -8,9 +8,9 @@ use common::{Run, TempRepo};
 use std::fs;
 use std::path::Path;
 
-const OK: &str = "[FEAT](cli): новый файл и удаление старого\n\nDacc-Work: w0001\n";
+const OK: &str = "[FEAT](cli): новый файл и удаление старого\n\nDacc-Work: w-001\n";
 
-/// Репозиторий с таксономией, работой w0001, хуком commit-msg и базовым
+/// Репозиторий с таксономией, работой w-001, хуком commit-msg и базовым
 /// коммитом, прошедшим этот хук.
 fn planned_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
@@ -18,7 +18,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "doc/taxonomy.rs",
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Knowledge, Cli],\n}\n",
     );
-    repo.write("doc/work/w0001.rs", "work\n");
+    repo.write("doc/work/w-001.rs", "work\n");
     repo.write("old/file.txt", "old\n");
     repo.write("unrelated.txt", "unrelated\n");
     repo.executable(
@@ -33,7 +33,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "-m",
         "[CHORE](cli): база",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo
 }
@@ -54,18 +54,18 @@ fn malformed_message_is_refused_before_commit() {
     repo.write("new.txt", "new\n");
     let head = repo.git(&["rev-parse", "HEAD"]);
     for (label, message) in [
-        ("тема без типа", "новый файл\n\nDacc-Work: w0001\n"),
+        ("тема без типа", "новый файл\n\nDacc-Work: w-001\n"),
         (
             "тип вне набора",
-            "[FEATURE](cli): новый файл\n\nDacc-Work: w0001\n",
+            "[FEATURE](cli): новый файл\n\nDacc-Work: w-001\n",
         ),
         (
             "область вне таксономии",
-            "[FEAT](wal): новый файл\n\nDacc-Work: w0001\n",
+            "[FEAT](wal): новый файл\n\nDacc-Work: w-001\n",
         ),
         (
             "точка в конце темы",
-            "[FEAT](cli): новый файл.\n\nDacc-Work: w0001\n",
+            "[FEAT](cli): новый файл.\n\nDacc-Work: w-001\n",
         ),
         ("без основания", "[FEAT](cli): новый файл\n"),
     ] {
@@ -88,11 +88,11 @@ fn malformed_message_is_refused_before_commit() {
 fn work_outside_the_plan_is_refused_by_the_hook() {
     let repo = planned_repo("work-outside-plan");
     repo.write("new.txt", "new\n");
-    let message = "[FEAT](cli): новый файл\n\nDacc-Work: w0099\n";
+    let message = "[FEAT](cli): новый файл\n\nDacc-Work: w-0099\n";
     let run = commit(&repo, message, &[], &["new.txt"]);
     assert_eq!(run.code, 4, "{}", run.output());
     assert!(
-        run.stderr.contains("work w0099 is not in the commit tree"),
+        run.stderr.contains("work w-0099 is not in the commit tree"),
         "{}",
         run.output()
     );
@@ -108,7 +108,7 @@ fn log_takes_hook_output_and_terminal_keeps_refusal_lines() {
     let repo = planned_repo("refusal-log");
     repo.write("new.txt", "new\n");
     let log = repo.outside("commit.log", "");
-    let message = "[FEAT](cli): новый файл\n\nDacc-Work: w0099\n";
+    let message = "[FEAT](cli): новый файл\n\nDacc-Work: w-0099\n";
     let run = commit(
         &repo,
         message,
@@ -118,7 +118,7 @@ fn log_takes_hook_output_and_terminal_keeps_refusal_lines() {
     assert_eq!(run.code, 4, "{}", run.output());
     assert!(
         run.stdout
-            .contains("  - work w0099 is not in the commit tree"),
+            .contains("  - work w-0099 is not in the commit tree"),
         "{}",
         run.output()
     );
@@ -130,7 +130,7 @@ fn log_takes_hook_output_and_terminal_keeps_refusal_lines() {
     );
     let logged = fs::read_to_string(&log).expect("журнал");
     assert!(
-        logged.contains("work w0099 is not in the commit tree"),
+        logged.contains("work w-0099 is not in the commit tree"),
         "{logged}"
     );
 }

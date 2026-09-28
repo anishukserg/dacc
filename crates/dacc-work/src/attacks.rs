@@ -42,12 +42,12 @@
 //! use dacc_work::{Slice, WorkItem, WorkOrigin};
 //! dacc_core::declare_taxonomy! { Subsystem => [Core] }
 //! static SLICE: Slice = Slice {
-//!     id: 1, title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan(1),
+//!     id: "s-001", title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan("t-001"),
 //!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
 //!     max_radius: BlastRadius::Crate,
 //! };
 //! static WORK: WorkItem = WorkItem {
-//!     id: 1, title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan(1),
+//!     id: "w-001", title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan("s-001"),
 //!     origin: WorkOrigin::Toil { justification: NonEmptyStr::new("рутина") },
 //!     taxon: Subsystem::Core, radius: BlastRadius::Persistent,
 //!     outcome: NonEmptyStr::new("готово"),
@@ -62,12 +62,12 @@
 //! use dacc_work::{Slice, WorkItem, WorkOrigin};
 //! dacc_core::declare_taxonomy! { Subsystem => [Core] }
 //! static SLICE: Slice = Slice {
-//!     id: 1, title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan(1),
+//!     id: "s-001", title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan("t-001"),
 //!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
 //!     max_radius: BlastRadius::Crate,
 //! };
 //! static WORK: WorkItem = WorkItem {
-//!     id: 1, title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan(1),
+//!     id: "w-001", title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan("s-001"),
 //!     origin: WorkOrigin::Toil { justification: NonEmptyStr::new("рутина") },
 //!     taxon: Subsystem::Core, radius: BlastRadius::Local,
 //!     outcome: NonEmptyStr::new("готово"),

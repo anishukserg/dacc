@@ -27,7 +27,7 @@ const TAXONOMY: &str = "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli, W
 const WORK: &str = concat!(
     "dacc_work::work!(1,\n",
     "    title: NonEmptyStr::new(\"Первая работа\"),\n",
-    "    slice: crate::slice::s0001,\n",
+    "    slice: crate::slice::s-001,\n",
     "    taxon: taxon!(Subsystem, Cli),\n",
     ");\n",
 );
@@ -39,9 +39,9 @@ fn configured_repo(name: &str) -> TempRepo {
     repo.write("dacc.toml", CONFIG);
     repo.write("docs/COMMITS.md", "Правила коммитов продукта.\n");
     repo.write("docs/registry/taxonomy.rs", TAXONOMY);
-    repo.write("docs/registry/work/w0001.rs", WORK);
+    repo.write("docs/registry/work/w-001.rs", WORK);
     repo.write(
-        "docs/registry/slice/s0001.rs",
+        "docs/registry/slice/s-001.rs",
         "dacc_work::slice!(1,\n    title: NonEmptyStr::new(\"Первый срез\"),\n);\n",
     );
     repo.write("docs/registry/journal/README.md", "журнал\n");
@@ -57,7 +57,7 @@ fn configured_repo(name: &str) -> TempRepo {
         "-m",
         "[CHANGE](cli): база",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo
 }
@@ -81,7 +81,7 @@ fn configured_types_and_limit_replace_the_conventions() {
     assert_eq!(subject.chars().count(), 85);
     let run = commit(
         &repo,
-        &format!("{subject}\n\nDacc-Work: w0001\n"),
+        &format!("{subject}\n\nDacc-Work: w-001\n"),
         &["new.txt"],
     );
     assert_eq!(run.code, 0, "{}", run.output());
@@ -92,7 +92,7 @@ fn configured_types_and_limit_replace_the_conventions() {
     repo.write("other.txt", "other\n");
     let run = commit(
         &repo,
-        "[FIX](cli): исправление\n\nDacc-Work: w0001\n",
+        "[FIX](cli): исправление\n\nDacc-Work: w-001\n",
         &["other.txt"],
     );
     assert_eq!(run.code, 4, "{}", run.output());
@@ -117,7 +117,7 @@ fn configured_types_and_limit_replace_the_conventions() {
     let subject = format!("[CHANGE](cli): {}", "и".repeat(80));
     let run = commit(
         &repo,
-        &format!("{subject}\n\nDacc-Work: w0001\n"),
+        &format!("{subject}\n\nDacc-Work: w-001\n"),
         &["other.txt"],
     );
     assert_eq!(run.code, 4, "{}", run.output());
@@ -131,7 +131,7 @@ fn configured_types_and_limit_replace_the_conventions() {
 #[test]
 fn work_start_writes_into_the_configured_registry() {
     let repo = configured_repo("config-work-start");
-    let run = repo.tool(&["work", "start", "w0001"]);
+    let run = repo.tool(&["work", "start", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
 
@@ -139,18 +139,18 @@ fn work_start_writes_into_the_configured_registry() {
     // настроенные правила: коммит создал хук commit-msg.
     let body = repo.git(&["log", "-1", "--format=%B"]);
     assert!(
-        body.starts_with("[CHANGE](cli): начата работа w0001"),
+        body.starts_with("[CHANGE](cli): начата работа w-001"),
         "{body}"
     );
-    assert!(body.contains("Dacc-Work: w0001"), "{body}");
+    assert!(body.contains("Dacc-Work: w-001"), "{body}");
 
     let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
     assert!(
-        files.contains("docs/registry/journal/w0001/") && files.contains("-started.toml"),
+        files.contains("docs/registry/journal/w-001/") && files.contains("-started.toml"),
         "{files}"
     );
     assert!(
-        repo.tool(&["work", "state", "w0001"])
+        repo.tool(&["work", "state", "w-001"])
             .stdout
             .contains("started"),
         "событие не прочитано из настроенного каталога журнала"
@@ -179,7 +179,7 @@ fn delegating_repo(name: &str) -> TempRepo {
             checker.to_str().expect("путь в UTF-8")
         ),
     );
-    repo.write("doc/work/w0001.rs", WORK);
+    repo.write("doc/work/w-001.rs", WORK);
     repo
 }
 
@@ -196,7 +196,7 @@ fn a_delegated_check_takes_the_form_and_leaves_the_basis_to_dacc() {
 
     // Тему, которую DACC принял бы сам, отвергает команда продукта, и её
     // вывод показан в отказе.
-    let run = msg_check(&repo, "[FEAT](cli): суть\n\nDacc-Work: w0001\n");
+    let run = msg_check(&repo, "[FEAT](cli): суть\n\nDacc-Work: w-001\n");
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
         run.stderr.contains("subject refused by"),
@@ -213,7 +213,7 @@ fn a_delegated_check_takes_the_form_and_leaves_the_basis_to_dacc() {
     // семидесяти двух знаков, — проходит, раз команда её приняла. Значений оси
     // подсистем в дереве нет, и это не ошибка запуска.
     let subject = format!("OK {}", "и".repeat(80));
-    let run = msg_check(&repo, &format!("{subject}\n\nDacc-Work: w0001\n"));
+    let run = msg_check(&repo, &format!("{subject}\n\nDacc-Work: w-001\n"));
     assert_eq!(run.code, 0, "{}", run.output());
 
     // Трейлер основания и наличие работы в дереве остаются за DACC: команда
@@ -222,10 +222,10 @@ fn a_delegated_check_takes_the_form_and_leaves_the_basis_to_dacc() {
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(run.stderr.contains("no Dacc-Work"), "{}", run.output());
 
-    let run = msg_check(&repo, &format!("{subject}\n\nDacc-Work: w0099\n"));
+    let run = msg_check(&repo, &format!("{subject}\n\nDacc-Work: w-0099\n"));
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
-        run.stderr.contains("work w0099 is not in the commit tree"),
+        run.stderr.contains("work w-0099 is not in the commit tree"),
         "{}",
         run.output()
     );
@@ -235,7 +235,7 @@ fn a_delegated_check_takes_the_form_and_leaves_the_basis_to_dacc() {
 fn a_delegated_check_of_a_range_gives_the_command_a_file_and_removes_it() {
     let repo = delegating_repo("config-message-range");
     repo.git(&["add", "-A"]);
-    repo.git(&["commit", "-q", "-m", "OK база", "-m", "Dacc-Work: w0001"]);
+    repo.git(&["commit", "-q", "-m", "OK база", "-m", "Dacc-Work: w-001"]);
     let base = repo.git(&["rev-parse", "HEAD"]).trim().to_owned();
 
     // Сообщение коммита берётся из git, а команде нужен файл: он пишется в
@@ -248,7 +248,7 @@ fn a_delegated_check_of_a_range_gives_the_command_a_file_and_removes_it() {
         "-m",
         "тема без начала",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
 
     let run = repo.tool(&["msg-check", "--range", &format!("{base}..HEAD")]);
@@ -291,7 +291,7 @@ fn a_bad_configuration_is_a_startup_error_naming_the_file_and_the_key() {
     ] {
         let repo = TempRepo::new(name);
         repo.write("doc/taxonomy.rs", TAXONOMY);
-        repo.write("doc/work/w0001.rs", WORK);
+        repo.write("doc/work/w-001.rs", WORK);
         repo.write("dacc.toml", text);
         repo.git(&["add", "-A"]);
         repo.git(&[
@@ -300,12 +300,12 @@ fn a_bad_configuration_is_a_startup_error_naming_the_file_and_the_key() {
             "-m",
             "[CHORE](cli): база",
             "-m",
-            "Dacc-Work: w0001",
+            "Dacc-Work: w-001",
         ]);
 
         // Проверка сообщения читает настройку из индекса: негодная настройка —
         // ошибка запуска (2), а не отказ проверки (1).
-        let message = repo.outside("message.txt", "[FEAT](cli): суть\n\nDacc-Work: w0001\n");
+        let message = repo.outside("message.txt", "[FEAT](cli): суть\n\nDacc-Work: w-001\n");
         let run = repo.tool(&["msg-check", message.to_str().expect("путь в UTF-8")]);
         assert_eq!(run.code, 2, "{name}: {}", run.output());
         assert!(

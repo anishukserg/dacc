@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-hooks-partial-install"
+at = "2026-09-22T05:19:10Z"
+gate = "commit"
+tree = "a0d00ee05f9721606e4d8eca56d2553705f4a864"
+verdict = "GATE OK (12 of 12; doctest 36, on 1.83.0 — 36)"

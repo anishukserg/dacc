@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-prose-renamed-symbol"
+at = "2026-09-28T09:40:11Z"
+gate = "commit"
+tree = "914e9fd63acdc0000cd30115729a3927c93bb582"
+verdict = "GATE OK (12 of 12; attacks 20, on 1.83.0 — 20)"

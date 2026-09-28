@@ -25,16 +25,6 @@ use std::{fmt::Write as _, fs, path::Path};
 
 use dacc_core::anchor_rules::slug_ident;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScannedDecision {
-    pub id: u32,
-    pub module: String,
-    pub status: Status,
-    /// Абсолютный путь к файлу. Нужен потому, что порождённый модуль лежит
-    /// в OUT_DIR, а `#[path]` разрешается относительно него.
-    pub file: String,
-}
-
 /// Запись скана слоя знания: идентификатор — slug из имени файла.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScannedSlug {
@@ -110,32 +100,6 @@ pub fn scan_decisions(dir: &Path) -> Result<Vec<ScannedSlug>, ScanError> {
     scan_slug_dir(dir, "adr")
 }
 
-fn scan_dir(dir: &Path, macro_name: &str, prefix: char) -> Result<Vec<ScannedDecision>, ScanError> {
-    let mut found = Vec::new();
-    let entries =
-        fs::read_dir(dir).map_err(|e| ScanError::Io(format!("{}: {e}", dir.display())))?;
-
-    for entry in entries {
-        let path = entry.map_err(|e| ScanError::Io(e.to_string()))?.path();
-        let is_rs = path.extension().is_some_and(|e| e == "rs");
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default()
-            .to_owned();
-        if !is_rs || stem == "mod" {
-            continue;
-        }
-        let text = fs::read_to_string(&path).map_err(|e| ScanError::Io(e.to_string()))?;
-        let mut decision = parse_entry(&text, &stem, macro_name, prefix)?;
-        decision.file = path.display().to_string();
-        found.push(decision);
-    }
-    found.sort_by_key(|d| d.id);
-    Ok(found)
-}
-
-/// Сканирует каталог реестра слоя знания: идентификатор каждого документа —
 /// имя его файла (slug), а не число внутри макроса.
 fn scan_slug_dir(dir: &Path, macro_name: &str) -> Result<Vec<ScannedSlug>, ScanError> {
     let mut found = Vec::new();
@@ -223,81 +187,6 @@ pub fn parse_slug_entry(
 /// Разбирает один файл реестра решений: идентификатор — имя файла (slug).
 pub fn parse_decision(text: &str, module: &str) -> Result<ScannedSlug, ScanError> {
     parse_slug_entry(text, module, "adr")
-}
-
-/// Разбирает один файл реестра: находит вызов макроса регистрации и
-/// извлекает идентификатор и статус из его токенов.
-pub fn parse_entry(
-    text: &str,
-    module: &str,
-    macro_name: &str,
-    prefix: char,
-) -> Result<ScannedDecision, ScanError> {
-    let file = syn::parse_file(text).map_err(|e| ScanError::Parse {
-        file: module.into(),
-        detail: e.to_string(),
-    })?;
-
-    let mac = file
-        .items
-        .iter()
-        .find_map(|item| match item {
-            // Путь может быть как `adr!`, так и `dacc_knowledge::adr!` —
-            // значим только последний сегмент.
-            syn::Item::Macro(m)
-                if m.mac
-                    .path
-                    .segments
-                    .last()
-                    .is_some_and(|s| s.ident == macro_name) =>
-            {
-                Some(&m.mac)
-            }
-            _ => None,
-        })
-        .ok_or_else(|| ScanError::Parse {
-            file: module.into(),
-            detail: format!("no {macro_name}! call found"),
-        })?;
-
-    let tokens: Vec<_> = mac.tokens.clone().into_iter().collect();
-    let id = tokens
-        .iter()
-        .find_map(|t| match t {
-            proc_macro2::TokenTree::Literal(l) => l.to_string().parse::<u32>().ok(),
-            _ => None,
-        })
-        .ok_or_else(|| ScanError::Parse {
-            file: module.into(),
-            detail: "no identifier found".into(),
-        })?;
-
-    // Каноническое имя файла: у идентификатора ровно одно допустимое имя,
-    // поэтому второй файл с тем же идентификатором в каталоге невыразим —
-    // ни через ведущие нули, ни через имя без номера.
-    let expected = format!("{prefix}{id:04}");
-    if module != expected {
-        return Err(ScanError::IdMismatch {
-            file: module.into(),
-            declared: id,
-            expected,
-        });
-    }
-
-    if let Some(ident) = find_bypass(text) {
-        return Err(ScanError::Bypass {
-            file: module.into(),
-            ident,
-        });
-    }
-
-    let status = extract_status(&tokens);
-    Ok(ScannedDecision {
-        id,
-        module: module.to_owned(),
-        status,
-        file: String::new(),
-    })
 }
 
 /// Ищет конструкторы скана во всём тексте файла, включая вложенные группы.
@@ -646,18 +535,18 @@ mod tests {
                 file: "/x/adr-direct-plan.rs".into(),
             },
         ];
-        let work = vec![ScannedDecision {
-            id: 1,
-            module: "w0001".into(),
+        let work = vec![ScannedSlug {
+            slug: "w-001".into(),
+
             status: Status::Draft,
-            file: "/x/w0001.rs".into(),
+            file: "/x/w-001.rs".into(),
         }];
         // Проверка до начала работы — нарушение автомата, закрытый срез при
         // незавершённой работе — константная проверка: оба пути порождают
         // сообщение, половина которого приходит из dacc-journal.
         let events = [
             dacc_journal::Event::new(
-                dacc_journal::Subject::Work(1),
+                dacc_journal::Subject::Work("w-001".to_owned()),
                 "2026-09-11T03:15:01Z".to_owned(),
                 dacc_journal::Kind::Gate {
                     gate: "commit".into(),
@@ -666,13 +555,13 @@ mod tests {
                 },
             ),
             dacc_journal::Event::new(
-                dacc_journal::Subject::Slice(3),
+                dacc_journal::Subject::Slice("s-003".to_owned()),
                 "2026-09-11T03:15:02Z".to_owned(),
                 dacc_journal::Kind::Closed,
             ),
         ];
         // Нечитаемый файл события: причина приходит из разбора формата.
-        let unreadable = dacc_journal::parse_event("w0001/x.toml", "[table]\n").unwrap_err();
+        let unreadable = dacc_journal::parse_event("w-001/x.toml", "[table]\n").unwrap_err();
         let found =
             anchors::anchors_in_file("#[doc_anchor(id = \"plan-ir\")]\npub struct P;\n", "p.rs")
                 .unwrap();

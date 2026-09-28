@@ -24,11 +24,11 @@ fn range_checks_each_commit_against_its_own_tree() {
         "doc/taxonomy.rs",
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli],\n}\n",
     );
-    repo.write("doc/work/w0001.rs", "work\n");
-    let base = commit(&repo, &["[CHORE](cli): база", "Dacc-Work: w0001"]);
+    repo.write("doc/work/w-001.rs", "work\n");
+    let base = commit(&repo, &["[CHORE](cli): база", "Dacc-Work: w-001"]);
 
     repo.write("a.txt", "a\n");
-    let good = commit(&repo, &["[FEAT](cli): первый", "Dacc-Work: w0001"]);
+    let good = commit(&repo, &["[FEAT](cli): первый", "Dacc-Work: w-001"]);
 
     let run = repo.tool(&["msg-check", "--range", &format!("{base}..{good}")]);
     assert_eq!(run.code, 0, "{}", run.output());
@@ -37,8 +37,8 @@ fn range_checks_each_commit_against_its_own_tree() {
     // Работа из трейлера появляется только в следующем коммите: основание
     // сверяется с деревом своего коммита, а не с вершиной диапазона.
     repo.write("b.txt", "b\n");
-    let unplanned = commit(&repo, &["[FEAT](cli): без плана", "Dacc-Work: w0002"]);
-    repo.write("doc/work/w0002.rs", "work\n");
+    let unplanned = commit(&repo, &["[FEAT](cli): без плана", "Dacc-Work: w-002"]);
+    repo.write("doc/work/w-002.rs", "work\n");
     let web = commit(&repo, &["правка на сайте"]);
 
     let run = repo.tool(&["msg-check", "--range", &format!("{base}..HEAD")]);

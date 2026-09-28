@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-gate-command-replaces"
+at = "2026-09-28T11:42:41Z"
+commit = "b16b2bbb8d15e9a11d101395310df348592d5119"
+tree = "616791a600940165fe1f16b329a26296cf2d174c"

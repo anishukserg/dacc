@@ -7,7 +7,7 @@ mod common;
 use common::{Run, TempRepo};
 use std::fs;
 
-/// Репозиторий с таксономией, срезом s0001, работами w0001 и w0002 в нём,
+/// Репозиторий с таксономией, срезом s-001, работами w-001 и w-002 в нём,
 /// каталогом журнала и хуком commit-msg.
 fn planned_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
@@ -16,15 +16,15 @@ fn planned_repo(name: &str) -> TempRepo {
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli, Work],\n}\n",
     );
     repo.write(
-        "doc/slice/s0001.rs",
+        "doc/slice/s-001.rs",
         "dacc_work::slice!(1,\n    title: NonEmptyStr::new(\"Первый срез\"),\n);\n",
     );
-    for (id, title) in [("w0001", "Первая работа"), ("w0002", "Вторая работа")]
+    for (id, title) in [("w-001", "Первая работа"), ("w-002", "Вторая работа")]
     {
         repo.write(
             &format!("doc/work/{id}.rs"),
             &format!(
-                "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"{title}\"),\n    slice: crate::slice::s0001,\n    taxon: taxon!(Subsystem, Cli),\n);\n"
+                "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"{title}\"),\n    slice: crate::slice::s-001,\n    taxon: taxon!(Subsystem, Cli),\n);\n"
             ),
         );
     }
@@ -41,7 +41,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "-m",
         "[CHORE](cli): база",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo
 }
@@ -74,55 +74,55 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
     let run = repo.tool(&[
         "work",
         "start",
-        "w0001",
+        "w-001",
         "--trailer",
         "Co-Authored-By: Проба <proba@localhost>",
     ]);
     assert_ok(&run);
-    assert!(state_of(&repo, "w0001").contains("started"));
+    assert!(state_of(&repo, "w-001").contains("started"));
     let body = repo.git(&["log", "-1", "--format=%B"]);
     assert!(
-        body.starts_with("[PLAN](cli): work w0001 started"),
+        body.starts_with("[PLAN](cli): work w-001 started"),
         "{body}"
     );
     assert!(
-        body.contains("Dacc-Work: w0001\nCo-Authored-By: Проба"),
+        body.contains("Dacc-Work: w-001\nCo-Authored-By: Проба"),
         "{body}"
     );
 
     // Без доказательства для дерева коммита работы приземление отвергается.
-    let run = repo.tool(&["work", "land", "w0001"]);
+    let run = repo.tool(&["work", "land", "w-001"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(run.verdict().contains("no proof"), "{}", run.output());
 
     prove_head(&repo);
-    let run = repo.tool(&["work", "land", "w0001"]);
+    let run = repo.tool(&["work", "land", "w-001"]);
     assert_ok(&run);
     let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
     assert!(
         files.contains("-gate.toml") && files.contains("-landed.toml"),
         "{files}"
     );
-    assert!(state_of(&repo, "w0001").contains("landed"));
+    assert!(state_of(&repo, "w-001").contains("landed"));
 
     // Срез не закрывается, пока в нём есть незавершённая работа.
-    let run = repo.tool(&["slice", "close", "s0001"]);
+    let run = repo.tool(&["slice", "close", "s-001"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
-        run.verdict().contains("w0002 not finished"),
+        run.verdict().contains("w-002 not finished"),
         "{}",
         run.output()
     );
 
-    assert_ok(&repo.tool(&["work", "drop", "w0002", "--reason", "замещена"]));
-    assert!(state_of(&repo, "w0002").contains("abandoned"));
-    assert_ok(&repo.tool(&["slice", "close", "s0001"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-002", "--reason", "замещена"]));
+    assert!(state_of(&repo, "w-002").contains("abandoned"));
+    assert_ok(&repo.tool(&["slice", "close", "s-001"]));
     let body = repo.git(&["log", "-1", "--format=%B"]);
-    assert!(body.contains("Dacc-Slice: s0001"), "{body}");
+    assert!(body.contains("Dacc-Slice: s-001"), "{body}");
     assert!(repo
         .tool(&["work", "state"])
         .stdout
-        .contains("closed slices: s0001"));
+        .contains("closed slices: s-001"));
 }
 
 #[test]
@@ -131,18 +131,18 @@ fn illegal_requests_are_refused_before_any_event() {
     let head = repo.git(&["rev-parse", "HEAD"]);
     for (args, code, reason) in [
         (
-            vec!["work", "land", "w0001"],
+            vec!["work", "land", "w-001"],
             1,
             "only a started work can be landed",
         ),
-        (vec!["work", "start", "w0009"], 1, "is not in the plan"),
+        (vec!["work", "start", "w-009"], 1, "is not in the plan"),
         (
-            vec!["work", "drop", "w0001", "--reason", " "],
+            vec!["work", "drop", "w-001", "--reason", " "],
             2,
             "non-empty reason",
         ),
-        (vec!["slice", "close", "s0009"], 1, "is not in the plan"),
-        (vec!["work", "begin", "w0001"], 2, "work start"),
+        (vec!["slice", "close", "s-009"], 1, "is not in the plan"),
+        (vec!["work", "begin", "w-001"], 2, "work start"),
     ] {
         let run = repo.tool(&args);
         assert_eq!(run.code, code, "{args:?}: {}", run.output());
@@ -154,8 +154,8 @@ fn illegal_requests_are_refused_before_any_event() {
         "отказ создал коммит"
     );
 
-    assert_ok(&repo.tool(&["work", "start", "w0001"]));
-    let run = repo.tool(&["work", "start", "w0001"]);
+    assert_ok(&repo.tool(&["work", "start", "w-001"]));
+    let run = repo.tool(&["work", "start", "w-001"]);
     assert!(
         run.verdict().contains("is already started"),
         "{}",
@@ -171,13 +171,13 @@ fn illegal_requests_are_refused_before_any_event() {
         "-m",
         "[CHORE](cli): чужая работа",
         "-m",
-        "Dacc-Work: w0002",
+        "Dacc-Work: w-002",
     ]);
     prove_head(&repo);
-    let run = repo.tool(&["work", "land", "w0001"]);
+    let run = repo.tool(&["work", "land", "w-001"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
-        run.verdict().contains("is not based on work w0001"),
+        run.verdict().contains("is not based on work w-001"),
         "{}",
         run.output()
     );

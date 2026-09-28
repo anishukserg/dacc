@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! cargo dacc journal hash [<revision>]
-//! cargo dacc journal import --work <wNNNN> [--close-finished-slices] [--trailer <trailer>]…
+//! cargo dacc journal import --work <w-slug> [--close-finished-slices] [--trailer <trailer>]…
 //! ```
 //!
 //! `hash` печатает хэш дерева ревизии без каталога журнала — тот, к которому
@@ -20,7 +20,7 @@ pub fn run(args: &[OsString]) -> u8 {
         Some("import") => work::run_import(&args[1..]),
         _ => {
             eprintln!(
-                "journal: hash [<revision>] | import --work <wNNNN> [--close-finished-slices]"
+                "journal: hash [<revision>] | import --work <w-slug> [--close-finished-slices]"
             );
             2
         }

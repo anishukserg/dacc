@@ -8,16 +8,16 @@ use common::{Run, TempRepo};
 use std::fs::{self, File};
 use std::time::{Duration, SystemTime};
 
-const OK: &str = "[FEAT](cli): новый файл\n\nDacc-Work: w0001\n";
+const OK: &str = "[FEAT](cli): новый файл\n\nDacc-Work: w-001\n";
 
-/// Репозиторий с таксономией, работой w0001, базовым коммитом и новым файлом.
+/// Репозиторий с таксономией, работой w-001, базовым коммитом и новым файлом.
 fn planned_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
     repo.write(
         "doc/taxonomy.rs",
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli],\n}\n",
     );
-    repo.write("doc/work/w0001.rs", "work\n");
+    repo.write("doc/work/w-001.rs", "work\n");
     repo.git(&["add", "-A"]);
     repo.git(&[
         "commit",
@@ -25,7 +25,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "-m",
         "[CHORE](cli): база",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo.write("new.txt", "new\n");
     repo

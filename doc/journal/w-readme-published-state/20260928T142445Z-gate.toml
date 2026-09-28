@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-readme-published-state"
+at = "2026-09-28T14:24:45Z"
+gate = "commit"
+tree = "8f61ebd158db984b097a07eacdbbee988e19f50c"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"

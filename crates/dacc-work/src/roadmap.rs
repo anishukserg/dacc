@@ -28,21 +28,16 @@ pub fn render_roadmap(
     let mut thrusts: Vec<&&Thrust> = thrusts.iter().collect();
     thrusts.sort_by_key(|t| t.id);
     for thrust in thrusts {
-        let _ = writeln!(
-            out,
-            "\n## {} — {}\n",
-            id_str('t', thrust.id),
-            thrust.title.as_str()
-        );
+        let _ = writeln!(out, "\n## {} — {}\n", thrust.id, thrust.title.as_str());
         let _ = writeln!(out, "{}\n", thrust.outcome.as_str());
 
         let mut own: Vec<&&Slice> = slices
             .iter()
-            .filter(|s| s.thrust.index() == thrust.id)
+            .filter(|s| s.thrust.as_str() == thrust.id)
             .collect();
         own.sort_by_key(|s| s.id);
         for slice in own {
-            let suffix = if closed.iter().any(|c| c.index() == slice.id) {
+            let suffix = if closed.iter().any(|c| c.as_str() == slice.id) {
                 " — closed"
             } else {
                 ""
@@ -50,7 +45,7 @@ pub fn render_roadmap(
             let _ = writeln!(
                 out,
                 "\n### {} — {}{}\n",
-                id_str('s', slice.id),
+                slice.id,
                 slice.title.as_str(),
                 suffix
             );
@@ -58,19 +53,19 @@ pub fn render_roadmap(
 
             let mut items: Vec<&&WorkItem> = work
                 .iter()
-                .filter(|w| w.slice.index() == slice.id)
+                .filter(|w| w.slice.as_str() == slice.id)
                 .collect();
             items.sort_by_key(|w| w.id);
             let has_items = !items.is_empty();
             for item in items {
                 let state = states
                     .iter()
-                    .find(|(r, _)| r.index() == item.id)
+                    .find(|(r, _)| r.as_str() == item.id)
                     .map_or(WorkState::Planned, |(_, s)| *s);
                 let _ = writeln!(
                     out,
                     "- {} {} — {}",
-                    id_str('w', item.id),
+                    item.id,
                     item.title.as_str(),
                     state_name(state)
                 );
@@ -81,10 +76,6 @@ pub fn render_roadmap(
         }
     }
     out
-}
-
-fn id_str(prefix: char, id: u32) -> String {
-    format!("{prefix}{id:04}")
 }
 
 fn state_name(state: WorkState) -> &'static str {
@@ -107,22 +98,22 @@ mod tests {
     #[test]
     fn renders_thrusts_slices_and_work_states() {
         let thrust = Thrust {
-            id: 1,
+            id: "t-001",
             title: NonEmptyStr::new("Направление"),
             outcome: NonEmptyStr::new("Исход направления"),
         };
         let slice = Slice {
-            id: 3,
+            id: "s-003",
             title: NonEmptyStr::new("Срез"),
-            thrust: ThrustRef::__from_scan(1),
+            thrust: ThrustRef::__from_scan("t-001"),
             outcome: NonEmptyStr::new("Исход среза"),
             specification: RfcRef::__from_scan("rfc-2026-001"),
             max_radius: BlastRadius::Crate,
         };
         let work = WorkItem {
-            id: 7,
+            id: "w-007",
             title: NonEmptyStr::new("Работа"),
-            slice: SliceRef::__from_scan(3),
+            slice: SliceRef::__from_scan("s-003"),
             origin: WorkOrigin::Toil {
                 justification: NonEmptyStr::new("рутина"),
             },
@@ -130,13 +121,13 @@ mod tests {
             radius: BlastRadius::Local,
             outcome: NonEmptyStr::new("готово"),
         };
-        let states = [(WorkRef::__from_scan(7), WorkState::Started)];
-        let closed = [SliceRef::__from_scan(3)];
+        let states = [(WorkRef::__from_scan("w-007"), WorkState::Started)];
+        let closed = [SliceRef::__from_scan("s-003")];
 
         let out = render_roadmap(&[&thrust], &[&slice], &[&work], &states, &closed, "abc123");
         assert!(out.contains("Built from commit `abc123`."), "{out}");
-        assert!(out.contains("## t0001 — Направление"), "{out}");
-        assert!(out.contains("### s0003 — Срез — closed"), "{out}");
-        assert!(out.contains("- w0007 Работа — started"), "{out}");
+        assert!(out.contains("## t-001 — Направление"), "{out}");
+        assert!(out.contains("### s-003 — Срез — closed"), "{out}");
+        assert!(out.contains("- w-007 Работа — started"), "{out}");
     }
 }

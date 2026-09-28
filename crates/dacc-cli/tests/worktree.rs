@@ -10,7 +10,7 @@ use common::TempRepo;
 use std::fs;
 use std::path::PathBuf;
 
-/// Репозиторий с реестром, работой w0001 и базовым коммитом по её основанию.
+/// Репозиторий с реестром, работой w-001 и базовым коммитом по её основанию.
 fn planned_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
     repo.write(
@@ -18,7 +18,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli],\n}\n",
     );
     repo.write(
-        "doc/work/w0001.rs",
+        "doc/work/w-001.rs",
         "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Работа\"),\n    taxon: taxon!(Subsystem, Cli),\n);\n",
     );
     repo.write("doc/journal/README.md", "журнал\n");
@@ -29,7 +29,7 @@ fn planned_repo(name: &str) -> TempRepo {
         "-m",
         "[CHORE](cli): база",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo
 }
@@ -77,7 +77,7 @@ fn a_proof_of_the_repository_lands_work_from_a_linked_worktree() {
     let code = repo.git(&["rev-parse", "HEAD"]).trim().to_owned();
     let tree = worktree(&repo, "wt-proof");
 
-    let run = repo.tool_in(&tree, &["work", "start", "w0001"]);
+    let run = repo.tool_in(&tree, &["work", "start", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
 
     // Доказательство принадлежит репозиторию, а не копии, в которой прошла
@@ -95,7 +95,7 @@ fn a_proof_of_the_repository_lands_work_from_a_linked_worktree() {
     )
     .expect("доказательство записано");
 
-    let run = repo.tool_in(&tree, &["work", "land", "w0001", "--commit", &code]);
+    let run = repo.tool_in(&tree, &["work", "land", "w-001", "--commit", &code]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
 }

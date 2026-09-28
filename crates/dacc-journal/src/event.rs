@@ -3,32 +3,26 @@
 use crate::format::{self, Record};
 use crate::time;
 
-/// Предмет события: единица работы или срез.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Предмет события: единица работы или срез, адресуемый slug.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Subject {
-    Work(u32),
-    Slice(u32),
+    Work(String),
+    Slice(String),
 }
 
 impl Subject {
-    /// Идентификатор в плане: `w0022` или `s0007`.
-    pub fn id(self) -> String {
+    /// Идентификатор в плане: `w-fix-gitignore` или `s-versioning`.
+    pub fn id(&self) -> &str {
         match self {
-            Self::Work(number) => format!("w{number:04}"),
-            Self::Slice(number) => format!("s{number:04}"),
+            Self::Work(slug) | Self::Slice(slug) => slug,
         }
     }
 
-    /// Разбирает `w0022` или `s0007`.
+    /// Разбирает `w-fix-gitignore` или `s-versioning`.
     pub fn parse(text: &str) -> Option<Subject> {
-        let digits = text.get(1..)?;
-        if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
-            return None;
-        }
-        let number = digits.parse().ok()?;
-        match text.as_bytes().first() {
-            Some(b'w') => Some(Self::Work(number)),
-            Some(b's') => Some(Self::Slice(number)),
+        match text.as_bytes() {
+            [b'w', b'-', ..] => Some(Self::Work(text.to_owned())),
+            [b's', b'-', ..] => Some(Self::Slice(text.to_owned())),
             _ => None,
         }
     }
@@ -91,7 +85,7 @@ impl Event {
     /// Новое событие с каноническим путём файла.
     pub fn new(subject: Subject, at: String, kind: Kind) -> Event {
         Event {
-            file: relative_path(subject, &at, &kind, 0),
+            file: relative_path(&subject, &at, &kind, 0),
             subject,
             at,
             kind,
@@ -133,9 +127,9 @@ impl Event {
             })
             .ok_or_else(|| {
                 let example = if subject_key == "work" {
-                    "w0001"
+                    "w-fix-gitignore"
                 } else {
-                    "s0001"
+                    "s-versioning"
                 };
                 format!("field {subject_key} is an identifier like {example}, not {subject_text:?}")
             })?;
@@ -197,7 +191,7 @@ impl Event {
         if !event.file_matches() {
             return Err(format!(
                 "the file name does not match the event: expected {}",
-                relative_path(event.subject, &event.at, &event.kind, 0)
+                relative_path(&event.subject, &event.at, &event.kind, 0)
             ));
         }
         Ok(event)
@@ -212,7 +206,7 @@ impl Event {
         let id = self.subject.id();
         let mut fields: Vec<(&str, &str)> = vec![
             ("event", self.kind.name()),
-            (subject_key, &id),
+            (subject_key, id),
             ("at", &self.at),
         ];
         match &self.kind {
@@ -244,7 +238,7 @@ impl Event {
     /// Путь файла соответствует предмету, времени и виду события. При
     /// совпадении времени допускается числовой суффикс `-N`.
     fn file_matches(&self) -> bool {
-        let canonical = relative_path(self.subject, &self.at, &self.kind, 0);
+        let canonical = relative_path(&self.subject, &self.at, &self.kind, 0);
         if self.file == canonical {
             return true;
         }
@@ -259,7 +253,7 @@ impl Event {
 
 /// Путь файла события от каталога журнала; `attempt` больше нуля добавляет
 /// суффикс для событий с одинаковым временем.
-pub fn relative_path(subject: Subject, at: &str, kind: &Kind, attempt: u32) -> String {
+pub fn relative_path(subject: &Subject, at: &str, kind: &Kind, attempt: u32) -> String {
     let compact: String = at.chars().filter(|c| *c != '-' && *c != ':').collect();
     let name = kind.name();
     let id = subject.id();
@@ -292,9 +286,9 @@ mod tests {
     fn every_kind_round_trips_through_its_file() {
         let at = "2026-09-11T03:15:00Z".to_owned();
         for (subject, kind) in [
-            (Subject::Work(22), Kind::Started),
+            (Subject::Work("w-022".to_owned()), Kind::Started),
             (
-                Subject::Work(22),
+                Subject::Work("w-022".to_owned()),
                 Kind::Gate {
                     gate: "commit".into(),
                     tree: TREE.into(),
@@ -302,7 +296,7 @@ mod tests {
                 },
             ),
             (
-                Subject::Work(22),
+                Subject::Work("w-022".to_owned()),
                 Kind::Landed {
                     commit: TREE.into(),
                     tree: TREE.into(),
@@ -310,27 +304,27 @@ mod tests {
                 },
             ),
             (
-                Subject::Work(22),
+                Subject::Work("w-022".to_owned()),
                 Kind::Abandoned {
                     reason: "замещена работой 23".into(),
                 },
             ),
-            (Subject::Slice(7), Kind::Closed),
+            (Subject::Slice("s-007".to_owned()), Kind::Closed),
         ] {
             let written = Event::new(subject, at.clone(), kind);
             let read = event(&written.file, &written.to_text()).unwrap();
             assert_eq!(read, written);
         }
         assert_eq!(
-            Event::new(Subject::Work(22), at, Kind::Started).file,
-            "w0022/20260911T031500Z-started.toml"
+            Event::new(Subject::Work("w-022".to_owned()), at, Kind::Started).file,
+            "w-022/20260911T031500Z-started.toml"
         );
     }
 
     #[test]
     fn fields_are_checked_strictly() {
-        let file = "w0022/20260911T031500Z-started.toml";
-        let base = "work = \"w0022\"\nat = \"2026-09-11T03:15:00Z\"\n";
+        let file = "w-022/20260911T031500Z-started.toml";
+        let base = "work = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\n";
         for (text, reason) in [
             (base.to_owned(), "no event field"),
             (format!("event = \"begun\"\n{base}"), "unknown event"),
@@ -339,29 +333,29 @@ mod tests {
                 "extra field `owner`",
             ),
             (
-                "event = \"started\"\nwork = \"s0022\"\nat = \"2026-09-11T03:15:00Z\"\n".to_owned(),
-                "identifier like w0001",
+                "event = \"started\"\nwork = \"s-022\"\nat = \"2026-09-11T03:15:00Z\"\n".to_owned(),
+                "identifier like w-fix-gitignore",
             ),
             (
-                "event = \"started\"\nwork = \"w0022\"\nat = \"вчера\"\n".to_owned(),
+                "event = \"started\"\nwork = \"w-022\"\nat = \"вчера\"\n".to_owned(),
                 "UTC time",
             ),
         ] {
             let error = event(file, &text).expect_err(&text);
             assert!(error.contains(reason), "{text}: {error}");
         }
-        let gate = "event = \"gate\"\nwork = \"w0022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"XYZ\"\nverdict = \"ok\"\n";
-        let error = event("w0022/20260911T031500Z-gate.toml", gate).unwrap_err();
+        let gate = "event = \"gate\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"XYZ\"\nverdict = \"ok\"\n";
+        let error = event("w-022/20260911T031500Z-gate.toml", gate).unwrap_err();
         assert!(error.contains("field tree is a git hash"), "{error}");
     }
 
     #[test]
     fn file_name_must_match_the_event() {
-        let text = "event = \"started\"\nwork = \"w0022\"\nat = \"2026-09-11T03:15:00Z\"\n";
-        assert!(event("w0022/20260911T031500Z-started-2.toml", text).is_ok());
+        let text = "event = \"started\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\n";
+        assert!(event("w-022/20260911T031500Z-started-2.toml", text).is_ok());
         let error = event("w0023/20260911T031500Z-started.toml", text).unwrap_err();
         assert!(
-            error.contains("expected w0022/20260911T031500Z-started.toml"),
+            error.contains("expected w-022/20260911T031500Z-started.toml"),
             "{error}"
         );
     }

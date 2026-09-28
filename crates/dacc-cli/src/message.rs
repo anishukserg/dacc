@@ -1,6 +1,6 @@
 //! Сообщение коммита по решению 8: тема `[ТИП](область): суть`, пустая строка
-//! после темы, трейлер основания из дерева коммита — `Dacc-Work: wNNNN` или,
-//! для коммита закрытия среза, `Dacc-Slice: sNNNN` (решение 15).
+//! после темы, трейлер основания из дерева коммита — `Dacc-Work: w-slug` или,
+//! для коммита закрытия среза, `Dacc-Slice: s-slug` (решение 15).
 //!
 //! ```text
 //! cargo dacc msg-check [--form-only] <message>
@@ -28,7 +28,7 @@
 //! «принято». Тогда DACC не проверяет ни тип, ни область, ни предел длины,
 //! ни точку в конце, ни пустую строку после темы — и таксономии в дереве может
 //! не быть вовсе. Трейлер основания остаётся за DACC: он есть, он по форме
-//! `wNNNN` или `sNNNN`, и работа или срез лежат в том же дереве. Делегируется
+//! `w-slug` или `s-slug`, и работа или срез лежат в том же дереве. Делегируется
 //! форма, а не правило.
 //!
 //! Код возврата: 0 — принято; 1 — отвергнуто (причины в stderr); 2 — ошибка
@@ -353,7 +353,7 @@ pub fn problems(
     let slices = trailer_ids(text, SLICE_TRAILER, 's', &mut errors);
     if works.is_empty() && slices.is_empty() {
         errors.push(
-            "no Dacc-Work: wNNNN or Dacc-Slice: sNNNN trailer — the commit has no basis in the plan"
+            "no Dacc-Work: w-slug or Dacc-Slice: s-slug trailer — the commit has no basis in the plan"
                 .to_owned(),
         );
     } else if let Some(exists) = exists {
@@ -433,7 +433,7 @@ fn trailer_ids<'a>(
         .any(|line| trailer_id(line, key, prefix).is_none())
     {
         let name = key.trim_end_matches(':');
-        errors.push(format!("trailer {name} is not in the form {prefix}NNNN"));
+        errors.push(format!("trailer {name} is not in the form {prefix}-slug"));
     }
     lines
         .iter()
@@ -463,8 +463,8 @@ fn parse_subject(subject: &str) -> Option<(&str, &str, &str)> {
 /// Идентификатор из строки трейлера — ровно `<ключ> <префикс>NNNN`.
 fn trailer_id<'a>(line: &'a str, key: &str, prefix: char) -> Option<&'a str> {
     let id = line.strip_prefix(key)?.strip_prefix(' ')?;
-    let digits = id.strip_prefix(prefix)?;
-    (digits.len() == 4 && digits.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+    let rest = id.strip_prefix(prefix)?;
+    (rest.starts_with('-') && rest.len() > 1).then_some(id)
 }
 
 #[cfg(test)]
@@ -476,7 +476,7 @@ mod tests {
     }
 
     fn planned(path: &str) -> bool {
-        path == "doc/work/w0001.rs" || path == "doc/slice/s0001.rs"
+        path == "doc/work/w-001.rs" || path == "doc/slice/s-001.rs"
     }
 
     #[test]
@@ -489,8 +489,8 @@ mod tests {
     #[test]
     fn well_formed_messages_pass() {
         for message in [
-            "[FEAT](cli,knowledge): суть\n\nтело\n\nDacc-Work: w0001\n",
-            "[PLAN](cli): закрыт срез s0001\n\nDacc-Slice: s0001\n",
+            "[FEAT](cli,knowledge): суть\n\nтело\n\nDacc-Work: w-001\n",
+            "[PLAN](cli): закрыт срез s-001\n\nDacc-Slice: s-001\n",
         ] {
             assert_eq!(
                 problems(message, &scopes(), Some(&planned), &Config::default()),
@@ -502,51 +502,51 @@ mod tests {
 
     #[test]
     fn each_rule_names_its_violation() {
-        let long = format!("[FEAT](cli): {}\n\nDacc-Work: w0001", "я".repeat(70));
+        let long = format!("[FEAT](cli): {}\n\nDacc-Work: w-001", "я".repeat(70));
         let cases = [
             (
-                "суть без типа\n\nDacc-Work: w0001",
+                "суть без типа\n\nDacc-Work: w-001",
                 "subject is not in the form",
             ),
-            ("[FEATURE](cli): суть\n\nDacc-Work: w0001", "type [FEATURE]"),
-            ("[FEAT](wal): суть\n\nDacc-Work: w0001", "scope (wal)"),
+            ("[FEATURE](cli): суть\n\nDacc-Work: w-001", "type [FEATURE]"),
+            ("[FEAT](wal): суть\n\nDacc-Work: w-001", "scope (wal)"),
             (
-                "[FEAT](cli,,knowledge): суть\n\nDacc-Work: w0001",
+                "[FEAT](cli,,knowledge): суть\n\nDacc-Work: w-001",
                 "scope ()",
             ),
             (
-                "[FEAT](cli): суть.\n\nDacc-Work: w0001",
+                "[FEAT](cli): суть.\n\nDacc-Work: w-001",
                 "subject ends with a period",
             ),
             // Тринадцать символов «[FEAT](cli): » и семьдесят «я».
             (long.as_str(), "subject is longer than 72 characters (83)"),
             (
-                "[FEAT](cli): суть\nтело\n\nDacc-Work: w0001",
+                "[FEAT](cli): суть\nтело\n\nDacc-Work: w-001",
                 "a blank line must follow the subject",
             ),
             (
                 "[FEAT](cli): суть\n\nDacc-Work: 1",
-                "is not in the form wNNNN",
+                "is not in the form w-slug",
             ),
             (
                 "[FEAT](cli): суть\n\nDacc-Work: w00012",
-                "is not in the form wNNNN",
+                "is not in the form w-slug",
             ),
             (
                 "[FEAT](cli): суть",
-                "no Dacc-Work: wNNNN or Dacc-Slice: sNNNN trailer",
+                "no Dacc-Work: w-slug or Dacc-Slice: s-slug trailer",
             ),
             (
-                "[FEAT](cli): суть\n\nDacc-Work: w0099",
-                "work w0099 is not in the commit tree",
+                "[FEAT](cli): суть\n\nDacc-Work: w-0099",
+                "work w-0099 is not in the commit tree",
             ),
             (
                 "[PLAN](cli): закрыт срез\n\nDacc-Slice: 7",
-                "trailer Dacc-Slice is not in the form sNNNN",
+                "trailer Dacc-Slice is not in the form s-slug",
             ),
             (
-                "[PLAN](cli): закрыт срез\n\nDacc-Slice: s0099",
-                "slice s0099 is not in the commit tree",
+                "[PLAN](cli): закрыт срез\n\nDacc-Slice: s-0099",
+                "slice s-0099 is not in the commit tree",
             ),
         ];
         for (message, expected) in cases {
@@ -560,7 +560,7 @@ mod tests {
 
     #[test]
     fn form_only_does_not_look_for_work() {
-        let message = "[FEAT](cli): суть\n\nDacc-Work: w0099";
+        let message = "[FEAT](cli): суть\n\nDacc-Work: w-0099";
         assert!(problems(message, &scopes(), None, &Config::default()).is_empty());
     }
 
@@ -576,7 +576,7 @@ mod tests {
         };
         // Пятнадцать символов «[CHANGE](cli): » и семьдесят «я»: больше прежних
         // семидесяти двух и меньше настроенных девяноста.
-        let long = format!("[CHANGE](cli): {}\n\nDacc-Work: w0001", "я".repeat(70));
+        let long = format!("[CHANGE](cli): {}\n\nDacc-Work: w-001", "я".repeat(70));
         assert_eq!(
             problems(&long, &scopes(), None, &config),
             Vec::<String>::new()
@@ -589,7 +589,7 @@ mod tests {
         );
 
         let refused = problems(
-            "[FIX](cli): суть\n\nDacc-Work: w0001",
+            "[FIX](cli): суть\n\nDacc-Work: w-001",
             &scopes(),
             None,
             &config,
@@ -601,16 +601,16 @@ mod tests {
             "{refused:?}"
         );
 
-        let planned = |path: &str| path == "docs/registry/work/w0001.rs";
-        let message = "[FEAT](cli): суть\n\nDacc-Work: w0002";
+        let planned = |path: &str| path == "docs/registry/work/w-001.rs";
+        let message = "[FEAT](cli): суть\n\nDacc-Work: w-002";
         let missing = problems(message, &scopes(), Some(&planned), &config);
         assert!(
             missing
                 .iter()
-                .any(|problem| problem.contains("docs/registry/work/w0002.rs")),
+                .any(|problem| problem.contains("docs/registry/work/w-002.rs")),
             "{missing:?}"
         );
-        let message = "[FEAT](cli): суть\n\nDacc-Work: w0001";
+        let message = "[FEAT](cli): суть\n\nDacc-Work: w-001";
         assert!(problems(message, &scopes(), Some(&planned), &config).is_empty());
     }
 
@@ -626,7 +626,7 @@ mod tests {
         // Тема, невозможная по правилам DACC: свой тип, своя область, длина
         // больше предела, точка в конце и тело сразу за темой.
         let subject = format!("CHANGE: {}.", "и".repeat(80));
-        let accepted = format!("{subject}\nтело\n\nDacc-Work: w0001\n");
+        let accepted = format!("{subject}\nтело\n\nDacc-Work: w-001\n");
         assert_eq!(
             problems(&accepted, &[], Some(&planned), &config),
             Vec::<String>::new()
@@ -638,15 +638,15 @@ mod tests {
         for (message, expected) in [
             (
                 format!("{subject}\n"),
-                "no Dacc-Work: wNNNN or Dacc-Slice: sNNNN trailer",
+                "no Dacc-Work: w-slug or Dacc-Slice: s-slug trailer",
             ),
             (
                 format!("{subject}\n\nDacc-Work: 7\n"),
-                "trailer Dacc-Work is not in the form wNNNN",
+                "trailer Dacc-Work is not in the form w-slug",
             ),
             (
-                format!("{subject}\n\nDacc-Work: w0099\n"),
-                "work w0099 is not in the commit tree",
+                format!("{subject}\n\nDacc-Work: w-0099\n"),
+                "work w-0099 is not in the commit tree",
             ),
         ] {
             let found = problems(&message, &[], Some(&planned), &config);
@@ -659,7 +659,7 @@ mod tests {
 
     #[test]
     fn comment_lines_are_not_the_subject() {
-        let message = "# комментарий git\n[FEAT](cli): суть\n\nDacc-Work: w0001";
+        let message = "# комментарий git\n[FEAT](cli): суть\n\nDacc-Work: w-001";
         assert!(problems(message, &scopes(), Some(&planned), &Config::default()).is_empty());
     }
 }

@@ -50,7 +50,7 @@ fn tree_hash_ignores_only_the_journal() {
     let repo = TempRepo::new("journal-hash");
     repo.write("a.txt", "a\n");
     let base = committed(&repo, "база");
-    let (path, text) = started("w0001");
+    let (path, text) = started("w-001");
     repo.write(&path, &text);
     let with_event = committed(&repo, "журнал");
     assert_eq!(hash(&repo, &base), hash(&repo, &with_event));
@@ -63,7 +63,7 @@ fn tree_hash_ignores_only_the_journal() {
 #[test]
 fn committed_event_file_cannot_change_or_disappear() {
     let repo = TempRepo::new("journal-append-only");
-    let (path, text) = started("w0001");
+    let (path, text) = started("w-001");
     repo.write(&path, &text);
     committed(&repo, "журнал");
 
@@ -104,10 +104,10 @@ fn landed_event_must_match_its_commit() {
     repo.write("a.txt", "a\n");
     let commit = committed(&repo, "работа");
     let right = hash(&repo, &commit);
-    let path = "doc/journal/w0001/20260911T100000Z-landed.toml";
+    let path = "doc/journal/w-001/20260911T100000Z-landed.toml";
     let landed = |tree: &str, commit: &str| {
         format!(
-            "event = \"landed\"\nwork = \"w0001\"\nat = \"{AT}\"\ncommit = \"{commit}\"\ntree = \"{tree}\"\nevidence = \"history\"\n"
+            "event = \"landed\"\nwork = \"w-001\"\nat = \"{AT}\"\ncommit = \"{commit}\"\ntree = \"{tree}\"\nevidence = \"history\"\n"
         )
     };
 
@@ -157,7 +157,7 @@ fn journal_only_commit_reuses_the_proof_of_its_tree() {
     );
     repo.git(&["config", "core.hooksPath", "hooks"]);
 
-    let (path, text) = started("w0001");
+    let (path, text) = started("w-001");
     repo.write(&path, &text);
     repo.git(&["add", &path]);
     let output = attempt(&repo);

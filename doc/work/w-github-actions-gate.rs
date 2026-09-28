@@ -1,0 +1,14 @@
+use crate::taxonomy::Subsystem;
+use dacc_core::{taxon, BlastRadius, NonEmptyStr};
+use dacc_work::WorkOrigin;
+
+dacc_work::work!("w-github-actions-gate",
+    title: NonEmptyStr::new("Калитка и основания коммитов в GitHub Actions"),
+    slice: crate::slice::s_ci_and_contributing,
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_018),
+    taxon: taxon!(Subsystem, Cli),
+    radius: BlastRadius::Local,
+    outcome: NonEmptyStr::new(
+        "Workflow gate выполняет калитку и msg-check --range на push и pull request в master; msg-check --range отвергает коммит диапазона без основания в его дереве и называет его хэш — сценарий в тестах; калитка проходит."
+    ),
+);

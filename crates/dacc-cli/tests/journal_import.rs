@@ -7,21 +7,21 @@ mod common;
 
 use common::TempRepo;
 
-/// Репозиторий с работами w0001 (коммит по трейлеру), w0002 (без коммита) и
-/// w0003 — основанием импорта; срезы s0001 = {w0001}, s0002 = {w0002, w0003}.
+/// Репозиторий с работами w-001 (коммит по трейлеру), w-002 (без коммита) и
+/// w-003 — основанием импорта; срезы s-001 = {w-001}, s-002 = {w-002, w-003}.
 fn history_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
     repo.write(
         "doc/taxonomy.rs",
         "dacc_core::declare_taxonomy! {\n    Subsystem => [Cli, Work],\n}\n",
     );
-    for (id, title) in [("s0001", "Первый срез"), ("s0002", "Второй срез")] {
+    for (id, title) in [("s-001", "Первый срез"), ("s-002", "Второй срез")] {
         repo.write(
             &format!("doc/slice/{id}.rs"),
             &format!("dacc_work::slice!(1,\n    title: NonEmptyStr::new(\"{title}\"),\n);\n"),
         );
     }
-    for (id, slice) in [("w0001", "s0001"), ("w0002", "s0002"), ("w0003", "s0002")] {
+    for (id, slice) in [("w-001", "s-001"), ("w-002", "s-002"), ("w-003", "s-002")] {
         repo.write(
             &format!("doc/work/{id}.rs"),
             &format!(
@@ -42,7 +42,7 @@ fn history_repo(name: &str) -> TempRepo {
         "-m",
         "[FEAT](work): первая работа",
         "-m",
-        "Dacc-Work: w0001",
+        "Dacc-Work: w-001",
     ]);
     repo.write("code.txt", "код основания\n");
     repo.git(&["add", "code.txt"]);
@@ -52,7 +52,7 @@ fn history_repo(name: &str) -> TempRepo {
         "-m",
         "[FEAT](work): импорт",
         "-m",
-        "Dacc-Work: w0003",
+        "Dacc-Work: w-003",
     ]);
     repo
 }
@@ -69,36 +69,36 @@ fn history_lands_traced_works_and_closes_finished_slices() {
         "journal",
         "import",
         "--work",
-        "w0003",
+        "w-003",
         "--close-finished-slices",
     ]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
 
     let state = repo.tool(&["work", "state"]).stdout;
-    assert!(state.contains("w0001  landed from history"), "{state}");
-    assert!(state.contains("w0002  planned"), "{state}");
+    assert!(state.contains("w-001  landed from history"), "{state}");
+    assert!(state.contains("w-002  planned"), "{state}");
     assert!(
-        state.contains("w0003  planned"),
+        state.contains("w-003  planned"),
         "основание импортировано: {state}"
     );
-    assert!(state.contains("closed slices: s0001"), "{state}");
+    assert!(state.contains("closed slices: s-001"), "{state}");
     assert!(
-        state.contains("Работа w0001"),
+        state.contains("Работа w-001"),
         "название с переносом строки не прочитано: {state}"
     );
 
     let landed = repo.git(&["show", "HEAD:doc/journal", "--name-only"]);
-    assert!(landed.contains("w0001/"), "{landed}");
+    assert!(landed.contains("w-001/"), "{landed}");
     let body = repo.git(&["log", "-1", "--format=%B"]);
-    assert!(body.contains("Dacc-Work: w0003"), "{body}");
-    let event = repo.git(&["grep", "-h", "commit =", "HEAD", "--", "doc/journal/w0001"]);
+    assert!(body.contains("Dacc-Work: w-003"), "{body}");
+    let event = repo.git(&["grep", "-h", "commit =", "HEAD", "--", "doc/journal/w-001"]);
     assert!(
         event.contains(&first),
         "приземление не на коммите с трейлером: {event}"
     );
 
-    let run = repo.tool(&["journal", "import", "--work", "w0003"]);
+    let run = repo.tool(&["journal", "import", "--work", "w-003"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
         run.verdict().contains("nothing to import"),

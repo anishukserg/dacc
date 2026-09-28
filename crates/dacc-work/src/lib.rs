@@ -22,7 +22,8 @@ pub use schema::{
     radius_within_slice, InquiryOutcome, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
 };
 
-/// Регистрация направления. Файл обязан называться по идентификатору (`t0001.rs`).
+/// Регистрация направления. Файл обязан называться по slug-идентификатору
+/// (`t-pilot.rs`), а slug — первый аргумент.
 #[macro_export]
 macro_rules! thrust {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
@@ -31,7 +32,8 @@ macro_rules! thrust {
     };
 }
 
-/// Регистрация среза. Файл обязан называться по идентификатору (`s0001.rs`).
+/// Регистрация среза. Файл обязан называться по slug-идентификатору
+/// (`s-versioning.rs`), а slug — первый аргумент.
 #[macro_export]
 macro_rules! slice {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
@@ -40,7 +42,8 @@ macro_rules! slice {
     };
 }
 
-/// Регистрация единицы работы. Файл обязан называться по идентификатору (`w0001.rs`).
+/// Регистрация единицы работы. Файл обязан называться по slug-идентификатору
+/// (`w-fix-gitignore.rs`), а slug — первый аргумент.
 #[macro_export]
 macro_rules! work {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {

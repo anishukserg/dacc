@@ -8,8 +8,8 @@
 //! cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
 //! cargo dacc hooks install [--force]
 //! cargo dacc work start | land | drop | state …
-//! cargo dacc slice close <sNNNN>
-//! cargo dacc journal hash [<revision>] | import --work <wNNNN> [--close-finished-slices]
+//! cargo dacc slice close <s-slug>
+//! cargo dacc journal hash [<revision>] | import --work <w-slug> [--close-finished-slices]
 //! ```
 //!
 //! Соглашения, которым подлежит настройка продукта, читает модуль `config` из
@@ -42,10 +42,10 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
-  cargo dacc work start <wNNNN> | land <wNNNN> [--commit <revision>] | drop <wNNNN> --reason <reason> | state [<wNNNN>]
-  cargo dacc slice close <sNNNN>
+  cargo dacc work start <w-slug> | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]
+  cargo dacc slice close <s-slug>
   cargo dacc journal hash [<revision>]
-  cargo dacc journal import --work <wNNNN> [--close-finished-slices]
+  cargo dacc journal import --work <w-slug> [--close-finished-slices]
 
   The work, slice and journal import commands accept --trailer <trailer> for
   extra trailer lines of the commit message.";

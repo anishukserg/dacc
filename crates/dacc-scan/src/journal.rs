@@ -5,13 +5,14 @@
 //! плана — неразрешимый путь к константе; незавершённая работа в закрытом срезе
 //! — ошибка вычисления константы. Состояние — `WORK_STATES` и `CLOSED_SLICES`.
 
-use crate::{ScanError, ScannedDecision};
+use crate::{ScanError, ScannedSlug};
+use dacc_core::anchor_rules::slug_ident;
 use dacc_journal::{fold, Event, Stage, Subject, Violation};
 use std::{collections::BTreeSet, fmt::Write as _, path::Path};
 
 /// Читает каталог журнала и порождает модуль состояния. Отсутствующий каталог
 /// — ошибка: опечатка в пути не превращается в пустой журнал.
-pub fn scan_journal(dir: &Path, work: &[ScannedDecision]) -> Result<String, ScanError> {
+pub fn scan_journal(dir: &Path, work: &[ScannedSlug]) -> Result<String, ScanError> {
     let (events, violations) = dacc_journal::read_dir(dir)
         .map_err(|error| ScanError::Io(format!("{}: {error}", dir.display())))?;
     Ok(emit_journal(&events, &violations, work))
@@ -21,7 +22,7 @@ pub fn scan_journal(dir: &Path, work: &[ScannedDecision]) -> Result<String, Scan
 pub fn emit_journal(
     events: &[Event],
     read_violations: &[Violation],
-    work: &[ScannedDecision],
+    work: &[ScannedSlug],
 ) -> String {
     let (journal, fold_violations) = fold(events);
     let mut out =
@@ -32,7 +33,7 @@ pub fn emit_journal(
         let _ = writeln!(out, "compile_error!({message:?});");
     }
 
-    let subjects: BTreeSet<Subject> = events.iter().map(|event| event.subject).collect();
+    let subjects: BTreeSet<Subject> = events.iter().map(|event| event.subject.clone()).collect();
     if !subjects.is_empty() {
         out.push_str(
             "\n// Events reference the plan by paths: a subject outside the plan does not resolve.\n",
@@ -44,12 +45,16 @@ pub fn emit_journal(
     for subject in &subjects {
         let _ = match subject {
             Subject::Work(_) => {
-                writeln!(out, "const _: dacc_core::WorkRef = work::{};", subject.id())
+                writeln!(
+                    out,
+                    "const _: dacc_core::WorkRef = work::{};",
+                    slug_ident(subject.id())
+                )
             }
             Subject::Slice(_) => writeln!(
                 out,
                 "const _: dacc_core::SliceRef = slice::{};",
-                subject.id()
+                slug_ident(subject.id())
             ),
         };
     }
@@ -61,13 +66,13 @@ pub fn emit_journal(
         let _ = writeln!(
             out,
             "    (work::{}, dacc_work::WorkState::{}),",
-            entry.module,
-            state_name(journal.stage(entry.id))
+            slug_ident(&entry.slug),
+            state_name(journal.stage(&entry.slug))
         );
     }
     out.push_str("];\n\n/// Slices closed by a journal event.\npub static CLOSED_SLICES: &[dacc_core::SliceRef] = &[\n");
     for slice in journal.closed_slices.keys() {
-        let _ = writeln!(out, "    slice::{},", Subject::Slice(*slice).id());
+        let _ = writeln!(out, "    slice::{},", slug_ident(slice));
     }
     out.push_str("];\n");
 
@@ -79,16 +84,16 @@ pub fn emit_journal(
     for (slice, file) in &journal.closed_slices {
         for entry in work
             .iter()
-            .filter(|entry| !journal.stage(entry.id).is_finished())
+            .filter(|entry| !journal.stage(&entry.slug).is_finished())
         {
             let message = format!(
-                "journal: slice s{slice:04} is closed by event {file}, but work {} is not finished",
-                entry.module
+                "journal: slice {slice} is closed by event {file}, but work {} is not finished",
+                slug_ident(&entry.slug)
             );
             let _ = writeln!(
                 out,
-                "const _: () = assert!({}::WORK.slice.index() != {slice}, {message:?});",
-                entry.module
+                "const _: () = assert!(!{}::WORK.slice.is({slice:?}), {message:?});",
+                slug_ident(&entry.slug)
             );
         }
     }
@@ -113,11 +118,11 @@ mod tests {
 
     const TREE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-    fn plan(ids: &[u32]) -> Vec<ScannedDecision> {
-        ids.iter()
-            .map(|id| ScannedDecision {
-                id: *id,
-                module: format!("w{id:04}"),
+    fn plan(slugs: &[&str]) -> Vec<ScannedSlug> {
+        slugs
+            .iter()
+            .map(|slug| ScannedSlug {
+                slug: (*slug).to_owned(),
                 status: Status::Draft,
                 file: String::new(),
             })
@@ -131,7 +136,7 @@ mod tests {
     #[test]
     fn states_cover_the_plan_and_subjects_are_paths() {
         let events = [event(
-            Subject::Work(1),
+            Subject::Work("w-001".to_owned()),
             1,
             Kind::Landed {
                 commit: TREE.into(),
@@ -139,17 +144,17 @@ mod tests {
                 evidence: Evidence::History,
             },
         )];
-        let code = emit_journal(&events, &[], &plan(&[1, 2]));
+        let code = emit_journal(&events, &[], &plan(&["w-001", "w-002"]));
         assert!(
-            code.contains("const _: dacc_core::WorkRef = work::w0001;"),
+            code.contains("const _: dacc_core::WorkRef = work::w_001;"),
             "{code}"
         );
         assert!(
-            code.contains("(work::w0001, dacc_work::WorkState::LandedFromHistory),"),
+            code.contains("(work::w_001, dacc_work::WorkState::LandedFromHistory),"),
             "{code}"
         );
         assert!(
-            code.contains("(work::w0002, dacc_work::WorkState::Planned),"),
+            code.contains("(work::w_002, dacc_work::WorkState::Planned),"),
             "{code}"
         );
         assert!(!code.contains("compile_error!"), "{code}");
@@ -161,7 +166,7 @@ mod tests {
     #[test]
     fn violations_become_compile_errors_naming_the_event_file() {
         let events = [event(
-            Subject::Work(1),
+            Subject::Work("w-001".to_owned()),
             1,
             Kind::Gate {
                 gate: "commit".into(),
@@ -170,15 +175,15 @@ mod tests {
             },
         )];
         let unreadable = Violation {
-            file: "w0002/x.toml".into(),
+            file: "w-002/x.toml".into(),
             reason: "line 1: expected".into(),
         };
-        let code = emit_journal(&events, &[unreadable], &plan(&[1, 2]));
+        let code = emit_journal(&events, &[unreadable], &plan(&["w-001", "w-002"]));
         // Причина приходит из dacc-journal, префикс `journal: ` и имя файла
         // события — от скана. Граница крейтов осталась, язык стал один.
-        assert!(code.contains("compile_error!(\"journal: w0001/20260911T031501Z-gate.toml: gate on work w0001 before its start\");"), "{code}");
+        assert!(code.contains("compile_error!(\"journal: w-001/20260911T031501Z-gate.toml: gate on work w-001 before its start\");"), "{code}");
         assert!(
-            code.contains("compile_error!(\"journal: w0002/x.toml: line 1: expected\");"),
+            code.contains("compile_error!(\"journal: w-002/x.toml: line 1: expected\");"),
             "{code}"
         );
     }
@@ -186,12 +191,16 @@ mod tests {
     #[test]
     fn closed_slice_asserts_every_unfinished_work() {
         let events = [
-            event(Subject::Work(1), 1, Kind::Abandoned { reason: "x".into() }),
-            event(Subject::Slice(3), 2, Kind::Closed),
+            event(
+                Subject::Work("w-001".to_owned()),
+                1,
+                Kind::Abandoned { reason: "x".into() },
+            ),
+            event(Subject::Slice("s-003".to_owned()), 2, Kind::Closed),
         ];
-        let code = emit_journal(&events, &[], &plan(&[1, 2]));
-        assert!(code.contains("    slice::s0003,"), "{code}");
-        assert!(code.contains("assert!(w0002::WORK.slice.index() != 3, \"journal: slice s0003 is closed by event s0003/20260911T031502Z-closed.toml, but work w0002 is not finished\")"), "{code}");
-        assert!(!code.contains("w0001::WORK.slice"), "{code}");
+        let code = emit_journal(&events, &[], &plan(&["w-001", "w-002"]));
+        assert!(code.contains("    slice::s_003,"), "{code}");
+        assert!(code.contains("assert!(!w_002::WORK.slice.is(\"s-003\"), \"journal: slice s-003 is closed by event s-003/20260911T031502Z-closed.toml, but work w_002 is not finished\")"), "{code}");
+        assert!(!code.contains("w_001::WORK.slice"), "{code}");
     }
 }
