@@ -287,16 +287,21 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
         }
     };
     // Вывод калитки передаётся дальше как есть; строка GATE — вердикт прозой,
-    // строка с JSON — структурный вердикт.
+    // строка с JSON — структурный вердикт, из которого выводится проза человеку.
     let mut verdict = None;
     let mut structured = None;
     if let Some(out) = child.stdout.take() {
         for line in BufReader::new(out).lines().map_while(Result::ok) {
-            println!("{line}");
-            if line.starts_with("GATE ") {
-                verdict = Some(line);
-            } else if line.starts_with("{\"ok\"") {
-                structured = Some(line);
+            if line.starts_with("{\"ok\"") {
+                structured = Some(line.clone());
+                let prose = prose_from_json(&line);
+                verdict = Some(prose.clone());
+                println!("{prose}");
+            } else {
+                println!("{line}");
+                if line.starts_with("GATE ") {
+                    verdict = Some(line);
+                }
             }
         }
     }
@@ -307,6 +312,21 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
         .and_then(|code| u8::try_from(code).ok())
         .unwrap_or(1);
     (code, verdict, structured)
+}
+
+/// Короткий человекочитаемый вердикт из JSON-вердикта внешней калитки: проза
+/// для терминала и доказательства, структура уходит отдельно.
+fn prose_from_json(json: &str) -> String {
+    let number = |key: &str| {
+        let needle = format!("\"{key}\":");
+        json.find(&needle)
+            .and_then(|at| json[at + needle.len()..].split([',', '}']).next())
+            .and_then(|value| value.parse::<usize>().ok())
+    };
+    match (number("passed"), number("total")) {
+        (Some(passed), Some(total)) => format!("GATE OK ({passed} of {total})"),
+        _ => "GATE OK".to_owned(),
+    }
 }
 
 /// pre-push: в удалённый репозиторий не уходят ветки архива (решение 9),
