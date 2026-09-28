@@ -715,32 +715,49 @@ fn short(hash: &str) -> &str {
 /// Вердикт калитки для события gate из доказательства: структурный, если
 /// доказательство новое, иначе проза прежнего доказательства (решение 22).
 fn gate_verdict(common_dir: &Path, tree: &str) -> Option<GateVerdict> {
-    if let Some(fields) = proof::structured(common_dir, tree) {
-        let get = |key: &str| {
-            fields
-                .iter()
-                .find(|(name, _)| name == key)
-                .map(|(_, value)| value.clone())
-        };
-        let number = |key: &str| get(key).and_then(|value| value.parse::<usize>().ok());
-        return Some(GateVerdict::Structured {
-            passed: number("passed")?,
-            total: number("total")?,
-            skipped: get("skipped")
-                .map(|skipped| {
-                    skipped
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|step| !step.is_empty())
-                        .map(str::to_owned)
-                        .collect()
-                })
-                .unwrap_or_default(),
-            attacks: number("attacks")?,
-            msrv: get("msrv")?,
-        });
+    if let Some(json) = proof::structured(common_dir, tree) {
+        return structured_verdict(&json);
     }
     proof::verdict(common_dir, tree).map(GateVerdict::Prose)
+}
+
+/// Структурный вердикт из JSON доказательства: поля пройденных шагов, их
+/// общего числа, пропущенных, числа прошедших атак и минимального тулчейна.
+fn structured_verdict(json: &str) -> Option<GateVerdict> {
+    let field = |key: &str| {
+        let needle = format!("\"{key}\":");
+        let rest = json.find(&needle).map(|at| &json[at + needle.len()..])?;
+        if let Some(stripped) = rest.strip_prefix('"') {
+            let end = stripped.find('"')?;
+            Some(stripped[..end].to_owned())
+        } else {
+            let end = rest.find([',', '}']).unwrap_or(rest.len());
+            Some(rest[..end].trim().to_owned())
+        }
+    };
+    let number = |key: &str| field(key).and_then(|value| value.parse::<usize>().ok());
+    let skipped = json
+        .find("\"skipped\":[")
+        .and_then(|at| {
+            let rest = &json[at + "\"skipped\":[".len()..];
+            let end = rest.find(']')?;
+            Some(&rest[..end])
+        })
+        .map(|inner| {
+            inner
+                .split(',')
+                .map(|item| item.trim().trim_matches('"').to_owned())
+                .filter(|item| !item.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(GateVerdict::Structured {
+        passed: number("passed")?,
+        total: number("total")?,
+        skipped,
+        attacks: number("attacks")?,
+        msrv: field("msrv")?,
+    })
 }
 
 /// Сообщение коммита события: тема, тело, трейлер основания и добавленные

@@ -71,21 +71,22 @@ pub fn path(common_dir: &Path, hash: &str) -> PathBuf {
     common_dir.join(layout::PROOFS_DIR).join(hash)
 }
 
-/// Сохраняет доказательство: время, человекочитаемый вердикт и структурные поля
-/// вердикта (решение 22). Поля прежних доказательств отсутствуют.
+/// Сохраняет доказательство: время, человекочитаемый вердикт и структурный
+/// вердикт в JSON (решение 22). Структура прежних доказательств отсутствует.
 pub fn record(
     common_dir: &Path,
     hash: &str,
     verdict: &str,
-    fields: &[(String, String)],
+    structured: Option<&str>,
 ) -> io::Result<()> {
     let file = path(common_dir, hash);
     if let Some(dir) = file.parent() {
         fs::create_dir_all(dir)?;
     }
     let mut text = format!("{}\n{verdict}\n", dacc_journal::time::now());
-    if !fields.is_empty() {
-        text.push_str(&dacc_journal::format::render(fields));
+    if let Some(structured) = structured {
+        text.push_str(structured);
+        text.push('\n');
     }
     fs::write(file, text)
 }
@@ -96,20 +97,11 @@ pub fn verdict(common_dir: &Path, hash: &str) -> Option<String> {
     text.lines().nth(1).map(str::to_owned)
 }
 
-/// Структурные поля сохранённого доказательства (решение 22). Для прежнего
-/// доказательства с одной лишь прозой — `None`.
-pub fn structured(common_dir: &Path, hash: &str) -> Option<Vec<(String, String)>> {
+/// Структурный вердикт сохранённого доказательства в JSON (решение 22). Для
+/// прежнего доказательства с одной лишь прозой — `None`.
+pub fn structured(common_dir: &Path, hash: &str) -> Option<String> {
     let text = fs::read_to_string(path(common_dir, hash)).ok()?;
-    let mut lines = text.lines();
-    lines.next()?; // время
-    lines.next()?; // человекочитаемый вердикт
-    let fields_text = lines.collect::<Vec<_>>().join("\n");
-    if fields_text.trim().is_empty() {
-        return None;
-    }
-    dacc_journal::format::parse(&fields_text)
-        .ok()
-        .map(|record| record.fields)
+    text.lines().nth(2).map(str::to_owned)
 }
 
 fn hash_stdin(root: &Path, text: &str) -> Option<String> {

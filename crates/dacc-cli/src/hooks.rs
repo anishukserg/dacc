@@ -153,7 +153,7 @@ fn pre_commit() -> u8 {
             hash.get(..12).unwrap_or(hash)
         );
     }
-    let (code, verdict, fields) = run_gate(&repo, &tree, proven.is_some());
+    let (code, verdict, structured) = run_gate(&repo, &tree, proven.is_some());
     if code != 0 {
         return code;
     }
@@ -167,8 +167,9 @@ fn pre_commit() -> u8 {
     if proven.is_none() {
         match (hash, verdict) {
             (Some(hash), Some(verdict)) => {
-                let fields = fields.unwrap_or_default();
-                if let Err(error) = proof::record(&repo.common_dir, &hash, &verdict, &fields) {
+                if let Err(error) =
+                    proof::record(&repo.common_dir, &hash, &verdict, structured.as_deref())
+                {
                     eprintln!("pre-commit: proof not written: {error}");
                 }
             }
@@ -250,13 +251,13 @@ fn copy_if_changed(src: &Path, dst: &Path) -> io::Result<()> {
     fs::copy(src, dst).map(|_| ())
 }
 
-/// Результат калитки хука: код, вердикт прозой и структурные поля (решение 22).
-type GateRun = (u8, Option<String>, Option<Vec<(String, String)>>);
+/// Результат калитки хука: код, вердикт прозой и структурный вердикт в JSON
+/// (решение 22).
+type GateRun = (u8, Option<String>, Option<String>);
 
 /// Калитка из дерева коммита, если в нём есть сам инструмент: изменение правил
 /// проверяется изменёнными правилами. Иначе — калитка этого инструмента.
-/// Возвращает код, строку вердикта и структурные поля вердикта (решение 22);
-/// у внешней калитки полей нет — её вердикт пишется прозой.
+/// Возвращает код, строку вердикта и структурный вердикт в JSON (решение 22).
 fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
     let mut args = vec![OsString::from("--repo"), repo.root.clone().into_os_string()];
     if journal_only {
@@ -265,9 +266,12 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
     args.push(tree.as_os_str().to_owned());
     if !tree.join(layout::TOOL_MANIFEST).is_file() {
         let (code, verdict, structured) = gate::run_for_proof(&args);
-        let fields = structured.map(|verdict| verdict.fields());
-        return (code, Some(verdict), fields);
+        let json = structured.map(|verdict| verdict.json());
+        return (code, Some(verdict), json);
     }
+    // Внешняя калитка: структуру берём из машинного вывода `--format json`.
+    args.push(OsString::from("--format"));
+    args.push(OsString::from("json"));
     let mut command = gate::cargo_command(tree, &repo.root.join(layout::GATE_TOOL_TARGET));
     command
         .args(["run", "--quiet", "--locked", "--manifest-path"])
@@ -282,14 +286,17 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
             return (2, None, None);
         }
     };
-    // Вывод калитки передаётся дальше как есть; последняя строка GATE —
-    // вердикт для доказательства.
+    // Вывод калитки передаётся дальше как есть; строка GATE — вердикт прозой,
+    // строка с JSON — структурный вердикт.
     let mut verdict = None;
+    let mut structured = None;
     if let Some(out) = child.stdout.take() {
         for line in BufReader::new(out).lines().map_while(Result::ok) {
             println!("{line}");
             if line.starts_with("GATE ") {
                 verdict = Some(line);
+            } else if line.starts_with("{\"ok\"") {
+                structured = Some(line);
             }
         }
     }
@@ -299,7 +306,7 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
         .and_then(|status| status.code())
         .and_then(|code| u8::try_from(code).ok())
         .unwrap_or(1);
-    (code, verdict, None)
+    (code, verdict, structured)
 }
 
 /// pre-push: в удалённый репозиторий не уходят ветки архива (решение 9),
