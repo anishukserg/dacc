@@ -23,6 +23,7 @@
 
 mod commit;
 mod config;
+mod format;
 mod gate;
 mod git;
 mod hooks;

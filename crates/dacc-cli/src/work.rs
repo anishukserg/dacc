@@ -5,7 +5,7 @@
 //! cargo dacc work start <w-slug> [--trailer <trailer>]…
 //! cargo dacc work land <w-slug> [--commit <revision>] [--trailer <trailer>]…
 //! cargo dacc work drop <w-slug> --reason <reason> [--trailer <trailer>]…
-//! cargo dacc work state [<w-slug>]
+//! cargo dacc work state [<w-slug>] [--format json|text]
 //! cargo dacc slice close <s-slug> [--trailer <trailer>]…
 //! ```
 //!
@@ -20,6 +20,7 @@
 //! 1 — переход незаконен, нет доказательства или журнал не сворачивается;
 //! 2 — неверные аргументы или окружение; прочие коды — коды команды commit.
 
+use crate::format::{self, Format};
 use crate::{commit, config, git, layout, proof};
 use dacc_journal::event::relative_path;
 use dacc_journal::{fold, time, Event, Evidence, Journal, Kind, Stage, Subject};
@@ -34,7 +35,21 @@ const SLICE_USAGE: &str = "slice close <s-slug>";
 /// `cargo dacc work …`.
 pub fn run_work(args: &[OsString]) -> u8 {
     finish(words(args).and_then(|(words, trailers)| {
-        match words
+        // `--format` относится только к `state`: извлекается из любого места.
+        let mut format = Format::Text;
+        let mut rest = Vec::new();
+        let mut iter = words.into_iter();
+        while let Some(word) = iter.next() {
+            if word == "--format" {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| usage("--format needs `json` or `text`"))?;
+                format = format::parse(&value).map_err(usage)?;
+            } else {
+                rest.push(word);
+            }
+        }
+        match rest
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>()
@@ -44,8 +59,8 @@ pub fn run_work(args: &[OsString]) -> u8 {
             ["land", id] => land(id, "HEAD", &trailers),
             ["land", id, "--commit", revision] => land(id, revision, &trailers),
             ["drop", id, "--reason", reason] => abandon(id, reason, &trailers),
-            ["state"] => state(None),
-            ["state", id] => state(Some(id)),
+            ["state"] => state(None, format),
+            ["state", id] => state(Some(id), format),
             _ => Err(usage(WORK_USAGE)),
         }
     }))
@@ -251,7 +266,7 @@ fn abandon(id: &str, reason: &str, trailers: &[String]) -> Result<u8, Refusal> {
     record_and_commit(&context.repo, vec![event], &message)
 }
 
-fn state(id: Option<&str>) -> Result<u8, Refusal> {
+fn state(id: Option<&str>, format: Format) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let selected = id.map(work_number).transpose()?;
     let works = context.works()?;
@@ -263,23 +278,58 @@ fn state(id: Option<&str>) -> Result<u8, Refusal> {
             )));
         }
     }
-    for (number, work) in works
+    let filtered: Vec<&(String, Record)> = works
         .iter()
         .filter(|(n, _)| selected.as_ref().is_none_or(|selected| selected == n))
-    {
-        let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
-        println!(
-            "{number}  {:<22}  {slice}  {}",
-            stage_text(context.journal.stage(number)),
-            work.title
-        );
-    }
-    if selected.is_none() {
-        let closed: Vec<String> = context.journal.closed_slices.keys().cloned().collect();
-        if closed.is_empty() {
-            println!("no closed slices");
-        } else {
-            println!("closed slices: {}", closed.join(", "));
+        .collect();
+    match format {
+        Format::Text => {
+            for (number, work) in filtered {
+                let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
+                println!(
+                    "{number}  {:<22}  {slice}  {}",
+                    stage_text(context.journal.stage(number)),
+                    work.title
+                );
+            }
+            if selected.is_none() {
+                let closed: Vec<String> = context.journal.closed_slices.keys().cloned().collect();
+                if closed.is_empty() {
+                    println!("no closed slices");
+                } else {
+                    println!("closed slices: {}", closed.join(", "));
+                }
+            }
+        }
+        Format::Json => {
+            let works_json: Vec<String> = filtered
+                .into_iter()
+                .map(|(number, work)| {
+                    let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
+                    format!(
+                        "{{\"id\":{},\"state\":{},\"slice\":{},\"title\":{}}}",
+                        format::string(number),
+                        format::string(stage_text(context.journal.stage(number))),
+                        format::string(&slice),
+                        format::string(&work.title)
+                    )
+                })
+                .collect();
+            let mut out = format!("{{\"works\":[{}]", works_json.join(","));
+            if selected.is_none() {
+                let closed: Vec<String> = context.journal.closed_slices.keys().cloned().collect();
+                out.push_str(",\"closed_slices\":[");
+                out.push_str(
+                    &closed
+                        .iter()
+                        .map(|slice| format::string(slice))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+                out.push(']');
+            }
+            out.push('}');
+            println!("{out}");
         }
     }
     Ok(0)
@@ -541,7 +591,7 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
             "nothing to import: planned works have no commits carrying their trailer",
         ));
     }
-    let imported: Vec<String> = imported.iter().map(|n| format!("w{n:04}")).collect();
+    let imported: Vec<String> = imported.into_iter().collect();
     let body = format!(
         "Landed from history: {}.\nClosed slices: {}.",
         listed(&imported),

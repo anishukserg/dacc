@@ -2,7 +2,7 @@
 //! вердикт.
 //!
 //! ```text
-//! cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
+//! cargo dacc gate [--repo <directory>] [--journal-only] [--format json|text] [<tree>]
 //! ```
 //!
 //! Хук pre-commit передаёт выгруженное дерево коммита; без аргумента
@@ -51,9 +51,12 @@
 //! проверки называется невыполненным, а не пройденным.
 //!
 //! Код возврата: 0 — пройдено; 1 — шаг упал; 2 — ошибка запуска. Последняя
-//! строка — `GATE OK (<n> of <m>; …)` или `GATE FAIL: <step>`.
+//! строка — `GATE OK (<n> of <m>; …)` или `GATE FAIL: <step>`; с
+//! `--format json` — объект с полями `ok`, `passed`, `total`, `attacks`, `msrv`,
+//! `msrv_attacks`, `skipped`, либо `step` и `code` при отказе.
 
 use crate::config::Config;
+use crate::format::{self, Format};
 use crate::{git, layout, proof};
 use dacc_journal::Kind;
 use std::ffi::OsString;
@@ -110,14 +113,22 @@ pub fn run(args: &[OsString]) -> u8 {
     run_with_verdict(args).0
 }
 
-/// Калитка с вердиктом: код возврата и последняя строка.
+/// Калитка с вердиктом: код возврата и последняя строка. Формат вывода — из
+/// `--format`, по умолчанию человекочитаемый.
 pub fn run_with_verdict(args: &[OsString]) -> (u8, String) {
+    let format = format::scan(args);
     let outcome = Args::parse(args)
         .and_then(|args| Gate::open(&args))
         .and_then(Gate::check);
     let (code, verdict) = match outcome {
-        Ok(verdict) => (0, verdict),
-        Err(fail) => (fail.code, format!("GATE FAIL: {}", fail.step)),
+        Ok(verdict) => match format {
+            Format::Text => (0, verdict.text()),
+            Format::Json => (0, verdict.json()),
+        },
+        Err(fail) => match format {
+            Format::Text => (fail.code, fail.text()),
+            Format::Json => (fail.code, fail.json()),
+        },
     };
     println!("{verdict}");
     (code, verdict)
@@ -202,6 +213,100 @@ struct Fail {
     code: u8,
 }
 
+impl Fail {
+    /// Человекочитаемый вердикт отказа.
+    fn text(&self) -> String {
+        format!("GATE FAIL: {}", self.step)
+    }
+
+    /// Машинный вердикт отказа: шаг и код возврата полями.
+    fn json(&self) -> String {
+        format!(
+            "{{\"ok\":false,\"step\":{},\"code\":{}}}",
+            format::string(&self.step),
+            self.code
+        )
+    }
+}
+
+/// Структурный вердикт калитки (решение 22): поля, а не предложение.
+pub struct Verdict {
+    /// Число пройденных шагов.
+    pub passed: usize,
+    /// Общее число шагов.
+    pub total: usize,
+    /// Невыполненные шаги (без предмета проверки).
+    pub skipped: Vec<&'static str>,
+    /// Полная калитка: число прошедших атак.
+    pub attacks: Option<usize>,
+    /// Полная калитка: минимальный тулчейн, на котором проверяли.
+    pub msrv: Option<String>,
+    /// Полная калитка: число прошедших атак на минимальном тулчейне.
+    pub msrv_attacks: Option<usize>,
+    /// Калитка журнала: дерево без журнала уже проверено.
+    pub journal_only: bool,
+}
+
+impl Verdict {
+    /// Человекочитаемый вердикт: `GATE OK (<n> of <m>; …)`.
+    pub fn text(&self) -> String {
+        let mut verdict = if self.journal_only {
+            format!(
+                "GATE OK ({} of {}; journal only — the tree without the journal is already checked",
+                self.passed, self.total
+            )
+        } else {
+            format!(
+                "GATE OK ({} of {}; attacks {}, on {} — {}",
+                self.passed,
+                self.total,
+                self.attacks.unwrap_or(0),
+                self.msrv.as_deref().unwrap_or_default(),
+                self.msrv_attacks.unwrap_or(0)
+            )
+        };
+        if !self.skipped.is_empty() {
+            verdict.push_str("; not run: ");
+            verdict.push_str(&self.skipped.join(", "));
+        }
+        verdict.push(')');
+        verdict
+    }
+
+    /// Машинный вердикт: пройденные и общее число шагов, атаки, тулчейн и
+    /// невыполненные шаги полями.
+    pub fn json(&self) -> String {
+        let mut verdict = format!(
+            "{{\"ok\":true,\"passed\":{},\"total\":{}",
+            self.passed, self.total
+        );
+        if self.journal_only {
+            verdict.push_str(",\"journal_only\":true");
+        } else {
+            verdict.push_str(&format!(
+                ",\"attacks\":{},\"msrv\":{},\"msrv_attacks\":{}",
+                self.attacks.unwrap_or(0),
+                format::string(self.msrv.as_deref().unwrap_or_default()),
+                self.msrv_attacks.unwrap_or(0)
+            ));
+        }
+        if !self.skipped.is_empty() {
+            verdict.push_str(",\"skipped\":[");
+            verdict.push_str(
+                &self
+                    .skipped
+                    .iter()
+                    .map(|step| format::string(step))
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+            verdict.push(']');
+        }
+        verdict.push('}');
+        verdict
+    }
+}
+
 /// Шаг упал.
 fn fail(step: impl Into<String>) -> Fail {
     Fail {
@@ -243,6 +348,16 @@ impl Args {
                 }
                 Some("--journal-only") => {
                     parsed.journal_only = true;
+                    rest = tail;
+                }
+                Some("--format") => {
+                    let (value, tail) = tail
+                        .split_first()
+                        .ok_or_else(|| start_fail("--format needs `json` or `text`"))?;
+                    let value = value
+                        .to_str()
+                        .ok_or_else(|| start_fail("--format value is not UTF-8"))?;
+                    format::parse(value).map_err(start_fail)?;
                     rest = tail;
                 }
                 _ if parsed.tree.is_none() => {
@@ -298,7 +413,7 @@ impl Gate {
         })
     }
 
-    fn check(mut self) -> Result<String, Fail> {
+    fn check(mut self) -> Result<Verdict, Fail> {
         self.external_names()?;
         self.markdown_links()?;
         self.journal()?;
@@ -464,18 +579,20 @@ impl Gate {
             self.cargo_step("cargo deny check", "deny", &mut deny)?;
         }
 
-        let mut verdict = format!(
-            "GATE OK ({} of {}; attacks {attacks}, on {msrv} — {msrv_attacks}",
-            self.passed,
-            total(&self.config)
-        );
-        self.append_skipped(&mut verdict);
-        Ok(verdict)
+        Ok(Verdict {
+            passed: self.passed,
+            total: total(&self.config),
+            skipped: self.skipped,
+            attacks: Some(attacks),
+            msrv: Some(msrv),
+            msrv_attacks: Some(msrv_attacks),
+            journal_only: false,
+        })
     }
 
     /// Калитка журнала: дерево без журнала уже проверено, осталось собрать
     /// крейт документов — сборка сворачивает журнал (решение 15).
-    fn check_journal_build(mut self) -> Result<String, Fail> {
+    fn check_journal_build(mut self) -> Result<Verdict, Fail> {
         let manifest = self.tree.join(self.config.doc_manifest());
         if !manifest.is_file() {
             return Err(start_fail(format!(
@@ -490,20 +607,15 @@ impl Gate {
             .arg(&manifest)
             .arg("--locked");
         self.cargo_step("journal fold: cargo check doc", "journal-check", &mut build)?;
-        let mut verdict = format!(
-            "GATE OK ({} of {JOURNAL_ONLY_TOTAL}; journal only — the tree without the journal is already checked",
-            self.passed
-        );
-        self.append_skipped(&mut verdict);
-        Ok(verdict)
-    }
-
-    fn append_skipped(&self, verdict: &mut String) {
-        if !self.skipped.is_empty() {
-            verdict.push_str("; not run: ");
-            verdict.push_str(&self.skipped.join(", "));
-        }
-        verdict.push(')');
+        Ok(Verdict {
+            passed: self.passed,
+            total: JOURNAL_ONLY_TOTAL,
+            skipped: self.skipped,
+            attacks: None,
+            msrv: None,
+            msrv_attacks: None,
+            journal_only: true,
+        })
     }
 
     /// Делегированный шаг: команда проекта из настройки проверяемого дерева.
@@ -1149,5 +1261,65 @@ mod tests {
         );
         assert_eq!(minimum_rust("rust-version.workspace = true"), None);
         assert_eq!(minimum_rust("rust-version = \"1.x\""), None);
+    }
+
+    /// Снимок обеих форм вердикта полной калитки (решение 22): проза для
+    /// человека, поля для машины.
+    #[test]
+    fn verdict_renders_prose_and_json_fields() {
+        let verdict = Verdict {
+            passed: 11,
+            total: DACC_TOTAL,
+            skipped: vec!["external names", "markdown links"],
+            attacks: Some(20),
+            msrv: Some("1.83.0".to_owned()),
+            msrv_attacks: Some(20),
+            journal_only: false,
+        };
+        assert_eq!(
+            verdict.text(),
+            "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names, markdown links)"
+        );
+        assert_eq!(
+            verdict.json(),
+            "{\"ok\":true,\"passed\":11,\"total\":12,\"attacks\":20,\"msrv\":\"1.83.0\",\"msrv_attacks\":20,\"skipped\":[\"external names\",\"markdown links\"]}"
+        );
+    }
+
+    /// Калитка журнала не считает атаки и не называет тулчейн: JSON несёт
+    /// признак `journal_only`, а не пустые поля.
+    #[test]
+    fn journal_only_verdict_omits_attacks_and_msrv() {
+        let verdict = Verdict {
+            passed: 3,
+            total: JOURNAL_ONLY_TOTAL,
+            skipped: vec![],
+            attacks: None,
+            msrv: None,
+            msrv_attacks: None,
+            journal_only: true,
+        };
+        assert_eq!(
+            verdict.text(),
+            "GATE OK (3 of 4; journal only — the tree without the journal is already checked)"
+        );
+        assert_eq!(
+            verdict.json(),
+            "{\"ok\":true,\"passed\":3,\"total\":4,\"journal_only\":true}"
+        );
+    }
+
+    /// Отказ калитки: шаг и код возврата полями.
+    #[test]
+    fn fail_renders_step_and_code() {
+        let fail = Fail {
+            step: "cargo clippy -D warnings".to_owned(),
+            code: 1,
+        };
+        assert_eq!(fail.text(), "GATE FAIL: cargo clippy -D warnings");
+        assert_eq!(
+            fail.json(),
+            "{\"ok\":false,\"step\":\"cargo clippy -D warnings\",\"code\":1}"
+        );
     }
 }

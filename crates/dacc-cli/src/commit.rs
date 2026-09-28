@@ -1,7 +1,7 @@
 //! Коммит по решению 8.
 //!
 //! ```text
-//! cargo dacc commit -F <message> [--log <file>] [--timeout <seconds>] -- <paths…>
+//! cargo dacc commit -F <message> [--log <file>] [--timeout <seconds>] [--format json|text] -- <paths…>
 //! ```
 //!
 //! Сообщение проверяется по форме до блокировки и хуков. Пути перечисляются
@@ -12,8 +12,11 @@
 //! Код возврата: 0 — коммит создан; 1 — по путям нечего коммитить или git add
 //! упал; 2 — неверные аргументы или окружение; 3 — блокировка не получена;
 //! 4 — коммит не создан: отказ проверки сообщения, хука или самого git.
-//! Последняя строка вывода — `COMMIT OK <sha>` или `COMMIT REFUSED: <reason>`.
+//! Последняя строка вывода — `COMMIT OK <sha>` или `COMMIT REFUSED: <reason>`;
+//! с `--format json` — объект с полями `ok` и `sha`, либо `ok`, `reason` и
+//! `code` при отказе.
 
+use crate::format::{self, Format};
 use crate::{git, layout, message};
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
@@ -30,16 +33,20 @@ const REFUSAL_LINES: usize = 40;
 
 /// `cargo dacc commit`.
 pub fn run(args: &[OsString]) -> u8 {
+    let format = format::scan(args);
     let args = match Args::parse(args) {
         Ok(args) => args,
-        Err(refusal) => return refusal.print(None),
+        Err(refusal) => return refusal.print(None, format),
     };
     match commit(&args) {
         Ok(sha) => {
-            println!("COMMIT OK {sha}");
+            match format {
+                Format::Text => println!("COMMIT OK {sha}"),
+                Format::Json => println!("{{\"ok\":true,\"sha\":{}}}", format::string(&sha)),
+            }
             0
         }
-        Err(refusal) => refusal.print(args.log.as_deref()),
+        Err(refusal) => refusal.print(args.log.as_deref(), format),
     }
 }
 
@@ -72,12 +79,24 @@ impl Args {
                     timeout = Duration::from_secs(secs);
                     rest = tail;
                 }
+                [flag, value, tail @ ..] if flag.to_str() == Some("--format") => {
+                    let value = value
+                        .to_str()
+                        .ok_or_else(|| refuse(2, "--format value is not UTF-8"))?;
+                    format::parse(value).map_err(|problem| refuse(2, problem))?;
+                    rest = tail;
+                }
                 [separator, tail @ ..] if separator.to_str() == Some("--") => {
                     rest = tail;
                     break;
                 }
                 [] => break,
-                [flag] if matches!(flag.to_str(), Some("-F" | "--log" | "--timeout")) => {
+                [flag]
+                    if matches!(
+                        flag.to_str(),
+                        Some("-F" | "--log" | "--timeout" | "--format")
+                    ) =>
+                {
                     return Err(refuse(
                         2,
                         format!("{} needs a value", flag.to_string_lossy()),
@@ -132,19 +151,43 @@ fn refuse(code: u8, reason: impl Into<String>) -> Refusal {
 }
 
 impl Refusal {
-    /// Печатает строки отказа из журнала и вердикт; возвращает код.
-    fn print(self, log: Option<&Path>) -> u8 {
-        if let Some(text) = log.and_then(|log| fs::read(log).ok()) {
-            let text = String::from_utf8_lossy(&text);
-            let lines: Vec<&str> = text.lines().filter(|line| is_refusal_line(line)).collect();
-            for line in &lines[lines.len().saturating_sub(REFUSAL_LINES)..] {
-                println!("{line}");
+    /// Печатает строки отказа из журнала и вердикт; возвращает код. В машинном
+    /// формате строки отказа уходят в stderr, а на stdout — один JSON-объект.
+    fn print(self, log: Option<&Path>, format: Format) -> u8 {
+        match format {
+            Format::Text => {
+                if let Some(text) = log.and_then(|log| fs::read(log).ok()) {
+                    let text = String::from_utf8_lossy(&text);
+                    let lines: Vec<&str> =
+                        text.lines().filter(|line| is_refusal_line(line)).collect();
+                    for line in &lines[lines.len().saturating_sub(REFUSAL_LINES)..] {
+                        println!("{line}");
+                    }
+                    if let Some(log) = log {
+                        println!("full output: {}", log.display());
+                    }
+                }
+                println!("COMMIT REFUSED: {}", self.reason);
             }
-            if let Some(log) = log {
-                println!("full output: {}", log.display());
+            Format::Json => {
+                if let Some(text) = log.and_then(|log| fs::read(log).ok()) {
+                    let text = String::from_utf8_lossy(&text);
+                    let lines: Vec<&str> =
+                        text.lines().filter(|line| is_refusal_line(line)).collect();
+                    for line in &lines[lines.len().saturating_sub(REFUSAL_LINES)..] {
+                        eprintln!("{line}");
+                    }
+                    if let Some(log) = log {
+                        eprintln!("full output: {}", log.display());
+                    }
+                }
+                println!(
+                    "{{\"ok\":false,\"reason\":{},\"code\":{}}}",
+                    format::string(&self.reason),
+                    self.code
+                );
             }
         }
-        println!("COMMIT REFUSED: {}", self.reason);
         self.code
     }
 }

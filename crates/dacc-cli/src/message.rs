@@ -3,8 +3,8 @@
 //! для коммита закрытия среза, `Dacc-Slice: s-slug` (решение 15).
 //!
 //! ```text
-//! cargo dacc msg-check [--form-only] <message>
-//! cargo dacc msg-check --range <range>
+//! cargo dacc msg-check [--form-only] [--format json|text] <message>
+//! cargo dacc msg-check --range <range> [--format json|text]
 //! ```
 //!
 //! Без `--form-only` проверяется ещё и то, что каждая работа и каждый срез из
@@ -16,7 +16,8 @@
 //! дереву этого коммита. Так CI проверяет путь в основную ветку, мимо которого
 //! хук мог пройти: правку на сайте, коммит без хуков, слияние кнопкой
 //! (решение 18). Последняя строка вывода — `MSG-CHECK OK (<n>)` или
-//! `MSG-CHECK REFUSED: <k> из <n>`.
+//! `MSG-CHECK REFUSED: <k> из <n>`; с `--format json` — объект с полями `ok` и
+//! `checked`, либо `ok`, `checked` и `refused` при отказе.
 //!
 //! Правила темы — набор типов, предел длины, каталоги работ и срезов и ссылка
 //! на правила коммитов продукта — берутся из настройки того же дерева, что и
@@ -35,6 +36,7 @@
 //! запуска.
 
 use crate::config::Config;
+use crate::format::{self, Format};
 use crate::{git, layout};
 use std::ffi::OsString;
 use std::fs;
@@ -49,27 +51,13 @@ const SLICE_TRAILER: &str = "Dacc-Slice:";
 
 /// `cargo dacc msg-check`.
 pub fn run(args: &[OsString]) -> u8 {
-    let (form_only, file) = match args {
-        [flag, range] if flag.to_str() == Some("--range") => return run_range(range),
-        [flag, file] if flag.to_str() == Some("--form-only") => (true, file),
-        [file] => (false, file),
-        _ => {
-            eprintln!(
-                "msg-check: a message file or a range is required — msg-check [--form-only] <file> | --range <range>"
-            );
-            return 2;
-        }
-    };
-    let Ok(text) = std::fs::read_to_string(file) else {
-        eprintln!("msg-check: a readable message file is required");
-        return 2;
-    };
-    match check_in_index(Path::new("."), &text, form_only, Some(Path::new(file))) {
-        Ok(checked) if checked.problems.is_empty() => 0,
-        Ok(checked) => {
-            eprint!("{}", checked.report());
-            1
-        }
+    match parse_args(args) {
+        Ok(Mode::Range { range, format }) => run_range(&range, format),
+        Ok(Mode::File {
+            file,
+            form_only,
+            format,
+        }) => run_file(&file, form_only, format),
         Err(problem) => {
             eprintln!("msg-check: {problem}");
             2
@@ -77,9 +65,115 @@ pub fn run(args: &[OsString]) -> u8 {
     }
 }
 
+/// Режим проверки: один файл сообщения или диапазон коммитов.
+#[derive(Debug)]
+enum Mode {
+    Range {
+        range: OsString,
+        format: Format,
+    },
+    File {
+        file: OsString,
+        form_only: bool,
+        format: Format,
+    },
+}
+
+/// Разбор аргументов. `--format` допустим перед, между и после позиционных.
+fn parse_args(args: &[OsString]) -> Result<Mode, String> {
+    let mut format = Format::Text;
+    let mut range = None;
+    let mut form_only = false;
+    let mut file = None;
+    let mut rest = args;
+    while let Some((first, tail)) = rest.split_first() {
+        match first.to_str() {
+            Some("--format") => {
+                let value = tail
+                    .first()
+                    .ok_or_else(|| "--format needs `json` or `text`".to_owned())?;
+                let value = value
+                    .to_str()
+                    .ok_or_else(|| "--format value is not UTF-8".to_owned())?;
+                format = format::parse(value)?;
+                rest = &tail[1..];
+            }
+            Some("--range") => {
+                let value = tail
+                    .first()
+                    .ok_or_else(|| "--range needs a range".to_owned())?;
+                range = Some(value.clone());
+                rest = &tail[1..];
+            }
+            Some("--form-only") => {
+                form_only = true;
+                rest = tail;
+            }
+            Some(flag) if flag.starts_with("--") => {
+                return Err(format!("unknown argument {flag}"));
+            }
+            _ => {
+                if file.is_some() {
+                    return Err("extra argument".to_owned());
+                }
+                file = Some(first.clone());
+                rest = tail;
+            }
+        }
+    }
+    if let Some(range) = range {
+        Ok(Mode::Range { range, format })
+    } else if let Some(file) = file {
+        Ok(Mode::File {
+            file,
+            form_only,
+            format,
+        })
+    } else {
+        Err("a message file or a range is required — msg-check [--form-only] <file> | --range <range>"
+            .to_owned())
+    }
+}
+
+/// Проверка одного файла сообщения. Принято — код 0 и молчание; отвергнуто —
+/// причины в stderr; с `--format json` вердикт уходит на stdout полями.
+fn run_file(file: &OsString, form_only: bool, format: Format) -> u8 {
+    let Ok(text) = std::fs::read_to_string(file) else {
+        match format {
+            Format::Text => eprintln!("msg-check: a readable message file is required"),
+            Format::Json => {
+                println!("{{\"ok\":false,\"error\":\"a readable message file is required\"}}")
+            }
+        }
+        return 2;
+    };
+    match check_in_index(Path::new("."), &text, form_only, Some(Path::new(file))) {
+        Ok(checked) if checked.problems.is_empty() => {
+            if format == Format::Json {
+                println!("{{\"ok\":true,\"checked\":1}}");
+            }
+            0
+        }
+        Ok(checked) => {
+            eprint!("{}", checked.report());
+            if format == Format::Json {
+                println!("{{\"ok\":false,\"checked\":1,\"refused\":1}}");
+            }
+            1
+        }
+        Err(problem) => {
+            match format {
+                Format::Text => eprintln!("msg-check: {problem}"),
+                Format::Json => println!("{{\"ok\":false,\"error\":{}}}", format::string(&problem)),
+            }
+            2
+        }
+    }
+}
+
 /// `msg-check --range`: сообщение каждого коммита диапазона — по дереву этого
 /// коммита. Отказ называет коммит двенадцатью знаками хэша и темой.
-fn run_range(range: &OsString) -> u8 {
+fn run_range(range: &OsString, format: Format) -> u8 {
     let dir = Path::new(".");
     let Some(range) = range.to_str() else {
         eprintln!("msg-check: range is not UTF-8");
@@ -108,10 +202,19 @@ fn run_range(range: &OsString) -> u8 {
         }
     }
     if refused == 0 {
-        println!("MSG-CHECK OK ({})", commits.len());
+        match format {
+            Format::Text => println!("MSG-CHECK OK ({})", commits.len()),
+            Format::Json => println!("{{\"ok\":true,\"checked\":{}}}", commits.len()),
+        }
         0
     } else {
-        println!("MSG-CHECK REFUSED: {refused} of {}", commits.len());
+        match format {
+            Format::Text => println!("MSG-CHECK REFUSED: {refused} of {}", commits.len()),
+            Format::Json => println!(
+                "{{\"ok\":false,\"checked\":{},\"refused\":{refused}}}",
+                commits.len()
+            ),
+        }
         1
     }
 }
@@ -477,6 +580,34 @@ mod tests {
 
     fn planned(path: &str) -> bool {
         path == "doc/work/w-001.rs" || path == "doc/slice/s-001.rs"
+    }
+
+    /// `--format` читается в любом месте; позиционные аргументы остаются на
+    /// своих местах, а негодный формат — ошибка аргументов.
+    #[test]
+    fn args_read_format_anywhere() {
+        let args = |words: &[&str]| words.iter().map(OsString::from).collect::<Vec<_>>();
+        match parse_args(&args(&["--format", "json", "--range", "HEAD~1..HEAD"])).unwrap() {
+            Mode::Range { range, format } => {
+                assert_eq!(range, OsString::from("HEAD~1..HEAD"));
+                assert_eq!(format, Format::Json);
+            }
+            other => panic!("expected Range, got {other:?}"),
+        }
+        match parse_args(&args(&["--form-only", "--format", "json", "msg.txt"])).unwrap() {
+            Mode::File {
+                file,
+                form_only,
+                format,
+            } => {
+                assert_eq!(file, OsString::from("msg.txt"));
+                assert!(form_only);
+                assert_eq!(format, Format::Json);
+            }
+            other => panic!("expected File, got {other:?}"),
+        }
+        assert!(parse_args(&args(&[])).is_err());
+        assert!(parse_args(&args(&["--format", "xml", "msg.txt"])).is_err());
     }
 
     #[test]
