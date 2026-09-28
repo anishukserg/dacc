@@ -22,8 +22,8 @@
 //! 2. относительные ссылки в markdown ведут в существующие файлы;
 //! 3. журнал: файлы событий из HEAD не изменены и не удалены, приземления
 //!    совпадают с историей git (решение 15);
-//! 4. команда проекта из `gate_command`, если она задана: её отказ — отказ
-//!    калитки. Шага нет, когда команды нет, поэтому шагов всего 12 или 13;
+//! 4. команда проекта из `gate_command`, если она задана: заменяет шаги 5–7,
+//!    10, 11 и 13 (решение 28). Её отказ — отказ калитки;
 //! 5. форматирование — `cargo fmt --check`;
 //! 6. clippy без предупреждений на всех целях;
 //! 7. сборка всех целей с константными проверками реестров и тесты;
@@ -39,7 +39,9 @@
 //!
 //! Команда проекта идёт до шагов cargo: дешёвые проверки DACC отказывают
 //! первыми, а команда проекта обычно сама включает форматирование, clippy и
-//! тесты, которые идут дальше.
+//! тесты, поэтому шаги 5–7, 10, 11 и 13 при заданной команде пропускаются, а
+//! проба сверки кодов и атаки (шаги 8, 9, 12) остаются — это ядро DACC, его не
+//! заменяет никакая команда проекта.
 //!
 //! С `--journal-only` — для коммита, дерево которого без журнала уже прошло
 //! калитку, — выполняются шаги 1–3 и сборка крейта документов, где журнал
@@ -59,9 +61,13 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 
-/// Число собственных шагов полной калитки. Делегированный шаг прибавляется к
-/// нему, когда команда проекта задана (решение 20).
+/// Число собственных шагов полной калитки. Команда проекта заменяет шесть
+/// стандартных шагов cargo и добавляет себя (решение 28).
 const DACC_TOTAL: usize = 12;
+
+/// Сколько стандартных шагов cargo заменяет команда проекта: форматирование,
+/// clippy, тесты, документация, проверка MSRV, зависимости (решение 28).
+const DELEGATED_STEPS: usize = 6;
 
 /// Число шагов калитки журнала.
 const JOURNAL_ONLY_TOTAL: usize = 4;
@@ -148,10 +154,15 @@ fn tree_command(program: &str, dir: &Path) -> Command {
     command
 }
 
-/// Общее число шагов полной калитки: собственные шаги плюс делегированный,
-/// когда команда проекта задана. Число в вердикте обязано быть правдой.
+/// Общее число шагов полной калитки: команда проекта заменяет шесть
+/// стандартных шагов cargo и добавляет себя. Число в вердикте обязано быть
+/// правдой.
 fn total(config: &Config) -> usize {
-    DACC_TOTAL + usize::from(config.gate_command.is_some())
+    if config.gate_command.is_some() {
+        DACC_TOTAL - DELEGATED_STEPS + 1
+    } else {
+        DACC_TOTAL
+    }
 }
 
 /// Имена внешних проектов из локального списка: без пустых строк и
@@ -296,7 +307,8 @@ impl Gate {
         }
         // Команда проекта — сразу после журнала и до шагов cargo: дешёвые
         // проверки DACC отказывают первыми, а команда проекта обычно сама
-        // включает fmt, clippy и тесты, которые идут дальше (решение 20).
+        // включает fmt, clippy и тесты, поэтому эти шаги здесь пропускаются
+        // (решение 28).
         self.project_command()?;
 
         // Дальше запускается cargo. Без манифеста в самом дереве cargo пошёл бы
@@ -310,35 +322,41 @@ impl Gate {
         }
         let target = self.target.clone();
 
-        let mut fmt = self.cargo(&target);
-        fmt.args(["fmt", "--manifest-path"])
-            .arg(&manifest)
-            .args(["--all", "--check"]);
-        self.cargo_step("cargo fmt --check", "fmt", &mut fmt)?;
+        if self.config.gate_command.is_none() {
+            let mut fmt = self.cargo(&target);
+            fmt.args(["fmt", "--manifest-path"])
+                .arg(&manifest)
+                .args(["--all", "--check"]);
+            self.cargo_step("cargo fmt --check", "fmt", &mut fmt)?;
+        }
 
-        let mut clippy = self.cargo(&target);
-        clippy
-            .args(["clippy", "--manifest-path"])
-            .arg(&manifest)
-            .args([
-                "--workspace",
-                "--all-targets",
-                "--locked",
-                "--",
-                "-D",
-                "warnings",
-            ]);
-        self.cargo_step("cargo clippy -D warnings", "clippy", &mut clippy)?;
+        if self.config.gate_command.is_none() {
+            let mut clippy = self.cargo(&target);
+            clippy
+                .args(["clippy", "--manifest-path"])
+                .arg(&manifest)
+                .args([
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--",
+                    "-D",
+                    "warnings",
+                ]);
+            self.cargo_step("cargo clippy -D warnings", "clippy", &mut clippy)?;
+        }
 
         // Doctest-атаки выполняются отдельным шагом под RUSTC_BOOTSTRAP.
-        let mut test = self.cargo(&target);
-        test.args(["test", "--manifest-path"]).arg(&manifest).args([
-            "--workspace",
-            "--all-targets",
-            "--no-fail-fast",
-            "--locked",
-        ]);
-        self.cargo_step("cargo test --all-targets", "test", &mut test)?;
+        if self.config.gate_command.is_none() {
+            let mut test = self.cargo(&target);
+            test.args(["test", "--manifest-path"]).arg(&manifest).args([
+                "--workspace",
+                "--all-targets",
+                "--no-fail-fast",
+                "--locked",
+            ]);
+            self.cargo_step("cargo test --all-targets", "test", &mut test)?;
+        }
 
         // rustdoc сверяет коды compile_fail только в nightly-режиме; на stable его
         // включает RUSTC_BOOTSTRAP=1 (решение 12). Без сверки атака прошла бы на
@@ -367,12 +385,14 @@ impl Gate {
             )));
         }
 
-        let mut doc = self.cargo(&target);
-        doc.env("RUSTDOCFLAGS", "-D warnings")
-            .args(["doc", "--manifest-path"])
-            .arg(&manifest)
-            .args(["--workspace", "--no-deps", "--locked"]);
-        self.cargo_step("cargo doc -D warnings", "doc", &mut doc)?;
+        if self.config.gate_command.is_none() {
+            let mut doc = self.cargo(&target);
+            doc.env("RUSTDOCFLAGS", "-D warnings")
+                .args(["doc", "--manifest-path"])
+                .arg(&manifest)
+                .args(["--workspace", "--no-deps", "--locked"]);
+            self.cargo_step("cargo doc -D warnings", "doc", &mut doc)?;
+        }
 
         // Обещанная потребителям невыразимость проверяется на обещанном им
         // компиляторе (решение 12).
@@ -386,14 +406,16 @@ impl Gate {
             })?;
         let toolchain = format!("+{msrv}");
 
-        let mut msrv_check = self.cargo(&self.build_dir("msrv"));
-        msrv_check
-            .arg(&toolchain)
-            .args(["check", "--manifest-path"])
-            .arg(&manifest)
-            .args(["--workspace", "--all-targets", "--locked"]);
-        let label = format!("cargo {toolchain} check --all-targets");
-        self.cargo_step(&label, "msrv-check", &mut msrv_check)?;
+        if self.config.gate_command.is_none() {
+            let mut msrv_check = self.cargo(&self.build_dir("msrv"));
+            msrv_check
+                .arg(&toolchain)
+                .args(["check", "--manifest-path"])
+                .arg(&manifest)
+                .args(["--workspace", "--all-targets", "--locked"]);
+            let label = format!("cargo {toolchain} check --all-targets");
+            self.cargo_step(&label, "msrv-check", &mut msrv_check)?;
+        }
 
         self.probe_codes(
             "msrv-probe",
@@ -417,25 +439,28 @@ impl Gate {
         }
 
         // Политика по сохранённой базе, без сети: коммит от сети не зависит.
-        // Базу обновляет pre-push; без базы шаг отказывает (решение 13).
-        let policy = self.tree.join(layout::DENY_POLICY);
-        if !policy.is_file() {
-            return Err(fail(
-                "no deny.toml in the tree — no dependency policy is set (decision 13)",
-            ));
+        // Базу обновляет pre-push; без базы шаг отказывает (решение 13). Шаг
+        // заменяется командой проекта, когда она задана (решение 28).
+        if self.config.gate_command.is_none() {
+            let policy = self.tree.join(layout::DENY_POLICY);
+            if !policy.is_file() {
+                return Err(fail(
+                    "no deny.toml in the tree — no dependency policy is set (decision 13)",
+                ));
+            }
+            if !installed("cargo-deny") {
+                return Err(start_fail(
+                    "cargo-deny is not installed — cargo install cargo-deny --locked",
+                ));
+            }
+            let mut deny = self.cargo(&target);
+            deny.args(["deny", "--manifest-path"])
+                .arg(&manifest)
+                .arg("--config")
+                .arg(&policy)
+                .args(["--frozen", "check"]);
+            self.cargo_step("cargo deny check", "deny", &mut deny)?;
         }
-        if !installed("cargo-deny") {
-            return Err(start_fail(
-                "cargo-deny is not installed — cargo install cargo-deny --locked",
-            ));
-        }
-        let mut deny = self.cargo(&target);
-        deny.args(["deny", "--manifest-path"])
-            .arg(&manifest)
-            .arg("--config")
-            .arg(&policy)
-            .args(["--frozen", "check"]);
-        self.cargo_step("cargo deny check", "deny", &mut deny)?;
 
         let mut verdict = format!(
             "GATE OK ({} of {}; attacks {attacks}, on {msrv} — {msrv_attacks}",
@@ -480,8 +505,9 @@ impl Gate {
     }
 
     /// Делегированный шаг: команда проекта из настройки проверяемого дерева.
-    /// Её отказ — отказ калитки, и текст называет команду и код возврата. Нет
-    /// команды — нет и шага, поэтому он не считается (решение 20).
+    /// Её отказ — отказ калитки, и текст называет команду и код возврата. Когда
+    /// команды нет, стандартные шаги cargo выполняет сама калитка; когда есть —
+    /// команда заменяет их (решение 28).
     fn project_command(&mut self) -> Result<(), Fail> {
         let Some(words) = self.config.gate_command.clone() else {
             return Ok(());
@@ -1070,14 +1096,14 @@ mod tests {
         assert_eq!(relative_links(text), ["real.md"]);
     }
 
-    /// Число шагов в вердикте — правда: делегированный шаг прибавляется к
-    /// собственным только тогда, когда команда проекта задана (решение 20).
+    /// Число шагов в вердикте — правда: команда проекта заменяет шесть
+    /// стандартных шагов cargo и добавляет себя (решение 28).
     #[test]
-    fn the_project_command_adds_a_step_to_the_total() {
+    fn the_project_command_replaces_the_cargo_steps_in_the_total() {
         let mut config = Config::default();
         assert_eq!(total(&config), DACC_TOTAL);
         config.gate_command = Some(vec!["make".to_owned(), "check".to_owned()]);
-        assert_eq!(total(&config), DACC_TOTAL + 1);
+        assert_eq!(total(&config), DACC_TOTAL - DELEGATED_STEPS + 1);
     }
 
     #[test]

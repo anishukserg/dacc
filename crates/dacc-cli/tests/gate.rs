@@ -178,6 +178,53 @@ fn a_missing_project_program_is_refused_not_skipped() {
 }
 
 #[test]
+fn a_project_command_replaces_fmt_clippy_and_test_but_attacks_still_run() {
+    // Решение 28: при заданной команде проекта калитка пропускает стандартные
+    // шаги cargo (форматирование, clippy, тесты), но проба сверки кодов и
+    // атаки — ядро DACC — по-прежнему выполняются.
+    let repo = TempRepo::new("gate-command-replaces-cargo");
+    with_gate_command(&repo, "true");
+    repo.write(
+        "Cargo.toml",
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\nrust-version = \"1.83\"\n\n[workspace]\n",
+    );
+    repo.write("src/lib.rs", "//! Demo.\n");
+    let run = repo.tool(&["gate"]);
+
+    // Команда проекта выполнена, а fmt/clippy/test пропущены: журналов нет.
+    assert!(
+        repo.path("target/gate/project.log").is_file(),
+        "команда проекта не выполнялась: {}",
+        run.output()
+    );
+    for skipped in ["fmt", "clippy", "test"] {
+        assert!(
+            !repo.path(&format!("target/gate/{skipped}.log")).is_file(),
+            "шаг {skipped} не пропущен при заданной команде проекта: {}",
+            run.output()
+        );
+    }
+
+    // Проба и атаки выполняются: их журналы есть. Калитка отказала на атаках
+    // (нет Cargo.lock), а не на пропущенном шаге cargo.
+    assert!(
+        repo.path("target/gate/probe.log").is_file(),
+        "проба сверки кодов не выполнялась: {}",
+        run.output()
+    );
+    assert!(
+        repo.path("target/gate/attacks.log").is_file(),
+        "атаки не выполнялись: {}",
+        run.output()
+    );
+    assert!(
+        run.verdict().starts_with("GATE FAIL: attacks"),
+        "{}",
+        run.output()
+    );
+}
+
+#[test]
 fn explicit_tree_is_checked_instead_of_the_working_tree() {
     let repo = TempRepo::new("gate-explicit-tree");
     with_external_names(&repo, "zzvneshniy\n");
