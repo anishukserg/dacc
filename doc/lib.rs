@@ -27,6 +27,7 @@ include!(concat!(env!("OUT_DIR"), "/adr.rs"));
 include!(concat!(env!("OUT_DIR"), "/rfc.rs"));
 include!(concat!(env!("OUT_DIR"), "/plan.rs"));
 include!(concat!(env!("OUT_DIR"), "/journal.rs"));
+include!(concat!(env!("OUT_DIR"), "/commit.rs"));
 
 #[cfg(test)]
 mod tests {
@@ -65,5 +66,22 @@ mod tests {
     #[test]
     fn every_work_has_a_state_from_the_journal() {
         assert_eq!(WORK_STATES.len(), ALL_WORK.len());
+    }
+
+    /// Дорожная карта (решение 21) порождается скомпилированным реестром и
+    /// несёт коммит сборки; она непуста и разворачивает хотя бы одно
+    /// направление.
+    #[test]
+    fn roadmap_renders_the_plan() {
+        let out = slipway_work::roadmap::render_roadmap(
+            ALL_THRUSTS,
+            ALL_SLICES,
+            ALL_WORK,
+            WORK_STATES,
+            CLOSED_SLICES,
+            COMMIT,
+        );
+        assert!(out.contains("Built from commit"), "{out}");
+        assert!(out.contains("## t0001 —"), "{out}");
     }
 }

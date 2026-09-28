@@ -7,6 +7,7 @@
 
 use slipway_scan::plan::{emit_plan, emit_work_checks, scan_plan, SLICES, THRUSTS, WORK};
 use slipway_scan::ScanError;
+use std::process::Command;
 use std::{env, fs, path::PathBuf};
 
 fn main() {
@@ -35,6 +36,21 @@ fn main() {
         &work,
     ));
     fs::write(out.join("journal.rs"), journal).unwrap();
+
+    // Коммит, из которого собран реестр: его несёт проекция (решение 21).
+    // Вне репозитория git может отсутствовать — тогда коммит неизвестен.
+    let commit = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .unwrap_or_default();
+    fs::write(
+        out.join("commit.rs"),
+        format!("/// The git commit this registry was built from.\npub static COMMIT: &str = {commit:?};\n"),
+    )
+    .unwrap();
 
     for dir in ["adr", "rfc", "thrust", "slice", "work", "journal"] {
         println!("cargo::rerun-if-changed={dir}");

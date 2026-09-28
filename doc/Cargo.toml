@@ -47,3 +47,9 @@ chrono = { workspace = true }
 
 [build-dependencies]
 slipway-scan = { workspace = true }
+
+# Дорожная карта — первая проекция реестра (решение 21): печатает план из
+# скомпилированного реестра, а не из повторного разбора.
+[[bin]]
+name = "roadmap"
+path = "roadmap.rs"

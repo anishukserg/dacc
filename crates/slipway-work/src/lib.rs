@@ -15,6 +15,7 @@
 #![doc(test(attr(forbid(unstable_features))))]
 
 pub mod attacks;
+pub mod roadmap;
 mod schema;
 
 pub use schema::{
