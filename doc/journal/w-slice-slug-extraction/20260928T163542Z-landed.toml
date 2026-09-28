@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-slice-slug-extraction"
+at = "2026-09-28T16:35:42Z"
+commit = "4a809a3da7c4f68c8789207f708422cb20b2fc3b"
+tree = "2d1d9abdbc1677d71893d628eb571a93748e2b4b"

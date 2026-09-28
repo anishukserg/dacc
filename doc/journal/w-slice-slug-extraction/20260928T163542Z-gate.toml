@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-slice-slug-extraction"
+at = "2026-09-28T16:35:42Z"
+gate = "commit"
+tree = "2d1d9abdbc1677d71893d628eb571a93748e2b4b"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"
