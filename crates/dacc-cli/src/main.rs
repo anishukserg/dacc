@@ -33,6 +33,7 @@ mod layout;
 mod message;
 mod proof;
 mod work;
+mod work_new;
 
 use std::ffi::OsString;
 use std::process::ExitCode;

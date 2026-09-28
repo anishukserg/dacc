@@ -29,7 +29,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const WORK_USAGE: &str = "work start <w-slug> | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
+const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
 
 const SLICE_USAGE: &str = "slice close <s-slug>";
 
@@ -63,6 +63,10 @@ pub fn run_work(args: &[OsString]) -> u8 {
             ["drop", id, "--reason", reason] => abandon(id, reason, &trailers),
             ["state"] => state(None, format),
             ["state", id] => state(Some(id), format),
+            ["new", tail @ ..] => {
+                let args: Vec<String> = tail.iter().map(|word| (*word).to_owned()).collect();
+                crate::work_new::work_new(&args)
+            }
             _ => Err(usage(code::USAGE, WORK_USAGE)),
         }
     }))
@@ -84,13 +88,14 @@ pub fn run_slice(args: &[OsString]) -> u8 {
 }
 
 /// Отказ команды: код возврата, стабильный код причины и текст.
-struct Refusal {
+#[derive(Debug)]
+pub struct Refusal {
     exit_code: u8,
     refusal: Code,
     reason: String,
 }
 
-fn refused(refusal: Code, reason: impl Into<String>) -> Refusal {
+pub fn refused(refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
         exit_code: 1,
         refusal,
@@ -98,7 +103,7 @@ fn refused(refusal: Code, reason: impl Into<String>) -> Refusal {
     }
 }
 
-fn usage(refusal: Code, reason: impl Into<String>) -> Refusal {
+pub fn usage(refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
         exit_code: 2,
         refusal,
@@ -417,15 +422,15 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
 }
 
 /// Репозиторий и свёртка журнала рабочего дерева.
-struct Context {
-    repo: git::Repo,
+pub struct Context {
+    pub repo: git::Repo,
     journal: Journal,
 }
 
 impl Context {
     /// Открывает репозиторий и сворачивает журнал. Несворачиваемый журнал —
     /// отказ: новое событие поверх нарушения ничего не прояснит.
-    fn open() -> Result<Context, Refusal> {
+    pub fn open() -> Result<Context, Refusal> {
         let repo = git::Repo::discover(Path::new("."))
             .map_err(|problem| usage(code::REPO_DISCOVER, problem))?;
         let dir = repo.root.join(repo.config.journal_dir());
