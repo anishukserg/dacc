@@ -247,3 +247,23 @@ fn path_unknown_to_git_is_refused() {
         "опечатка создала коммит"
     );
 }
+
+/// Первый коммит в репозитории без истории делает сам инструмент: он стейджит
+/// перечисленные пути и проверяет основание по дереву будущего коммита.
+#[test]
+fn first_commit_in_an_empty_repository_is_made_by_the_tool() {
+    let repo = TempRepo::new("first-commit");
+    repo.write(
+        "doc/taxonomy.rs",
+        "dacc_core::declare_taxonomy! {\n    Subsystem => [Knowledge, Cli],\n}\n",
+    );
+    repo.write("doc/work/w-001.rs", "work\n");
+    repo.executable(
+        "hooks/commit-msg",
+        &format!("#!/bin/sh\nexec '{}' hook commit-msg \"$1\"\n", common::BIN),
+    );
+    repo.git(&["config", "core.hooksPath", "hooks"]);
+    let run = commit(&repo, OK, &[], &["doc/taxonomy.rs", "doc/work/w-001.rs"]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    assert!(!repo.git(&["rev-parse", "HEAD"]).is_empty());
+}

@@ -281,6 +281,35 @@ pub fn check_in_index(
     check_against(dir, "", "in the index", text, form_only, file)
 }
 
+/// Проверяет сообщение по рабочему дереву в `dir`: правила и таксономия — из
+/// файлов, а не из git-дерева. Применяется к форме темы до блокировки и до
+/// первого коммита, когда в индексе правил ещё нет (решение 8); основание по
+/// дереву здесь не проверяется — за него отвечает хук commit-msg по индексу.
+pub fn check_dir(dir: &Path, text: &str, file: Option<&Path>) -> Result<Checked, String> {
+    let config = Config::read_dir(dir)?;
+    let scopes = fs::read(dir.join(config.taxonomy()))
+        .map(|bytes| subsystem_scopes(&String::from_utf8_lossy(&bytes)))
+        .unwrap_or_default();
+    if scopes.is_empty() && config.message_command.is_none() {
+        return Err(format!(
+            "no Subsystem axis values in the working tree ({})",
+            config.taxonomy()
+        ));
+    }
+    let mut found = Vec::new();
+    let mut output = String::new();
+    if let Some((problem, shown)) = delegated(dir, &config, text, file)? {
+        found.push(problem);
+        output = shown;
+    }
+    found.extend(problems(text, &scopes, None, &config));
+    Ok(Checked {
+        problems: found,
+        config,
+        output,
+    })
+}
+
 /// Проверяет сообщение коммита по дереву этого же коммита. Своего файла у
 /// такого сообщения нет: оно взято из git.
 pub fn check_commit(dir: &Path, commit: &str) -> Result<Checked, String> {

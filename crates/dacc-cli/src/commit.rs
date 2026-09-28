@@ -221,8 +221,10 @@ fn commit(args: &Args) -> Result<String, Refusal> {
             "-F <readable message file> is required",
         )
     })?;
-    // Правила — из индекса, из того же дерева, что и проверяемое (решение 20).
-    let checked = message::check_in_index(root, &text, true, Some(&args.message))
+    // Форма темы — по рабочему дереву, до блокировки и до первого коммита,
+    // когда в индексе правил ещё нет (решение 8). Основание проверяет хук
+    // commit-msg по индексу.
+    let checked = message::check_dir(root, &text, Some(&args.message))
         .map_err(|problem| refuse(2, code::MESSAGE_CONFIG, problem))?;
     if !checked.problems.is_empty() {
         output.note(&checked.report());
