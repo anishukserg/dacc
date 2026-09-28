@@ -517,7 +517,7 @@ impl Gate {
         let broken =
             |error: std::io::Error| start_fail(format!("external name search failed: {error}"));
         let mut hits = Vec::new();
-        for file in walk(&self.tree).map_err(broken)? {
+        for file in walk(&self.tree, &self.root).map_err(broken)? {
             let bytes = fs::read(&file).map_err(broken)?;
             // Двоичный файл пропускается, как у grep -I.
             if bytes.iter().take(8000).any(|&b| b == 0) {
@@ -541,7 +541,7 @@ impl Gate {
     /// Шаг 2: относительные ссылки в markdown ведут в существующие файлы.
     fn markdown_links(&mut self) -> Result<(), Fail> {
         let broken_walk = |error: std::io::Error| start_fail(format!("tree walk failed: {error}"));
-        let documents: Vec<PathBuf> = walk(&self.tree)
+        let documents: Vec<PathBuf> = walk(&self.tree, &self.root)
             .map_err(broken_walk)?
             .into_iter()
             .filter(|path| path.extension().and_then(|e| e.to_str()) == Some("md"))
@@ -773,11 +773,30 @@ fn relative(root: &Path, path: &Path) -> String {
         .to_string()
 }
 
-/// Файлы дерева по порядку. Каталоги `target` и `.git` отсекаются по имени на
-/// любом уровне внутри дерева, а не по подстроке пути: дерево коммита
-/// выгружается внутрь каталога git, и исключение по подстроке «/.git/»
-/// отсекало бы все его файлы.
-fn walk(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+/// Файлы дерева по порядку. Для рабочего дерева — список git: отслеживаемые и
+/// неигнорируемые неотслеживаемые, поэтому `.gitignore` уважается. Для чистого
+/// экспорта коммита — обычный обход, пропускающий `target` и `.git`.
+fn walk(root: &Path, repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    if root == repo_root {
+        let mut files = Vec::new();
+        if let Some(listing) = git::read(
+            repo_root,
+            &[
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ],
+        ) {
+            for path in listing.split('\0').filter(|p| !p.is_empty()) {
+                files.push(repo_root.join(path));
+            }
+        }
+        files.sort();
+        return Ok(files);
+    }
+
     let mut files = Vec::new();
     let mut dirs = vec![root.to_path_buf()];
     while let Some(dir) = dirs.pop() {

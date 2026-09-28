@@ -33,6 +33,28 @@ fn external_name_in_the_tree_is_refused() {
 }
 
 #[test]
+fn ignored_files_are_not_walked_by_the_gate() {
+    // Обход рабочего дерева уважает .gitignore: файл в игнорируемом каталоге
+    // калитка не видит (работа 57), и она доходит до отсутствия манифеста, а не
+    // отказывает на внешнем имени.
+    let repo = TempRepo::new("gate-gitignore");
+    with_external_names(&repo, "# внешние проекты\nzzvneshniy\n");
+    repo.write(".gitignore", ".venv-docs/\n");
+    repo.write(".venv-docs/leak.txt", "текст с именем ZZVneshniy внутри\n");
+    let run = repo.tool(&["gate"]);
+    assert!(
+        !run.stdout.contains("external name in file"),
+        "{}",
+        run.output()
+    );
+    assert!(
+        run.verdict().starts_with("GATE FAIL: no Cargo.toml"),
+        "{}",
+        run.output()
+    );
+}
+
+#[test]
 fn missing_list_is_a_skipped_step_not_a_passed_one() {
     let repo = TempRepo::new("gate-no-list");
     repo.write("leak.txt", "текст с именем ZZVneshniy внутри\n");
