@@ -1,0 +1,6 @@
+event = "gate"
+work = "w0046"
+at = "2026-09-28T09:35:50Z"
+gate = "commit"
+tree = "d09930509624b78028df2f810fdbffe894faed6f"
+verdict = "GATE OK (12 of 12; attacks 20, on 1.83.0 — 20)"
