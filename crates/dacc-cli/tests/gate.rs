@@ -55,6 +55,45 @@ fn ignored_files_are_not_walked_by_the_gate() {
 }
 
 #[test]
+fn ignored_files_in_an_explicit_tree_are_not_walked() {
+    // Явное дерево — подкаталог репозитория — тоже уважает .gitignore: файл в
+    // игнорируемом каталоге калитка не видит, а тот же текст в неигнорируемом
+    // файле дерева — видит.
+    let repo = TempRepo::new("gate-gitignore-tree");
+    with_external_names(&repo, "zzvneshniy\n");
+    repo.write(".gitignore", "ignored/\n");
+    repo.write(
+        "tree/ignored/leak.txt",
+        "текст с именем ZZVneshniy внутри\n",
+    );
+    let root = repo.root.to_str().expect("путь в UTF-8").to_owned();
+    let tree = repo.path("tree");
+    let tree = tree.to_str().expect("путь в UTF-8");
+
+    let run = repo.tool(&["gate", "--repo", &root, tree]);
+    assert!(
+        !run.stdout.contains("external name in file"),
+        "{}",
+        run.output()
+    );
+    assert!(
+        run.verdict()
+            .starts_with("GATE FAIL: no Cargo.toml in the tree"),
+        "{}",
+        run.output()
+    );
+
+    // Контроль: то же имя в неигнорируемом файле того же дерева — найдено.
+    repo.write("tree/seen.txt", "текст с именем ZZVneshniy внутри\n");
+    let run = repo.tool(&["gate", "--repo", &root, tree]);
+    assert!(
+        run.stdout.contains("external name in file: seen.txt"),
+        "{}",
+        run.output()
+    );
+}
+
+#[test]
 fn missing_list_is_a_skipped_step_not_a_passed_one() {
     let repo = TempRepo::new("gate-no-list");
     repo.write("leak.txt", "текст с именем ZZVneshniy внутри\n");

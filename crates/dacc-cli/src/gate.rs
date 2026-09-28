@@ -799,13 +799,15 @@ fn relative(root: &Path, path: &Path) -> String {
         .to_string()
 }
 
-/// Файлы дерева по порядку. Для рабочего дерева — список git: отслеживаемые и
-/// неигнорируемые неотслеживаемые, поэтому `.gitignore` уважается. Для чистого
-/// экспорта коммита — обычный обход, пропускающий `target` и `.git`.
+/// Файлы дерева по порядку. Для рабочего дерева и подкаталога репозитория —
+/// список git (`ls-files`): отслеживаемые и неигнорируемые неотслеживаемые
+/// файлы, поэтому `.gitignore` уважается. Выгруженное дерево коммита лежит
+/// внутри каталога git и обходится как прежде — там игнорируемых файлов нет по
+/// построению, а обычный обход пропускает только `target` и `.git` по имени на
+/// любом уровне, не по подстроке пути.
 fn walk(root: &Path, repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
     if root == repo_root {
-        let mut files = Vec::new();
-        if let Some(listing) = git::read(
+        return Ok(git_files(
             repo_root,
             &[
                 "ls-files",
@@ -814,13 +816,27 @@ fn walk(root: &Path, repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
                 "--exclude-standard",
                 "-z",
             ],
-        ) {
-            for path in listing.split('\0').filter(|p| !p.is_empty()) {
-                files.push(repo_root.join(path));
-            }
+        ));
+    }
+    if let Ok(rel) = root.strip_prefix(repo_root) {
+        let rel = rel.to_string_lossy();
+        // Подкаталог репозитория (например, `gate --repo <root> <dir>`): тот же
+        // список git, ограниченный этим каталогом, поэтому `.gitignore` в нём
+        // уважается. Каталог git не подкаталог проверки: он начинается с `.git/`.
+        if !rel.is_empty() && rel != ".git" && !rel.starts_with(".git/") {
+            return Ok(git_files(
+                repo_root,
+                &[
+                    "ls-files",
+                    "--cached",
+                    "--others",
+                    "--exclude-standard",
+                    "-z",
+                    "--",
+                    &rel,
+                ],
+            ));
         }
-        files.sort();
-        return Ok(files);
     }
 
     let mut files = Vec::new();
@@ -841,6 +857,19 @@ fn walk(root: &Path, repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
     }
     files.sort();
     Ok(files)
+}
+
+/// Файлы от `git ls-files` в `repo_root`: пути вывода относительны ему, поэтому
+/// каждый путь пристыковывается к `repo_root`. Без вывода git — пустой список.
+fn git_files(repo_root: &Path, args: &[&str]) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    if let Some(listing) = git::read(repo_root, args) {
+        for path in listing.split('\0').filter(|p| !p.is_empty()) {
+            files.push(repo_root.join(path));
+        }
+    }
+    files.sort();
+    files
 }
 
 /// Цели ссылок `](цель)` без пробелов, кроме внешних адресов и якорей.
