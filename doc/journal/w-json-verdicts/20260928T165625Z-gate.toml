@@ -1,0 +1,6 @@
+event = "gate"
+work = "w-json-verdicts"
+at = "2026-09-28T16:56:25Z"
+gate = "commit"
+tree = "c030168417607c5e68735fea1f57356926799665"
+verdict = "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names)"
