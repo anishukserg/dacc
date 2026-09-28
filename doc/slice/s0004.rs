@@ -6,6 +6,6 @@ slipway_work::slice!(4,
     outcome: NonEmptyStr::new(
         "Решения, спецификации и план лежат в doc/ одним крейтом slipway-doc, в crates/ только библиотеки; сборка, тесты, калитка и правила коммитов работают по новым путям."
     ),
-    specification: crate::rfc::r0001,
+    specification: crate::rfc::rfc_2026_001,
     max_radius: BlastRadius::Crate,
 );

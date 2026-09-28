@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(14,
     title: NonEmptyStr::new("Stable-тулчейн и сверка кодов ошибок атак"),
     slice: crate::slice::s0005,
-    origin: WorkOrigin::Decision(crate::adr::a0012),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_012),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

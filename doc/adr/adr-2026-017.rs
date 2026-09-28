@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(17,
+slipway_knowledge::adr!(
     title: "Slipway публикуется на GitHub под лицензией Apache-2.0",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology)],

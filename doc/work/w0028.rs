@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(28,
     title: NonEmptyStr::new("Лицензия, README и метаданные публикации"),
     slice: crate::slice::s0009,
-    origin: WorkOrigin::Decision(crate::adr::a0017),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_017),
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

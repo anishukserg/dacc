@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(1,
+slipway_knowledge::adr!(
     title: "Ссылка между документами — путь к константе, а не число",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],

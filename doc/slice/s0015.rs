@@ -6,6 +6,6 @@ slipway_work::slice!(15,
     outcome: NonEmptyStr::new(
         "Норма без исполнителя и открытый вопрос записываются в реестр, а не прозой: свёртка их видит, и забыть обязательство нельзя молча."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Crate,
 );

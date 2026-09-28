@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(3,
+slipway_knowledge::adr!(
     title: "Валидатор — бинарник, линкующий реестр, а не build.rs",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Work)],

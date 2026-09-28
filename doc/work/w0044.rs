@@ -6,7 +6,7 @@ slipway_work::work!(44,
     title: NonEmptyStr::new("Первый коммит в пустом репозитории делается инструментом"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Правила коммита исполнимы самим инструментом с первого коммита: обходить их отдельным git add не требуется (решение 8)."
         ),

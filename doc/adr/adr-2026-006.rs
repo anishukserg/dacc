@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(6,
+slipway_knowledge::adr!(
     title: "Спецификация методологии переносится в реестр целиком, вместе с прозой",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge)],
@@ -41,5 +41,5 @@ slipway_knowledge::adr!(6,
     decided_at: slipway_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0001],
+    related_rfcs: &[crate::rfc::rfc_2026_001],
 );

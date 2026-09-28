@@ -15,7 +15,7 @@
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
-use slipway_core::anchor_rules::{anchor_ident, check_anchor_id, check_anchor_mode};
+use slipway_core::anchor_rules::{check_anchor_mode, check_slug_id, slug_ident};
 use std::{fs, path::Path};
 use syn::{spanned::Spanned, visit::Visit};
 
@@ -166,7 +166,7 @@ impl Collector<'_> {
         let end = node.span().end().line.min(self.lines.len());
         let start = body_start_line(node.to_token_stream()).unwrap_or(end);
         self.found.push(ScannedAnchor {
-            ident: anchor_ident(&id),
+            ident: slug_ident(&id),
             id,
             file: self.file.to_owned(),
             line_start: start as u32,
@@ -312,7 +312,7 @@ fn anchor_attr(attrs: &[syn::Attribute]) -> Result<Option<(String, AnchorMode)>,
     .map_err(|e| (line, e.to_string()))?;
 
     let id = id.ok_or_else(|| (line, "the anchor has no id".to_owned()))?;
-    check_anchor_id(&id).map_err(|e| (line, e))?;
+    check_slug_id(&id).map_err(|e| (line, e))?;
     let mode = match mode {
         Some(m) => AnchorMode::parse(&m).map_err(|e| (line, e))?,
         None => AnchorMode::Ref,

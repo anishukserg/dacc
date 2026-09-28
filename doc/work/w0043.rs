@@ -6,7 +6,7 @@ slipway_work::work!(43,
     title: NonEmptyStr::new("Доказательство и список имён — от общего каталога git"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Доказательство готовности принадлежит репозиторию: калитка, пройденная в изолированной рабочей копии, остаётся доказательством того же дерева (решения 4 и 15)."
         ),

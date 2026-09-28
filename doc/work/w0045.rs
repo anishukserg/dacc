@@ -6,7 +6,7 @@ slipway_work::work!(45,
     title: NonEmptyStr::new("Отказ настройки называет форму числа; диапазон покрывает корневой коммит"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Отказ называет, как его исправить, а проверка оснований покрывает каждый коммит на пути в основную ветку, включая корневой (решения 8 и 18)."
         ),

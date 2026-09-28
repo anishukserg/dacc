@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(20,
+slipway_knowledge::adr!(
     title: "Настройка инструмента под продукт: slipway.toml и делегирование проверок проекту",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
@@ -61,5 +61,5 @@ slipway_knowledge::adr!(20,
     decided_at: slipway_core::date!(2026, 9, 18),
     breaking: Breaking::No,
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0002],
+    related_rfcs: &[crate::rfc::rfc_2026_002],
 );

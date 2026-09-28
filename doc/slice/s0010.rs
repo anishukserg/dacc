@@ -6,6 +6,6 @@ slipway_work::slice!(10,
     outcome: NonEmptyStr::new(
         "Калитка и проверка оснований коммитов выполняются в GitHub Actions на push и pull request в master; SECURITY.md и CONTRIBUTING.md описывают приватные сообщения об уязвимостях и перенос внешних изменений сопровождающим."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Local,
 );

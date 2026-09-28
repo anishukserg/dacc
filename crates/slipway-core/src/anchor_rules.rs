@@ -1,21 +1,23 @@
-//! Правила записи разметки кода, общие для атрибута `#[doc_anchor]` и скана.
+//! Правила записи slug-идентификаторов: общие для разметки кода
+//! (`#[doc_anchor]`), скана разметки и идентификаторов документов знания.
 //!
-//! Одно место на оба исполнителя: атрибут отвергает ошибку при сборке
+//! Одно место на всех исполнителей: атрибут отвергает ошибку при сборке
 //! продукта, скан — при сборке реестра. Разойтись им не в чем.
 
 /// Допустимые режимы отображения фрагмента.
 pub const ANCHOR_MODES: [&str; 3] = ["ref", "embed", "snippet"];
 
-/// Идентификатор разметки: латиница в нижнем регистре, цифры и дефис,
-/// начинается с буквы.
+/// Идентификатор-«slug»: латиница в нижнем регистре, цифры и дефис,
+/// начинается с буквы. Общее правило для разметки кода и идентификаторов
+/// документов знания.
 ///
 /// Отображается в имя константы заменой дефиса на подчёркивание, поэтому
 /// подчёркивание в самом идентификаторе запрещено (иначе `plan-ir` и
 /// `plan_ir` дали бы одну константу), а ключевые слова Rust — тоже.
-pub fn check_anchor_id(id: &str) -> Result<(), String> {
+pub fn check_slug_id(id: &str) -> Result<(), String> {
     if !id.starts_with(|c: char| c.is_ascii_lowercase()) {
         return Err(format!(
-            "anchor id {id:?} must start with a lowercase latin letter"
+            "slug id {id:?} must start with a lowercase latin letter"
         ));
     }
     if let Some(bad) = id
@@ -23,11 +25,11 @@ pub fn check_anchor_id(id: &str) -> Result<(), String> {
         .find(|c| !(c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-'))
     {
         return Err(format!(
-            "anchor id {id:?}: character {bad:?} is not allowed; allowed are a-z, 0-9 and a hyphen"
+            "slug id {id:?}: character {bad:?} is not allowed; allowed are a-z, 0-9 and a hyphen"
         ));
     }
-    if KEYWORDS.contains(&anchor_ident(id).as_str()) {
-        return Err(format!("anchor id {id:?} is a Rust keyword"));
+    if KEYWORDS.contains(&slug_ident(id).as_str()) {
+        return Err(format!("slug id {id:?} is a Rust keyword"));
     }
     Ok(())
 }
@@ -44,8 +46,8 @@ pub fn check_anchor_mode(mode: &str) -> Result<(), String> {
     }
 }
 
-/// Имя порождаемой константы для идентификатора разметки.
-pub fn anchor_ident(id: &str) -> String {
+/// Имя порождаемой константы для slug-идентификатора.
+pub fn slug_ident(id: &str) -> String {
     id.replace('-', "_")
 }
 
@@ -63,15 +65,15 @@ mod tests {
 
     #[test]
     fn accepts_kebab_case_ids() {
-        for ok in ["plan-ir", "wal-record-v3", "a"] {
-            assert!(check_anchor_id(ok).is_ok(), "{ok}");
+        for ok in ["plan-ir", "wal-record-v3", "adr-2026-001", "a"] {
+            assert!(check_slug_id(ok).is_ok(), "{ok}");
         }
     }
 
     #[test]
     fn rejects_ids_that_cannot_be_constants() {
         for bad in ["", "2pc", "plan.ir", "Plan-IR", "type", "self", "plan_ir"] {
-            assert!(check_anchor_id(bad).is_err(), "{bad:?}");
+            assert!(check_slug_id(bad).is_err(), "{bad:?}");
         }
     }
 

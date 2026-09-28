@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(13,
     title: NonEmptyStr::new("Документы Slipway в одном крейте doc/"),
     slice: crate::slice::s0004,
-    origin: WorkOrigin::Decision(crate::adr::a0011),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_011),
     taxon: taxon!(Subsystem, Knowledge),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

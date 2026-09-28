@@ -21,7 +21,7 @@
 #![doc(test(attr(forbid(unstable_features))))]
 
 use proc_macro::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
-use slipway_core::anchor_rules::{check_anchor_id, check_anchor_mode};
+use slipway_core::anchor_rules::{check_anchor_mode, check_slug_id};
 
 /// Помечает фрагмент кода идентификатором, на который могут ссылаться решения.
 ///
@@ -136,7 +136,7 @@ fn check_args(args: TokenStream) -> Result<(), Rejection> {
     }
 
     let (id, id_span) = id.ok_or_else(|| (last_key, "the anchor has no id".to_owned()))?;
-    check_anchor_id(&id).map_err(|e| (id_span, e))?;
+    check_slug_id(&id).map_err(|e| (id_span, e))?;
     if let Some((mode, mode_span)) = mode {
         check_anchor_mode(&mode).map_err(|e| (mode_span, e))?;
     }

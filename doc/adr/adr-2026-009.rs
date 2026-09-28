@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(9,
+slipway_knowledge::adr!(
     title: "Репозиторий методологии не содержит внешних артефактов",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology)],

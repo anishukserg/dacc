@@ -2,9 +2,9 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(19,
+slipway_knowledge::adr!(
     title: "Текст инструмента — английский: вывод, создаваемые коммиты, порождённые файлы",
-    status: DocStatus::SupersededBy(crate::adr::a0022),
+    status: DocStatus::SupersededBy(crate::adr::adr_2026_022),
     subsystems: &[taxon!(Subsystem, Cli)],
     context: r"
         Инструмент печатает и записывает русский текст в репозиторий продукта:
@@ -56,5 +56,5 @@ slipway_knowledge::adr!(19,
     decided_at: slipway_core::date!(2026, 9, 18),
     breaking: Breaking::No,
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0002],
+    related_rfcs: &[crate::rfc::rfc_2026_002],
 );

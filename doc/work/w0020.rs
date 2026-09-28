@@ -6,7 +6,7 @@ slipway_work::work!(20,
     title: NonEmptyStr::new("Блокировка коммита без номера процесса ждала до тайм-аута"),
     slice: crate::slice::s0006,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Параллельный коммит ждёт блокировку, а блокировку умершего процесса снимает ожидающий (решения 8 и 14)."
         ),

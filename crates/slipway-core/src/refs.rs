@@ -11,7 +11,8 @@
 //! `__from_scan` в тексте реестра отвергает сам скан (`slipway-scan`, сила
 //! `BuildScript`); вне файлов реестра обход остаётся выразимым.
 //!
-//! Виды ссылок не смешиваются, хотя внутри лежит одно и то же число:
+//! Виды ссылок не смешиваются: у одних внутри число (слой работы), у других —
+//! slug (слой знания):
 //!
 //! ```compile_fail,E0308
 //! let gate = slipway_core::GateRef::__from_scan(2);
@@ -53,26 +54,27 @@ macro_rules! declare_ref {
 
 declare_ref! {
     /// Ссылка на архитектурное решение. Константы порождаются сканом
-    /// реестра решений; отсутствующее решение — не резолвится.
-    AdrRef(u32), "2"
+    /// реестра решений; отсутствующее решение — не резолвится. Несёт slug
+    /// из имени файла решения, а не порядковый номер.
+    AdrRef(&'static str), "\"adr-2026-001\""
 }
 
 declare_ref! {
-    /// Ссылка на доменную спецификацию.
-    RfcRef(u32), "2"
+    /// Ссылка на доменную спецификацию. Несёт slug из имени файла.
+    RfcRef(&'static str), "\"rfc-2026-001\""
 }
 
 declare_ref! {
     /// Ссылка на решение **в статусе «замещено»**. Отдельный тип, потому что
     /// константы порождаются только для замещённых решений: «удаление живого
     /// кода под видом уборки» невыразимо.
-    SupersededRef(u32), "2"
+    SupersededRef(&'static str), "\"adr-2026-001\""
 }
 
 declare_ref! {
     /// Ссылка на **ломающее** решение. Константы — только для решений
     /// с инструкциями миграции.
-    BreakingRef(u32), "2"
+    BreakingRef(&'static str), "\"adr-2026-001\""
 }
 
 declare_ref! {
@@ -114,16 +116,20 @@ macro_rules! numbered {
     )*};
 }
 
-numbered!(
-    AdrRef,
-    RfcRef,
-    SupersededRef,
-    BreakingRef,
-    GateRef,
-    ThrustRef,
-    SliceRef,
-    WorkRef
-);
+numbered!(GateRef, ThrustRef, SliceRef, WorkRef);
+
+macro_rules! slug_ref {
+    ($($name:ident),*) => {$(
+        impl $name {
+            /// Идентификатор документа: slug из имени файла.
+            pub const fn as_str(self) -> &'static str {
+                self.0
+            }
+        }
+    )*};
+}
+
+slug_ref!(AdrRef, RfcRef, SupersededRef, BreakingRef);
 
 impl AnchorId {
     pub const fn as_str(self) -> &'static str {
@@ -137,8 +143,12 @@ mod tests {
 
     #[test]
     fn numbered_refs_keep_their_index() {
-        assert_eq!(AdrRef::__from_scan(2).index(), 2);
         assert_eq!(GateRef::__from_scan(7).index(), 7);
+    }
+
+    #[test]
+    fn slug_refs_keep_their_id() {
+        assert_eq!(AdrRef::__from_scan("adr-2026-001").as_str(), "adr-2026-001");
     }
 
     #[test]

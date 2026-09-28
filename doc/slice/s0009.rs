@@ -6,6 +6,6 @@ slipway_work::slice!(9,
     outcome: NonEmptyStr::new(
         "Репозиторий готов к публикации на GitHub: лицензия Apache-2.0, README в корне и у каждого публикуемого крейта, полные метаданные публикации крейтов."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Local,
 );

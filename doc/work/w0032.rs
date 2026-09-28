@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(32,
     title: NonEmptyStr::new("Текст инструмента на английском"),
     slice: crate::slice::s0012,
-    origin: WorkOrigin::Decision(crate::adr::a0019),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_019),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

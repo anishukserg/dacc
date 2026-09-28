@@ -6,6 +6,6 @@ slipway_work::slice!(6,
     outcome: NonEmptyStr::new(
         "Коммиты Slipway проходят через cargo slipway commit; хуки — однострочники, вызывающие инструмент, а калитку и pre-push выполняет он; каталога tools/ со скриптами bash нет; сценарии прежнего самотеста — интеграционные тесты крейта slipway-cli."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Crate,
 );

@@ -40,14 +40,10 @@ mod tests {
         assert!(!ALL.is_empty(), "реестр решений пуст");
         assert!(!ALL_SPECS.is_empty(), "реестр спецификаций пуст");
         for d in ALL {
-            assert!(!d.title.trim().is_empty(), "решение {} без заголовка", d.id);
+            assert!(!d.title.trim().is_empty(), "решение без заголовка");
         }
         for s in ALL_SPECS {
-            assert!(
-                !s.title.trim().is_empty(),
-                "спецификация {} без заголовка",
-                s.id
-            );
+            assert!(!s.title.trim().is_empty(), "спецификация без заголовка");
         }
     }
 

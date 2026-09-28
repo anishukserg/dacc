@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(29,
     title: NonEmptyStr::new("Калитка и основания коммитов в GitHub Actions"),
     slice: crate::slice::s0010,
-    origin: WorkOrigin::Decision(crate::adr::a0018),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_018),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

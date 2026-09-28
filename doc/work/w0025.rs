@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(25,
     title: NonEmptyStr::new("Порождённый код и макросы регистрации под строгим профилем lints"),
     slice: crate::slice::s0008,
-    origin: WorkOrigin::Decision(crate::adr::a0016),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_016),
     taxon: taxon!(Subsystem, Scan),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(38,
     title: NonEmptyStr::new("Каналы публикации в схеме документов"),
     slice: crate::slice::s0013,
-    origin: WorkOrigin::Decision(crate::adr::a0021),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_021),
     taxon: taxon!(Subsystem, Knowledge),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

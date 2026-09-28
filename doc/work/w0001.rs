@@ -8,7 +8,7 @@ slipway_work::work!(1,
     ),
     slice: crate::slice::s0001,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0001,
+        specification: crate::rfc::rfc_2026_001,
         violated: NonEmptyStr::new("Ссылка на живое решение из позиции «замещённое» не компилируется."),
     },
     taxon: taxon!(Subsystem, Knowledge),

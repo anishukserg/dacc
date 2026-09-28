@@ -6,7 +6,7 @@ slipway_work::work!(21,
     title: NonEmptyStr::new("Путь, удалённый через git rm, не коммитился"),
     slice: crate::slice::s0006,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Пути перечисляются явно — новые, изменённые и удалённые; коммитятся ровно они (решение 8)."
         ),

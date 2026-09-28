@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(17,
     title: NonEmptyStr::new("cargo slipway commit и msg-check"),
     slice: crate::slice::s0006,
-    origin: WorkOrigin::Decision(crate::adr::a0014),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_014),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

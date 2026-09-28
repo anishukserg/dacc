@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(42,
     title: NonEmptyStr::new("Структурный вердикт в доказательстве и в журнале"),
     slice: crate::slice::s0014,
-    origin: WorkOrigin::Decision(crate::adr::a0022),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_022),
     taxon: taxon!(Subsystem, Work),
     radius: BlastRadius::Crate,
     outcome: NonEmptyStr::new(

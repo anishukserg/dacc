@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::DocStatus;
 
-slipway_knowledge::rfc!(3,
+slipway_knowledge::rfc!(
     title: "Слой доступа: интроспекция вместо поиска по файлам",
     status: DocStatus::Draft,
     target: &[taxon!(Subsystem, Access), taxon!(Subsystem, Cli)],

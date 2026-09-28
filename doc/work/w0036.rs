@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(36,
     title: NonEmptyStr::new("Дорожная карта как первая проекция реестра"),
     slice: crate::slice::s0013,
-    origin: WorkOrigin::Decision(crate::adr::a0021),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_021),
     taxon: taxon!(Subsystem, Access),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

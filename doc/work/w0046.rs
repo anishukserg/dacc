@@ -6,7 +6,7 @@ slipway_work::work!(46,
     title: NonEmptyStr::new("Пол измеряет исполненные атаки, а не любые doctest"),
     slice: crate::slice::s0001,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Пол атак измеряет исполненные атаки, а не любые прошедшие примеры: иначе число добирается обычными doctest, и обещание «атаки не удалены» держится доброй волей (решение 12)."
         ),

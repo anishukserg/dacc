@@ -24,19 +24,19 @@ mod tests {
 
     #[test]
     fn reference_resolves_to_existing_decision() {
-        // adr::a0002 — путь к константе, порождённой сканом.
+        // adr::adr_direct_plan — путь к константе, порождённой сканом.
         // Опечатка здесь = unresolved path, а не молчаливо неверная ссылка.
-        assert_eq!(adr::a0002.index(), 2);
-        assert_eq!(adr::a0003.index(), 3);
+        assert_eq!(adr::adr_direct_plan.as_str(), "adr-direct-plan");
+        assert_eq!(adr::adr_page_format_v4.as_str(), "adr-page-format-v4");
     }
 
     #[test]
     fn superseded_module_holds_only_retired_decisions() {
-        // Решение 1 замещено — константа есть.
-        assert_eq!(superseded::a0001.index(), 1);
-        // Для действующего решения 2 константы в этом модуле НЕТ,
+        // Решение «текстовый SQL» замещено — константа есть.
+        assert_eq!(superseded::adr_text_sql_path.as_str(), "adr-text-sql-path");
+        // Для действующего решения «прямой план» константы в этом модуле НЕТ,
         // поэтому уборка живого кода невыразима:
-        //     WorkOrigin::Retirement(superseded::a0002)  // unresolved path
+        //     WorkOrigin::Retirement(superseded::adr_direct_plan)  // unresolved path
     }
 
     #[test]
@@ -44,20 +44,20 @@ mod tests {
         // Тип принимает только SupersededRef, а такие константы порождаются
         // лишь для замещённых решений.
         fn retire(_: slipway_core::SupersededRef) {}
-        retire(superseded::a0001);
+        retire(superseded::adr_text_sql_path);
     }
 
     #[test]
     fn decision_references_real_code() {
-        // Решение 2 ссылается на разметку в коде продукта.
+        // Решение «прямой план» ссылается на разметку в коде продукта.
         // Удалить #[doc_anchor(id = "plan-ir")] из demo-product — эта строка
         // перестанет резолвиться, потому что константа исчезнет при скане.
-        assert_eq!(a0002::DECISION.code_refs, &[anchor::plan_ir]);
+        assert_eq!(adr_direct_plan::DECISION.code_refs, &[anchor::plan_ir]);
     }
 
     #[test]
     fn breaking_decision_carries_migration() {
-        let d = &a0003::DECISION;
+        let d = &adr_page_format_v4::DECISION;
         match d.breaking {
             slipway_knowledge::Breaking::Yes { migration } => {
                 assert_eq!(migration.len(), 2);

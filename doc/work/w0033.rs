@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(33,
     title: NonEmptyStr::new("slipway.toml: пути реестра, правила темы, шаблоны служебных коммитов"),
     slice: crate::slice::s0012,
-    origin: WorkOrigin::Decision(crate::adr::a0020),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_020),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

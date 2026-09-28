@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(4,
     title: NonEmptyStr::new("Генератор `work new` и замер трения заведения задач"),
     slice: crate::slice::s0002,
-    origin: WorkOrigin::Decision(crate::adr::a0005),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_005),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

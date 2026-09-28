@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(10,
     title: NonEmptyStr::new("Документы реестров без каталога src"),
     slice: crate::slice::s0003,
-    origin: WorkOrigin::Decision(crate::adr::a0010),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_010),
     taxon: taxon!(Subsystem, Knowledge),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

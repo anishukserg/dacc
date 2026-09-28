@@ -6,7 +6,7 @@ slipway_work::work!(31,
     title: NonEmptyStr::new("Шаг ссылок в markdown принимал код за ссылку"),
     slice: crate::slice::s0011,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Проверка содержательна: шаг калитки отвергает документ за настоящую битую ссылку, а не за форму записи (решения 8 и 14)."
         ),

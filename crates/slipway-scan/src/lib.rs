@@ -23,6 +23,8 @@ pub use anchors::{scan_anchors, AnchorMode, ScannedAnchor};
 
 use std::{fmt::Write as _, fs, path::Path};
 
+use slipway_core::anchor_rules::slug_ident;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScannedDecision {
     pub id: u32,
@@ -30,6 +32,16 @@ pub struct ScannedDecision {
     pub status: Status,
     /// Абсолютный путь к файлу. Нужен потому, что порождённый модуль лежит
     /// в OUT_DIR, а `#[path]` разрешается относительно него.
+    pub file: String,
+}
+
+/// Запись скана слоя знания: идентификатор — slug из имени файла.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScannedSlug {
+    /// Идентификатор документа — имя файла без расширения (`adr-2026-001`).
+    pub slug: String,
+    pub status: Status,
+    /// Абсолютный путь к файлу.
     pub file: String,
 }
 
@@ -89,13 +101,13 @@ impl std::fmt::Display for ScanError {
 }
 
 /// Сканирует каталог реестра спецификаций (`rfc!`).
-pub fn scan_specs(dir: &Path) -> Result<Vec<ScannedDecision>, ScanError> {
-    scan_dir(dir, "rfc", 'r')
+pub fn scan_specs(dir: &Path) -> Result<Vec<ScannedSlug>, ScanError> {
+    scan_slug_dir(dir, "rfc")
 }
 
 /// Сканирует каталог реестра решений (`adr!`).
-pub fn scan_decisions(dir: &Path) -> Result<Vec<ScannedDecision>, ScanError> {
-    scan_dir(dir, "adr", 'a')
+pub fn scan_decisions(dir: &Path) -> Result<Vec<ScannedSlug>, ScanError> {
+    scan_slug_dir(dir, "adr")
 }
 
 fn scan_dir(dir: &Path, macro_name: &str, prefix: char) -> Result<Vec<ScannedDecision>, ScanError> {
@@ -123,9 +135,94 @@ fn scan_dir(dir: &Path, macro_name: &str, prefix: char) -> Result<Vec<ScannedDec
     Ok(found)
 }
 
-/// Разбирает один файл реестра решений.
-pub fn parse_decision(text: &str, module: &str) -> Result<ScannedDecision, ScanError> {
-    parse_entry(text, module, "adr", 'a')
+/// Сканирует каталог реестра слоя знания: идентификатор каждого документа —
+/// имя его файла (slug), а не число внутри макроса.
+fn scan_slug_dir(dir: &Path, macro_name: &str) -> Result<Vec<ScannedSlug>, ScanError> {
+    let mut found = Vec::new();
+    let entries =
+        fs::read_dir(dir).map_err(|e| ScanError::Io(format!("{}: {e}", dir.display())))?;
+
+    for entry in entries {
+        let path = entry.map_err(|e| ScanError::Io(e.to_string()))?.path();
+        let is_rs = path.extension().is_some_and(|e| e == "rs");
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        if !is_rs || stem == "mod" {
+            continue;
+        }
+        let text = fs::read_to_string(&path).map_err(|e| ScanError::Io(e.to_string()))?;
+        let mut decision = parse_slug_entry(&text, &stem, macro_name)?;
+        decision.file = path.display().to_string();
+        found.push(decision);
+    }
+    found.sort_by(|a, b| a.slug.cmp(&b.slug));
+    Ok(found)
+}
+
+/// Разбирает один файл реестра слоя знания: находит вызов макроса
+/// регистрации, извлекает статус, а идентификатор принимает из имени файла.
+pub fn parse_slug_entry(
+    text: &str,
+    module: &str,
+    macro_name: &str,
+) -> Result<ScannedSlug, ScanError> {
+    let file = syn::parse_file(text).map_err(|e| ScanError::Parse {
+        file: module.into(),
+        detail: e.to_string(),
+    })?;
+
+    let mac = file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            // Путь может быть как `adr!`, так и `slipway_knowledge::adr!` —
+            // значим только последний сегмент.
+            syn::Item::Macro(m)
+                if m.mac
+                    .path
+                    .segments
+                    .last()
+                    .is_some_and(|s| s.ident == macro_name) =>
+            {
+                Some(&m.mac)
+            }
+            _ => None,
+        })
+        .ok_or_else(|| ScanError::Parse {
+            file: module.into(),
+            detail: format!("no {macro_name}! call found"),
+        })?;
+
+    // Идентификатор — само имя файла, и оно обязано быть допустимым slug.
+    // Инъективность отображения «slug → имя константы» гарантирует, что два
+    // документа не дадут одну константу (атака E2 в слое знания).
+    slipway_core::anchor_rules::check_slug_id(module).map_err(|detail| ScanError::Parse {
+        file: module.into(),
+        detail,
+    })?;
+
+    if let Some(ident) = find_bypass(text) {
+        return Err(ScanError::Bypass {
+            file: module.into(),
+            ident,
+        });
+    }
+
+    let tokens: Vec<_> = mac.tokens.clone().into_iter().collect();
+    let status = extract_status(&tokens);
+    Ok(ScannedSlug {
+        slug: module.to_owned(),
+        status,
+        file: String::new(),
+    })
+}
+
+/// Разбирает один файл реестра решений: идентификатор — имя файла (slug).
+pub fn parse_decision(text: &str, module: &str) -> Result<ScannedSlug, ScanError> {
+    parse_slug_entry(text, module, "adr")
 }
 
 /// Разбирает один файл реестра: находит вызов макроса регистрации и
@@ -258,26 +355,28 @@ fn extract_status(tokens: &[proc_macro2::TokenTree]) -> Status {
 ///
 /// Константы разложены по подмодулям так, чтобы ссылка не того класса была
 /// невыразима: `Retirement` принимает только `superseded::*`.
-pub fn emit_refs(decisions: &[ScannedDecision]) -> String {
+pub fn emit_refs(decisions: &[ScannedSlug]) -> String {
     let mut out = String::from("// GENERATED by slipway-scan. Do not edit.\n\n");
 
     // Каждый публичный элемент документирован: порождённый код собирается под
     // строгим профилем lints продукта (решение 16).
     for d in decisions {
+        let ident = slug_ident(&d.slug);
+        let slug = d.slug.as_str();
+        let file = d.file.as_str();
         let _ = writeln!(
             out,
-            "/// Decision {}.\n#[path = {:?}]\npub mod {};",
-            d.id, d.file, d.module
+            "/// Decision {slug}.\n#[path = {file:?}]\npub mod {ident};"
         );
     }
 
     out.push_str("\n/// References to decisions: a path to a constant instead of a number.\n#[allow(non_upper_case_globals, unused_imports)]\npub mod adr {\n    use slipway_core::AdrRef;\n");
     for d in decisions {
+        let ident = slug_ident(&d.slug);
+        let slug = d.slug.as_str();
         let _ = writeln!(
             out,
-            "    /// Reference to decision {id}.\n    pub const {m}: AdrRef = AdrRef::__from_scan({id});",
-            m = d.module,
-            id = d.id
+            "    /// Reference to decision {slug}.\n    pub const {ident}: AdrRef = AdrRef::__from_scan({slug:?});"
         );
     }
     out.push_str("}\n\n");
@@ -288,11 +387,11 @@ pub fn emit_refs(decisions: &[ScannedDecision]) -> String {
         .iter()
         .filter(|d| d.status == Status::SupersededBy)
     {
+        let ident = slug_ident(&d.slug);
+        let slug = d.slug.as_str();
         let _ = writeln!(
             out,
-            "    /// Reference to superseded decision {id}.\n    pub const {m}: SupersededRef = SupersededRef::__from_scan({id});",
-            m = d.module,
-            id = d.id
+            "    /// Reference to superseded decision {slug}.\n    pub const {ident}: SupersededRef = SupersededRef::__from_scan({slug:?});"
         );
     }
     out.push_str("}\n\n");
@@ -304,12 +403,8 @@ pub fn emit_refs(decisions: &[ScannedDecision]) -> String {
         "// compiler evaluates the value. A divergence is a constant evaluation error (E0080).\n",
     );
     for d in decisions {
-        let _ = writeln!(
-            out,
-            "const _: () = assert!({m}::DECISION.id == {id}, \"slipway-scan: the identifier of {m} diverges from the scan\");",
-            m = d.module,
-            id = d.id
-        );
+        let ident = slug_ident(&d.slug);
+        let slug = d.slug.as_str();
         let (neg, what) = if d.status == Status::SupersededBy {
             ("", "superseded")
         } else {
@@ -317,50 +412,45 @@ pub fn emit_refs(decisions: &[ScannedDecision]) -> String {
         };
         let _ = writeln!(
             out,
-            "const _: () = assert!({neg}matches!({m}::DECISION.status, ::slipway_knowledge::DocStatus::SupersededBy(_)), \"slipway-scan: by its text {m} is {what}, the compiler evaluated otherwise\");",
-            m = d.module
+            "const _: () = assert!({neg}matches!({ident}::DECISION.status, ::slipway_knowledge::DocStatus::SupersededBy(_)), \"slipway-scan: by its text {slug} is {what}, the compiler evaluated otherwise\");"
         );
     }
 
     out.push_str("\n/// All decisions of the registry.\npub static ALL: &[&slipway_knowledge::ArchitectureDecision] = &[\n");
     for d in decisions {
-        let _ = writeln!(out, "    &{}::DECISION,", d.module);
+        let ident = slug_ident(&d.slug);
+        let _ = writeln!(out, "    &{ident}::DECISION,");
     }
     out.push_str("];\n");
     out
 }
 
 /// Порождает модуль констант для реестра спецификаций.
-pub fn emit_spec_refs(specs: &[ScannedDecision]) -> String {
+pub fn emit_spec_refs(specs: &[ScannedSlug]) -> String {
     let mut out = String::from("// GENERATED by slipway-scan. Do not edit.\n\n");
     for s in specs {
+        let ident = slug_ident(&s.slug);
+        let slug = s.slug.as_str();
+        let file = s.file.as_str();
         let _ = writeln!(
             out,
-            "/// Specification {}.\n#[path = {:?}]\npub mod {};",
-            s.id, s.file, s.module
+            "/// Specification {slug}.\n#[path = {file:?}]\npub mod {ident};"
         );
     }
     out.push_str("\n/// References to specifications: a path to a constant instead of a number.\n#[allow(non_upper_case_globals, unused_imports)]\npub mod rfc {\n    use slipway_core::RfcRef;\n");
     for s in specs {
+        let ident = slug_ident(&s.slug);
+        let slug = s.slug.as_str();
         let _ = writeln!(
             out,
-            "    /// Reference to specification {id}.\n    pub const {m}: RfcRef = RfcRef::__from_scan({id});",
-            m = s.module,
-            id = s.id
+            "    /// Reference to specification {slug}.\n    pub const {ident}: RfcRef = RfcRef::__from_scan({slug:?});"
         );
     }
     out.push_str("}\n\n");
-    for s in specs {
-        let _ = writeln!(
-            out,
-            "const _: () = assert!({m}::SPEC.id == {id}, \"slipway-scan: the identifier of {m} diverges from the scan\");",
-            m = s.module,
-            id = s.id
-        );
-    }
     out.push_str("\n/// All specifications of the registry.\npub static ALL_SPECS: &[&slipway_knowledge::DomainSpecification] = &[\n");
     for s in specs {
-        let _ = writeln!(out, "    &{}::SPEC,", s.module);
+        let ident = slug_ident(&s.slug);
+        let _ = writeln!(out, "    &{ident}::SPEC,");
     }
     out.push_str("];\n");
     out
@@ -372,67 +462,62 @@ mod tests {
 
     const SAMPLE: &str = r#"
         use slipway_knowledge::DocStatus;
-        slipway_knowledge::adr!(2,
+        slipway_knowledge::adr!(
             title: "Прямая передача плана",
             status: DocStatus::Active,
         );
     "#;
 
     #[test]
-    fn extracts_id_and_status() {
-        let d = parse_decision(SAMPLE, "a0002").unwrap();
-        assert_eq!(d.id, 2);
+    fn extracts_status_and_slug() {
+        let d = parse_decision(SAMPLE, "adr-direct-plan").unwrap();
+        assert_eq!(d.slug, "adr-direct-plan");
         assert_eq!(d.status, Status::Active);
     }
 
     #[test]
-    fn rejects_id_not_matching_filename() {
-        let err = parse_decision(SAMPLE, "a0009").unwrap_err();
-        assert!(matches!(err, ScanError::IdMismatch { declared: 2, .. }));
+    fn rejects_non_slug_file_name() {
+        let err = parse_decision(SAMPLE, "ADR-2026-001").unwrap_err();
+        assert!(err.to_string().contains("slug id"), "{err}");
     }
 
     #[test]
     fn superseded_module_holds_only_superseded() {
         let ds = vec![
-            ScannedDecision {
-                id: 1,
-                module: "a0001".into(),
+            ScannedSlug {
+                slug: "adr-text-sql-path".into(),
                 status: Status::SupersededBy,
-                file: "/x/a0001.rs".into(),
+                file: "/x/adr-text-sql-path.rs".into(),
             },
-            ScannedDecision {
-                id: 2,
-                module: "a0002".into(),
+            ScannedSlug {
+                slug: "adr-direct-plan".into(),
                 status: Status::Active,
-                file: "/x/a0002.rs".into(),
+                file: "/x/adr-direct-plan.rs".into(),
             },
         ];
         let out = emit_refs(&ds);
-        assert!(out.contains("pub const a0001: SupersededRef"));
-        assert!(!out.contains("pub const a0002: SupersededRef"));
-        assert!(out.contains("pub const a0002: AdrRef"));
+        assert!(out.contains("pub const adr_text_sql_path: SupersededRef"));
+        assert!(!out.contains("pub const adr_direct_plan: SupersededRef"));
+        assert!(out.contains("pub const adr_direct_plan: AdrRef"));
     }
 
     #[test]
     fn emitted_code_cross_checks_scan_against_compiler() {
         let ds = vec![
-            ScannedDecision {
-                id: 1,
-                module: "a0001".into(),
+            ScannedSlug {
+                slug: "adr-text-sql-path".into(),
                 status: Status::SupersededBy,
-                file: "/x/a0001.rs".into(),
+                file: "/x/adr-text-sql-path.rs".into(),
             },
-            ScannedDecision {
-                id: 2,
-                module: "a0002".into(),
+            ScannedSlug {
+                slug: "adr-direct-plan".into(),
                 status: Status::Active,
-                file: "/x/a0002.rs".into(),
+                file: "/x/adr-direct-plan.rs".into(),
             },
         ];
         let out = emit_refs(&ds);
-        assert!(out.contains("assert!(a0001::DECISION.id == 1"));
-        assert!(out.contains("assert!(matches!(a0001::DECISION.status"));
-        assert!(out.contains("assert!(!matches!(a0002::DECISION.status"));
+        assert!(out.contains("assert!(matches!(adr_text_sql_path::DECISION.status"));
+        assert!(out.contains("assert!(!matches!(adr_direct_plan::DECISION.status"));
     }
 
     /// Каталог реестра во временной папке: имя файла → содержимое.
@@ -446,38 +531,43 @@ mod tests {
         dir
     }
 
-    const ACTIVE_2: &str = "slipway_knowledge::adr!(2, status: DocStatus::Active,);";
-    const ACTIVE_3: &str = "slipway_knowledge::adr!(3, status: DocStatus::Active,);";
-    const ACTIVE_7: &str = "slipway_knowledge::adr!(7, status: DocStatus::Active,);";
+    const ACTIVE: &str = "slipway_knowledge::adr!(status: DocStatus::Active,);";
 
     /// Позитивный контроль для атак ниже: корректный каталог принимается.
     #[test]
-    fn accepts_canonical_registry() {
-        let dir = registry("ok", &[("a0002.rs", ACTIVE_2), ("a0003.rs", ACTIVE_3)]);
+    fn accepts_slug_registry() {
+        let dir = registry(
+            "ok",
+            &[
+                ("adr-direct-plan.rs", ACTIVE),
+                ("adr-text-sql-path.rs", ACTIVE),
+            ],
+        );
         assert_eq!(scan_decisions(&dir).unwrap().len(), 2);
     }
 
-    /// Атака E2: второй файл с тем же идентификатором через ведущие нули.
+    /// Атака E2 в слое знания: подчёркивание в slug запрещено, иначе два
+    /// имени (`adr-text-sql` и `adr_text_sql`) дали бы одну константу.
     #[test]
-    fn rejects_duplicate_id_via_leading_zeros() {
-        let dir = registry("dup", &[("a0002.rs", ACTIVE_2), ("a00002.rs", ACTIVE_2)]);
-        let err = scan_decisions(&dir).expect_err("два решения с id 2 приняты");
-        assert!(err.to_string().contains("a0002.rs"), "{err}");
+    fn rejects_underscore_in_slug() {
+        let dir = registry("underscore", &[("adr_text_sql_path.rs", ACTIVE)]);
+        let err = scan_decisions(&dir).expect_err("slug с подчёркиванием принят");
+        assert!(err.to_string().contains("slug id"), "{err}");
     }
 
-    /// Атака E2: имя файла без номера не сверялось вовсе.
+    /// Имя файла с заглавными буквами не является slug.
     #[test]
-    fn rejects_file_name_without_number() {
-        let dir = registry("loose", &[("a.rs", ACTIVE_7)]);
-        let err = scan_decisions(&dir).expect_err("файл a.rs с id 7 принят");
-        assert!(err.to_string().contains("a0007.rs"), "{err}");
+    fn rejects_uppercase_file_name() {
+        let dir = registry("upper", &[("ADR-2026-001.rs", ACTIVE)]);
+        let err = scan_decisions(&dir).expect_err("файл с заглавными принят");
+        assert!(err.to_string().contains("slug id"), "{err}");
     }
 
     /// Атака E1 в обход закрытого поля: конструктор скана, вызванный в реестре руками.
     #[test]
     fn rejects_scan_constructor_in_registry_text() {
-        let text = "slipway_knowledge::adr!(1, status: DocStatus::SupersededBy(slipway_core::AdrRef::__from_scan(2)),);";
-        let err = parse_decision(text, "a0001").expect_err("ручной __from_scan принят");
+        let text = "slipway_knowledge::adr!(status: DocStatus::SupersededBy(slipway_core::AdrRef::__from_scan(\"adr-2026-002\")),);";
+        let err = parse_decision(text, "adr-2026-001").expect_err("ручной __from_scan принят");
         assert!(err.to_string().contains("__from_scan"), "{err}");
     }
 
@@ -490,17 +580,15 @@ mod tests {
     #[test]
     fn generated_text_carries_no_cyrillic() {
         let ds = vec![
-            ScannedDecision {
-                id: 1,
-                module: "a0001".into(),
+            ScannedSlug {
+                slug: "adr-text-sql-path".into(),
                 status: Status::SupersededBy,
-                file: "/x/a0001.rs".into(),
+                file: "/x/adr-text-sql-path.rs".into(),
             },
-            ScannedDecision {
-                id: 2,
-                module: "a0002".into(),
+            ScannedSlug {
+                slug: "adr-direct-plan".into(),
                 status: Status::Active,
-                file: "/x/a0002.rs".into(),
+                file: "/x/adr-direct-plan.rs".into(),
             },
         ];
         let work = vec![ScannedDecision {
@@ -560,7 +648,7 @@ mod tests {
     /// строковый литерал, а не вызов, и отвергаться не должно.
     #[test]
     fn mention_in_prose_is_not_a_bypass() {
-        let text = "slipway_knowledge::adr!(1, status: DocStatus::Active, context: r#\"вызов __from_scan руками запрещён\"#,);";
-        assert!(parse_decision(text, "a0001").is_ok());
+        let text = "slipway_knowledge::adr!(status: DocStatus::Active, context: r#\"вызов __from_scan руками запрещён\"#,);";
+        assert!(parse_decision(text, "adr-2026-001").is_ok());
     }
 }

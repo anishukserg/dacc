@@ -6,7 +6,7 @@ slipway_work::work!(51,
     title: NonEmptyStr::new("Порождённый сканом текст и его ошибки — на английском"),
     slice: crate::slice::s0016,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0001,
+        specification: crate::rfc::rfc_2026_001,
         violated: NonEmptyStr::new(
             "Текст, порождаемый инструментом, английский, включая комментарии и документацию порождённых файлов и сообщения, которые они выдают компилятором (решение 22)."
         ),

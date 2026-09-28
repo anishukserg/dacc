@@ -6,6 +6,6 @@ slipway_work::slice!(13,
     outcome: NonEmptyStr::new(
         "Реестр отдаётся проекцией: машинный срез для инструментов и агентов, сайт для людей. Опубликовано только то дерево, которое прошло калитку, и только то, что помечено публичным."
     ),
-    specification: crate::rfc::r0003,
+    specification: crate::rfc::rfc_2026_003,
     max_radius: BlastRadius::Crate,
 );

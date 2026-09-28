@@ -6,6 +6,6 @@ slipway_work::slice!(11,
     outcome: NonEmptyStr::new(
         "Шаги калитки отвергают документ или коммит за настоящее нарушение, а не за форму записи; каждый дефект закрыт сценарием, падавшим до починки."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Local,
 );

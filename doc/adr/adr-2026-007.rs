@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(7,
+slipway_knowledge::adr!(
     title: "Хореография, сосуществование сессий, прогноз и метрики — расширения вне нормативного ядра",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Work)],
@@ -32,5 +32,5 @@ slipway_knowledge::adr!(7,
     decided_at: slipway_core::date!(2026, 9, 10),
     breaking: Breaking::No,
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0002, crate::rfc::r0003],
+    related_rfcs: &[crate::rfc::rfc_2026_002, crate::rfc::rfc_2026_003],
 );

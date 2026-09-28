@@ -6,7 +6,7 @@ slipway_work::work!(12,
     title: NonEmptyStr::new("Шаг ссылок в markdown не выполнялся на дереве коммита"),
     slice: crate::slice::s0003,
     origin: WorkOrigin::Divergence {
-        specification: crate::rfc::r0002,
+        specification: crate::rfc::rfc_2026_002,
         violated: NonEmptyStr::new(
             "Калитка на дереве коммита проверяет относительные ссылки в markdown (решение 8)."
         ),

@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::DocStatus;
 
-slipway_knowledge::rfc!(2,
+slipway_knowledge::rfc!(
     title: "Слой работы: происхождение, обратимость, гейты, журнал",
     status: DocStatus::Draft,
     target: &[taxon!(Subsystem, Work)],
@@ -31,5 +31,5 @@ slipway_knowledge::rfc!(2,
     ],
     authors: nonempty_str!["Анищук Сергей"],
     decided_at: slipway_core::date!(2026, 9, 10),
-    decided_by: &[crate::adr::a0002, crate::adr::a0003],
+    decided_by: &[crate::adr::adr_2026_002, crate::adr::adr_2026_003],
 );

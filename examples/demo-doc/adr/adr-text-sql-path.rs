@@ -3,9 +3,9 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(1,
+slipway_knowledge::adr!(
     title: "Текстовый SQL как единственный путь исполнения",
-    status: DocStatus::SupersededBy(crate::adr::a0002),
+    status: DocStatus::SupersededBy(crate::adr::adr_direct_plan),
     subsystems: &[taxon!(Subsystem, Executor)],
     context: r"
         Исходное устройство: любой запрос проходит через разбор текста SQL.

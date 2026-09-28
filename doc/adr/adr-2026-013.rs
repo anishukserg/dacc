@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(13,
+slipway_knowledge::adr!(
     title: "Зависимости проверяются cargo-deny: лицензии, уязвимости, дубли, источники",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
@@ -48,5 +48,5 @@ slipway_knowledge::adr!(13,
     decided_at: slipway_core::date!(2026, 9, 11),
     breaking: Breaking::No,
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0002],
+    related_rfcs: &[crate::rfc::rfc_2026_002],
 );

@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(9,
     title: NonEmptyStr::new("Убрать внешние артефакты и каталог spec/"),
     slice: crate::slice::s0003,
-    origin: WorkOrigin::Decision(crate::adr::a0009),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_009),
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

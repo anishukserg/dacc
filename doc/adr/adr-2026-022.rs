@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(22,
+slipway_knowledge::adr!(
     title: "Вывод инструмента — машинный контракт: JSON по запросу, коды причин, структурный вердикт",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Access)],
@@ -76,5 +76,5 @@ slipway_knowledge::adr!(22,
         ],
     },
     code_refs: &[],
-    related_rfcs: &[crate::rfc::r0002, crate::rfc::r0003],
+    related_rfcs: &[crate::rfc::rfc_2026_002, crate::rfc::rfc_2026_003],
 );

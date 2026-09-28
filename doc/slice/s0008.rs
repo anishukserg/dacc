@@ -6,6 +6,6 @@ slipway_work::slice!(8,
     outcome: NonEmptyStr::new(
         "Крейт документов входит в сторонний проект со строгим профилем lints без исключений; способ доставки крейтов Slipway выбран решением; гипотезы, метрики и критерии отказа пилота L1 записаны в реестре до его начала."
     ),
-    specification: crate::rfc::r0001,
+    specification: crate::rfc::rfc_2026_001,
     max_radius: BlastRadius::Crate,
 );

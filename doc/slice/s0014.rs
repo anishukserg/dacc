@@ -6,6 +6,6 @@ slipway_work::slice!(14,
     outcome: NonEmptyStr::new(
         "Потребитель получает вердикт и причины отказа полями, а не предложением: JSON по флагу, стабильные коды причин, структурный вердикт в доказательстве и в событии журнала."
     ),
-    specification: crate::rfc::r0003,
+    specification: crate::rfc::rfc_2026_003,
     max_radius: BlastRadius::Crate,
 );

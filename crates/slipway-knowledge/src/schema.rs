@@ -39,7 +39,6 @@ impl Breaking {
 
 #[derive(Debug)]
 pub struct ArchitectureDecision {
-    pub id: u32,
     pub title: &'static str,
     pub status: DocStatus,
     /// Только значения оси подсистем: значение другой оси — ошибка типа.
@@ -79,8 +78,8 @@ mod tests {
 
     #[test]
     fn superseded_names_its_successor() {
-        let s = DocStatus::SupersededBy(AdrRef::__from_scan(7));
-        assert!(matches!(s, DocStatus::SupersededBy(r) if r.index() == 7));
+        let s = DocStatus::SupersededBy(AdrRef::__from_scan("adr-2026-007"));
+        assert!(matches!(s, DocStatus::SupersededBy(r) if r.as_str() == "adr-2026-007"));
     }
 }
 
@@ -90,7 +89,6 @@ mod tests {
 /// Работа выводится либо из спецификации, либо из решения.
 #[derive(Debug)]
 pub struct DomainSpecification {
-    pub id: u32,
     pub title: &'static str,
     pub status: DocStatus,
     pub target: &'static [Taxon<Subsystem>],

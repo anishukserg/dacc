@@ -2,7 +2,7 @@ use crate::taxonomy::Subsystem;
 use slipway_core::{nonempty_str, taxon};
 use slipway_knowledge::{Breaking, DocStatus};
 
-slipway_knowledge::adr!(2,
+slipway_knowledge::adr!(
     title: "Носитель реестра определяется частотой изменения",
     status: DocStatus::Active,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Work)],

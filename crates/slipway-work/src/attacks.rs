@@ -43,7 +43,7 @@
 //! slipway_core::declare_taxonomy! { Subsystem => [Core] }
 //! static SLICE: Slice = Slice {
 //!     id: 1, title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan(1),
-//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan(1),
+//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
 //!     max_radius: BlastRadius::Crate,
 //! };
 //! static WORK: WorkItem = WorkItem {
@@ -63,7 +63,7 @@
 //! slipway_core::declare_taxonomy! { Subsystem => [Core] }
 //! static SLICE: Slice = Slice {
 //!     id: 1, title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan(1),
-//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan(1),
+//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
 //!     max_radius: BlastRadius::Crate,
 //! };
 //! static WORK: WorkItem = WorkItem {

@@ -6,6 +6,6 @@ slipway_work::slice!(7,
     outcome: NonEmptyStr::new(
         "Состояние каждой работы и среза Slipway вычисляется свёрткой doc/journal при сборке; приземление без доказательства на том же дереве не собирается; события пишут команды cargo slipway work и slice; прошлые работы восстановлены из истории."
     ),
-    specification: crate::rfc::r0002,
+    specification: crate::rfc::rfc_2026_002,
     max_radius: BlastRadius::Crate,
 );

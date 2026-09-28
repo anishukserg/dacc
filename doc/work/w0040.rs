@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(40,
     title: NonEmptyStr::new("Вердикты и отказы в JSON"),
     slice: crate::slice::s0014,
-    origin: WorkOrigin::Decision(crate::adr::a0022),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_022),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(

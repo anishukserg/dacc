@@ -5,7 +5,7 @@ use slipway_work::WorkOrigin;
 slipway_work::work!(23,
     title: NonEmptyStr::new("Команды cargo slipway work и slice"),
     slice: crate::slice::s0007,
-    origin: WorkOrigin::Decision(crate::adr::a0015),
+    origin: WorkOrigin::Decision(crate::adr::adr_2026_015),
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(
