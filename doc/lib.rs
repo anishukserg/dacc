@@ -112,16 +112,7 @@ mod tests {
     /// Markdown совпадает с закоммиченным site/src/.
     #[test]
     fn site_is_fresh() {
-        let site = dacc_access::render_site(
-            ALL,
-            ALL_SPECS,
-            ALL_THRUSTS,
-            ALL_SLICES,
-            ALL_WORK,
-            WORK_STATES,
-            CLOSED_SLICES,
-            COMMIT,
-        );
+        let site = dacc_access::render_site(ALL, ALL_SPECS);
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("корень репозитория")

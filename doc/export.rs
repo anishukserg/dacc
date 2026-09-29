@@ -33,16 +33,7 @@ fn main() {
         }
         Some("markdown") => {
             let dir = args.get(1).map_or("site/src", String::as_str);
-            let site = dacc_access::render_site(
-                ALL,
-                ALL_SPECS,
-                ALL_THRUSTS,
-                ALL_SLICES,
-                ALL_WORK,
-                WORK_STATES,
-                CLOSED_SLICES,
-                COMMIT,
-            );
+            let site = dacc_access::render_site(ALL, ALL_SPECS);
             if let Err(error) = write_site(dir, &site) {
                 eprintln!("markdown: {error}");
                 std::process::exit(1);

@@ -1,10 +1,9 @@
 //! Markdown-сайт реестра для mdBook (решение 21): страницы из скомпилированного
 //! реестра, а не из повторного разбора. Рендерер отдаёт оглавление и страницы;
-//! HTML собирает mdBook, публикацию делает CI.
+//! HTML собирает mdBook, публикацию делает CI. План с состояниями — отдельная
+//! проекция (дорожная карта), а не часть статичного сайта.
 
-use dacc_core::{SliceRef, WorkRef};
 use dacc_knowledge::{ArchitectureDecision, DocStatus, DomainSpecification};
-use dacc_work::{Slice, Thrust, WorkItem, WorkState};
 use std::fmt::Write as _;
 
 /// Сайт реестра: оглавление mdBook и страницы Markdown.
@@ -15,19 +14,12 @@ pub struct Site {
     pub pages: Vec<(String, String)>,
 }
 
-/// Рендерит сайт реестра: вступление с дорожной картой, страницы решений и
-/// страницы спецификаций, и оглавление mdBook. Дорожная карта несёт коммит
-/// сборки — то же требование решения 21 для каждой проекции.
-#[allow(clippy::too_many_arguments)]
+/// Рендерит сайт реестра: вступление, страницы решений и страницы спецификаций,
+/// и оглавление mdBook. Сайт статичен — ни коммита сборки, ни состояний работ,
+/// поэтому закоммиченный Markdown совпадает с порождённым из реестра.
 pub fn render_site(
     decisions: &[(&str, &ArchitectureDecision)],
     specs: &[(&str, &DomainSpecification)],
-    thrusts: &[&Thrust],
-    slices: &[&Slice],
-    work: &[&WorkItem],
-    states: &[(WorkRef, WorkState)],
-    closed: &[SliceRef],
-    commit: &str,
 ) -> Site {
     let mut decisions: Vec<_> = decisions.to_vec();
     decisions.sort_by_key(|(id, _)| *id);
@@ -36,17 +28,15 @@ pub fn render_site(
 
     let mut pages = Vec::new();
 
-    // Вступление и дорожная карта на первой странице.
-    let mut readme = String::from("# DACC\n\n");
-    readme.push_str(
-        "Методология, применённая к себе: решения, спецификации, план и журнал \
-         записаны в компилируемом реестре и отдаются проекцией.\n\n",
-    );
-    readme.push_str("# Roadmap\n\n");
-    readme.push_str(&dacc_work::roadmap::render_roadmap(
-        thrusts, slices, work, states, closed, commit,
+    // Вступление.
+    pages.push((
+        "README.md".to_owned(),
+        String::from(
+            "# DACC\n\nМетодология, применённая к себе: решения, спецификации, план и \
+             журнал записаны в компилируемом реестре и отдаются проекцией. Решения и \
+             спецификации — ниже; план с состояниями — дорожная карта.\n",
+        ),
     ));
-    pages.push(("README.md".to_owned(), readme));
 
     // Раздел решений.
     pages.push((
@@ -171,16 +161,7 @@ mod tests {
     fn site_renders_summary_and_pages() {
         let d = decision("Проекция реестра");
         let s = spec("Слой доступа");
-        let site = render_site(
-            &[("adr-2026-021", &d)],
-            &[("rfc-2026-003", &s)],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            "abc123",
-        );
+        let site = render_site(&[("adr-2026-021", &d)], &[("rfc-2026-003", &s)]);
 
         assert!(site.summary.contains("- [Introduction](README.md)"));
         assert!(site
@@ -188,7 +169,7 @@ mod tests {
             .contains("- [adr-2026-021 — Проекция реестра](decisions/adr-2026-021.md)"));
 
         let readme = page(&site, "README.md");
-        assert!(readme.contains("Built from commit `abc123`."));
+        assert!(readme.contains("# DACC"));
 
         let adr = page(&site, "decisions/adr-2026-021.md");
         assert!(adr.contains("# adr-2026-021 — Проекция реестра"));
