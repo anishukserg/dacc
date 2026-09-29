@@ -235,9 +235,17 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let area = work.area(id)?;
     let at = time::now();
     // Решение 42: started пишется здесь же, вместе с gate и landed — церемония
-    // перестаёт быть отдельным коммитом за событие started.
-    let started = Event::new(Subject::Work(number.clone()), at.clone(), Kind::Started);
-    let gate = Event::new(
+    // перестаёт быть отдельным коммитом за событие started. Работа, начатая
+    // прежним work start, уже несёт started, и второй не пишется.
+    let mut events = Vec::new();
+    if stage == Stage::Planned {
+        events.push(Event::new(
+            Subject::Work(number.clone()),
+            at.clone(),
+            Kind::Started,
+        ));
+    }
+    events.push(Event::new(
         Subject::Work(number.clone()),
         at.clone(),
         Kind::Gate {
@@ -245,8 +253,8 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             tree: tree.clone(),
             verdict,
         },
-    );
-    let landed = Event::new(
+    ));
+    events.push(Event::new(
         Subject::Work(number),
         at,
         Kind::Landed {
@@ -254,14 +262,14 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             tree,
             evidence: Evidence::Gate,
         },
-    );
+    ));
     let message = message(
         &config::fill(&context.repo.config.subject_landed, area, id),
         &format!("{}\nCommit {}.", work.title, short(&commit)),
         &trailer,
         trailers,
     );
-    record_and_commit(&context.repo, vec![started, gate, landed], &message)
+    record_and_commit(&context.repo, events, &message)
 }
 
 fn abandon(id: &str, reason: &str, trailers: &[String]) -> Result<u8, Refusal> {
