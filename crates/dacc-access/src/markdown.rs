@@ -78,18 +78,18 @@ fn render_decision(id: &str, d: &ArchitectureDecision) -> String {
     let _ = writeln!(out, "{}\n", d.context);
     let _ = writeln!(out, "## Decision\n\n{}\n", d.decision);
     if !d.trade_offs.is_empty() {
-        out.push_str("## Trade-offs\n\n");
+        out.push_str("<details>\n<summary>Trade-offs</summary>\n\n");
         for t in d.trade_offs {
             let _ = writeln!(out, "- {t}");
         }
-        out.push('\n');
+        out.push_str("\n</details>\n");
     }
     if !d.constraints.is_empty() {
-        out.push_str("## Constraints\n\n");
+        out.push_str("<details>\n<summary>Constraints</summary>\n\n");
         for c in d.constraints {
             let _ = writeln!(out, "- {c}");
         }
-        out.push('\n');
+        out.push_str("\n</details>\n");
     }
     out
 }
@@ -98,8 +98,16 @@ fn render_decision(id: &str, d: &ArchitectureDecision) -> String {
 fn render_spec(id: &str, s: &DomainSpecification) -> String {
     let mut out = format!("# {id} — {}\n\n", s.title);
     let _ = writeln!(out, "{}\n", s.goal);
-    let _ = writeln!(out, "## Input contract\n\n{}\n", s.input_contract);
-    let _ = writeln!(out, "## Output contract\n\n{}\n", s.output_contract);
+    let _ = writeln!(
+        out,
+        "<details>\n<summary>Input contract</summary>\n\n{}\n\n</details>\n",
+        s.input_contract
+    );
+    let _ = writeln!(
+        out,
+        "<details>\n<summary>Output contract</summary>\n\n{}\n\n</details>\n",
+        s.output_contract
+    );
     out.push_str("## Invariants\n\n");
     for invariant in s.invariants.iter() {
         let _ = writeln!(out, "- {}", invariant.as_str());
