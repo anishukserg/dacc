@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Имя символа в прозе — инлайн-ссылка на якорь, а не свободный текст",
+    title: "Инлайн-ссылка на якорь",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],

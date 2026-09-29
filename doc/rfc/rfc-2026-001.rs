@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
-    title: "Слой знания: реестр решений, спецификаций и разметки кода",
+    title: "Слой знания",
     status: DocStatus::Active,
     channel: channel::Public,
     target: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],

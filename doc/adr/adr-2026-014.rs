@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Правила коммитов, калитка и хуки — инструмент на Rust без зависимостей, по соглашениям",
+    title: "Инструмент на Rust",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],

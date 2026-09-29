@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "gate_command — собственный гейт проекта вместо шагов cargo, а не вдобавок к ним",
+    title: "gate_command заменяет шаги",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],

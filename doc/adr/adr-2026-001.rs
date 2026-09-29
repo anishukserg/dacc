@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Ссылка между документами — путь к константе, а не число",
+    title: "Ссылка — путь к константе",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],

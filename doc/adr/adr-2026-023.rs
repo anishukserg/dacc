@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Идентификатор документа знания — slug из имени файла, а не число в макросе",
+    title: "Slug-идентификатор знания",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],

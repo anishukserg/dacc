@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Журнал работы: событие — файл плоского TOML, свёртка при сборке реестра, доказательство по хэшу дерева без журнала",
+    title: "Журнал работы",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],

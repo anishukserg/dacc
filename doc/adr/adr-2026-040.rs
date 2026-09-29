@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Ратчет миграции: baseline известного долга, блокируются только новые нарушения",
+    title: "Ратчет миграции",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Scan), taxon!(Subsystem, Methodology)],

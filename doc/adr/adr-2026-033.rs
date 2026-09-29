@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Ярусы калитки: ярус коммита, полный ярус закрытия работы и бюджет",
+    title: "Ярусы калитки",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],

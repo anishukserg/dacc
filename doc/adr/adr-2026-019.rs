@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Текст инструмента — английский: вывод, создаваемые коммиты, порождённые файлы",
+    title: "Текст инструмента — английский",
     status: DocStatus::SupersededBy(crate::adr::adr_2026_022),
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli)],

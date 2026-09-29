@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
-    title: "Слой доступа: интроспекция вместо поиска по файлам",
+    title: "Слой доступа",
     status: DocStatus::Draft,
     channel: channel::Public,
     target: &[taxon!(Subsystem, Access), taxon!(Subsystem, Cli)],

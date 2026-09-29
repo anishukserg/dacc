@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Идентификатор слоя работы — slug из имени файла, а не число в макросе",
+    title: "Slug-идентификатор работы",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Scan), taxon!(Subsystem, Cli)],

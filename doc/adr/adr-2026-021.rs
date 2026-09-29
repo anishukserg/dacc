@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Проекция реестра: экспорт из скомпилированного реестра, каналы публикации, сайт на mdBook",
+    title: "Проекция реестра",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Access), taxon!(Subsystem, Methodology)],

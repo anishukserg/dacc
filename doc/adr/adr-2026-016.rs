@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Порождённый код реестра держит строгий профиль lints продукта",
+    title: "Строгий профиль lints",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[

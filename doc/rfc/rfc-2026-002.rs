@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
-    title: "Слой работы: происхождение, обратимость, гейты, журнал",
+    title: "Слой работы",
     status: DocStatus::Draft,
     channel: channel::Public,
     target: &[taxon!(Subsystem, Work)],

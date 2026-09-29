@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Раскладка реестра — библиотечная точка входа, а не копируемый шаблон",
+    title: "Раскладка реестра",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Scan), taxon!(Subsystem, Cli)],

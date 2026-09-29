@@ -3,7 +3,7 @@ use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
-    title: "Обязательство без исполнителя — отдельная запись реестра с условием погашения",
+    title: "Обязательство — отдельная запись",
     status: DocStatus::Active,
     channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Knowledge)],
