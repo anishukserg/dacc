@@ -3,7 +3,13 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use dacc_core::date;
+
 /// Строка — время события в формате журнала.
+///
+/// Формат упорядочивается сравнением строк; календарную проверку даты делает
+/// `dacc_core::date::is_valid_ymd` — тот же валидатор, что и макрос `date!`,
+/// поэтому «31 февраля» невозможна ни в реестре, ни в журнале.
 pub fn is_timestamp(text: &str) -> bool {
     let bytes = text.as_bytes();
     if bytes.len() != 20 {
@@ -27,24 +33,17 @@ pub fn is_timestamp(text: &str) -> bool {
             .then(|| part.parse().ok())
             .flatten()
     };
-    matches!(
-        (
-            number(5, 7),
-            number(8, 10),
-            number(11, 13),
-            number(14, 16),
-            number(17, 19),
-            number(0, 4)
-        ),
-        (
-            Some(1..=12),
-            Some(1..=31),
-            Some(0..=23),
-            Some(0..=59),
-            Some(0..=60),
-            Some(_)
-        )
-    )
+    let (Some(year), Some(month), Some(day), Some(hour), Some(minute), Some(second)) = (
+        number(0, 4),
+        number(5, 7),
+        number(8, 10),
+        number(11, 13),
+        number(14, 16),
+        number(17, 19),
+    ) else {
+        return false;
+    };
+    hour <= 23 && minute <= 59 && second <= 60 && date::is_valid_ymd(year as i32, month, day)
 }
 
 /// Текущее время в формате журнала.
@@ -111,8 +110,12 @@ mod tests {
             "2026-09-11T24:00:00Z",
             "2026-09-11T03:15:00+03:00",
             "26-09-11T03:15:00Z",
+            "2026-02-31T03:15:00Z",
+            "2026-02-29T03:15:00Z",
+            "2026-04-31T03:15:00Z",
         ] {
             assert!(!is_timestamp(text), "{text}");
         }
+        assert!(is_timestamp("2024-02-29T03:15:00Z"));
     }
 }

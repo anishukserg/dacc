@@ -136,8 +136,7 @@ fn rank(kind: &Kind) -> u8 {
 fn close_slice(journal: &mut Journal, slice: &str, event: &Event) -> Result<(), String> {
     if let Some(previous) = journal.closed_slices.get(slice) {
         return Err(format!(
-            "slice {} is already closed by event {previous}",
-            event.subject.id()
+            "slice {slice} is already closed by event {previous}"
         ));
     }
     journal

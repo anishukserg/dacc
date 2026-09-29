@@ -147,6 +147,19 @@ pub fn emit_work_checks(work: &[ScannedSlug]) -> String {
     out
 }
 
+/// Утверждение «каждое обязательство погашено приземлённой работой с
+/// происхождением `WorkOrigin::Obligation`» (решение 35).
+/// Порождается, когда в реестре есть обязательства: правило связывает
+/// обязательства, работы и свёртку журнала, а вычисляет его компилятор.
+pub fn emit_obligation_checks(obligations: &[ScannedSlug]) -> String {
+    if obligations.is_empty() {
+        return String::new();
+    }
+    String::from(
+        "// Every obligation is redeemed by a landed work with WorkOrigin::Obligation — the compiler evaluates it (decision 35).\nconst _: () = assert!(dacc_work::obligations_redeemed(ALL_OBLIGATIONS, ALL_WORK, WORK_STATES), \"dacc: an obligation is not redeemed by a landed discharge work\");\n",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,5 +232,22 @@ mod tests {
             code.contains("pub static ALL_OBLIGATIONS: &[&dacc_work::Obligation]"),
             "{code}"
         );
+    }
+
+    /// Решение 35: скан порождает утверждение погашения только при наличии
+    /// обязательств; пустой реестр обязательств утверждения не порождает.
+    #[test]
+    fn emits_obligation_redemption_check_only_when_needed() {
+        let entry = ScannedSlug {
+            slug: "o-fix-x".into(),
+            status: Status::Draft,
+            file: "/x/o-fix-x.rs".into(),
+        };
+        let code = emit_obligation_checks(&[entry]);
+        assert!(
+            code.contains("obligations_redeemed(ALL_OBLIGATIONS, ALL_WORK, WORK_STATES)"),
+            "{code}"
+        );
+        assert!(emit_obligation_checks(&[]).is_empty());
     }
 }

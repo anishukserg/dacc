@@ -5,6 +5,7 @@
 //! читал структуру, а не разбирал предложение.
 
 use std::ffi::OsString;
+use std::fmt::Write as _;
 
 /// Формат вывода команды, выносящей вердикт.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -54,7 +55,9 @@ pub fn string(value: &str) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x20 || c == '\u{7f}' => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
             c => out.push(c),
         }
     }

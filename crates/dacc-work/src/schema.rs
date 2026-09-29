@@ -173,13 +173,13 @@ const fn slug_eq(a: &str, b: &str) -> bool {
 /// утверждение, и нарушение — ошибка вычисления константы, а не находка
 /// валидатора. Так молчаливое забывание обязательства невыразимо.
 pub const fn obligations_redeemed(
-    obligations: &[(&str, &Obligation)],
+    obligations: &[&Obligation],
     work: &[&WorkItem],
     states: &[(WorkRef, WorkState)],
 ) -> bool {
     let mut i = 0;
     while i < obligations.len() {
-        if !redeemed(obligations[i].0, work, states) {
+        if !redeemed(obligations[i].id, work, states) {
             return false;
         }
         i += 1;
@@ -252,7 +252,7 @@ mod tests {
             outcome: NonEmptyStr::new("готово"),
         };
 
-        let obligations = [("o-fix-x", &obligation)];
+        let obligations = [&obligation];
         let work = [&work];
 
         let landed = [(WorkRef::__from_scan("w-001"), WorkState::Landed)];

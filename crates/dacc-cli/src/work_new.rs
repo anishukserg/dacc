@@ -74,14 +74,39 @@ pub fn work_new(words: &[String]) -> Result<u8, crate::work::Refusal> {
             format!("{} not written: {error}", path.display()),
         )
     })?;
-    record_measurement(&context.repo.root, &spec.id, spec.cycles)?;
+    // Замер пишется после файла работы; при отказе замера файл работы
+    // откатывается — единица работы не остаётся в дереве наполовину.
+    if let Err(problem) = record_measurement(
+        &context.repo.root,
+        &context.repo.config.doc,
+        &spec.id,
+        spec.cycles,
+    ) {
+        let _ = fs::remove_file(&path);
+        return Err(problem);
+    }
     println!("WORK NEW {} {}", spec.id, path.display());
     Ok(0)
 }
 
 /// Замер трения (решение 5): одна строка на единицу — время, slug, циклы сборки.
-fn record_measurement(root: &Path, id: &str, cycles: u32) -> Result<(), crate::work::Refusal> {
-    let path = root.join("doc").join("work-new.tsv");
+/// Пишется в `<doc>/work-new.tsv`, где `<doc>` — корень реестра из настройки:
+/// замер живёт рядом с единицами работы, а не в захардкоженном каталоге.
+fn record_measurement(
+    root: &Path,
+    doc: &str,
+    id: &str,
+    cycles: u32,
+) -> Result<(), crate::work::Refusal> {
+    let path = root.join(doc).join("work-new.tsv");
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).map_err(|error| {
+            usage(
+                code::EVENT_NOT_WRITTEN,
+                format!("{} not created: {error}", dir.display()),
+            )
+        })?;
+    }
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
