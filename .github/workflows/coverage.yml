@@ -1,0 +1,54 @@
+# Покрытие (cargo-llvm-cov → codecov): строки считает cargo-llvm-cov, счёт
+# публикуется в codecov, откуда плашку в README читает codecov.io. Запускается
+# на push в master и на pull request. Actions — только GitHub, по хэшу; загрузка
+# в codecov — шаг curl, а не стороннее действие (решение 18).
+name: coverage
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  RUSTUP_AUTO_INSTALL: "0"
+
+jobs:
+  coverage:
+    name: покрытие
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Вся история
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Тулчейн разработки и llvm-tools
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal --component llvm-tools-preview
+          rustup toolchain list
+
+      - name: Покрытие cargo-llvm-cov
+        run: |
+          cargo install cargo-llvm-cov --locked
+          cargo llvm-cov --workspace --lcov --output-path lcov.info
+
+      - name: Публикация в codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          if [ -z "$CODECOV_TOKEN" ]; then
+            echo "секрета CODECOV_TOKEN нет — публикация покрытия пропущена"
+            exit 0
+          fi
+          curl -sSfL -o codecov https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov -t "$CODECOV_TOKEN" -f lcov.info

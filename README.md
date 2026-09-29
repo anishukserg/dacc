@@ -6,6 +6,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/dacc?label=crates.io&color=blue)](https://crates.io/crates/dacc)
 [![gate](https://github.com/anishukserg/dacc/actions/workflows/gate.yml/badge.svg)](https://github.com/anishukserg/dacc/actions/workflows/gate.yml)
+[![coverage](https://codecov.io/gh/anishukserg/dacc/branch/master/graph/badge.svg)](https://codecov.io/gh/anishukserg/dacc)
 [![mutants](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fanishukserg%2Fdacc%2Fmutation-badge%2Fmutation.json&label=mutants)](https://github.com/anishukserg/dacc/actions/workflows/mutation.yml)
 
 ## С чего читать
