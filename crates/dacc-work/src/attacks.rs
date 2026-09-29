@@ -130,3 +130,28 @@
 //! };
 //! const _: () = assert!(dacc_work::toil_within_local_radius(&WORK));
 //! ```
+//!
+//! ## Обязательство без критериев решения
+//!
+//! ```compile_fail,E0063
+//! use dacc_core::NonEmptyStr;
+//! use dacc_work::Obligation;
+//! static OBLIGATION: Obligation = Obligation {
+//!     id: "o-fix-x",
+//!     title: NonEmptyStr::new("Перейти на …"),
+//!     discharged_when: NonEmptyStr::new("когда …"),
+//! };
+//! ```
+//!
+//! Контроль — те же поля и критерий решения:
+//!
+//! ```
+//! use dacc_core::{nonempty_str, NonEmptyStr};
+//! use dacc_work::Obligation;
+//! static OBLIGATION: Obligation = Obligation {
+//!     id: "o-fix-x",
+//!     title: NonEmptyStr::new("Перейти на …"),
+//!     discharged_when: NonEmptyStr::new("когда …"),
+//!     criteria: nonempty_str!["названа мера решения"],
+//! };
+//! ```

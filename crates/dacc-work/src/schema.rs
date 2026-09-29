@@ -2,7 +2,7 @@
 //! реестров; правило, выразимое типом, валидатором не проверяется.
 
 use dacc_core::{
-    axis::Subsystem, AdrRef, BlastRadius, NonEmptyStr, ObligationRef, RfcRef, SliceRef,
+    axis::Subsystem, AdrRef, BlastRadius, NonEmpty, NonEmptyStr, ObligationRef, RfcRef, SliceRef,
     SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 use std::num::NonZeroU16;
@@ -55,6 +55,9 @@ pub struct Obligation {
     pub title: NonEmptyStr,
     /// Условие погашения — обязательное: без него запись не компилируется.
     pub discharged_when: NonEmptyStr,
+    /// Критерии решения — обязательные и непустые по типу: вопрос не погашается
+    /// «когда-нибудь» без названной меры, по которой он считается решённым.
+    pub criteria: NonEmpty<NonEmptyStr>,
 }
 
 /// Происхождение работы: тип задачи и её обоснование — одно поле.
@@ -236,9 +239,18 @@ mod tests {
             id: "o-fix-x",
             title: NonEmptyStr::new("Перейти на …"),
             discharged_when: NonEmptyStr::new("когда …"),
+            criteria: dacc_core::nonempty_str!["названа мера решения"],
         };
         assert_eq!(obligation.id, "o-fix-x");
         assert_eq!(obligation.discharged_when.as_str(), "когда …");
+        assert_eq!(
+            obligation
+                .criteria
+                .iter()
+                .map(NonEmptyStr::as_str)
+                .collect::<Vec<_>>(),
+            ["названа мера решения"]
+        );
 
         let origin = WorkOrigin::Obligation(ObligationRef::__from_scan("o-fix-x"));
         assert!(origin.lands_code());
@@ -252,6 +264,7 @@ mod tests {
             id: "o-fix-x",
             title: NonEmptyStr::new("Перейти на …"),
             discharged_when: NonEmptyStr::new("когда …"),
+            criteria: dacc_core::nonempty_str!["названа мера решения"],
         };
         let work = WorkItem {
             id: "w-001",

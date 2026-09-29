@@ -55,7 +55,8 @@ macro_rules! work {
 
 /// Регистрация обязательства. Файл обязан называться по slug-идентификатору
 /// (`o-fix-x.rs`), а slug — первый аргумент. Условие погашения
-/// `discharged_when` обязательно (решение 35).
+/// `discharged_when` и критерии решения `criteria` обязательны (решение 35):
+/// вопрос не погашается «когда-нибудь» без названной меры.
 #[macro_export]
 macro_rules! obligation {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
