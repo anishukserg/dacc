@@ -18,6 +18,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dacc"
+version = "0.2.0"
+dependencies = [
+ "dacc-access",
+ "dacc-core",
+ "dacc-journal",
+ "dacc-knowledge",
+ "dacc-scan",
+ "dacc-work",
+]
+
+[[package]]
 name = "dacc-access"
 version = "0.2.0"
 dependencies = [

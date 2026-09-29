@@ -1,0 +1,22 @@
+[package]
+name = "dacc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "DACC: фасадный крейт — единая точка входа к методологии"
+readme = "README.md"
+keywords = ["methodology", "planning", "adr", "registry", "compile-time"]
+categories = ["development-tools"]
+
+[lints]
+workspace = true
+
+[dependencies]
+dacc-core = { workspace = true }
+dacc-journal = { workspace = true }
+dacc-knowledge = { workspace = true }
+dacc-work = { workspace = true }
+dacc-scan = { workspace = true }
+dacc-access = { workspace = true }
