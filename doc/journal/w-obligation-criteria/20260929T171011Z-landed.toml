@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-obligation-criteria"
+at = "2026-09-29T17:10:11Z"
+commit = "a14a006c90fb7c139297bbd527051447318f38b8"
+tree = "7d2360fd95e15d6138882d4861ac17c6d56087a8"
