@@ -32,6 +32,8 @@ include!(concat!(env!("OUT_DIR"), "/commit.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::Path;
 
     /// Непустота авторов и инвариантов обеспечена типом; здесь проверяется
     /// только то, чего тип не выражает: реестры не пусты, у записей есть
@@ -104,5 +106,32 @@ mod tests {
         let xml = dacc_access::export_slice(ALL, ALL_SPECS, "проекция", COMMIT);
         assert!(xml.contains("<registry version="), "{xml}");
         assert!(xml.contains("<decision id=\"adr-2026-021\""), "{xml}");
+    }
+
+    /// Сайт (решение 21) не расходится с реестром: порождённый из констант
+    /// Markdown совпадает с закоммиченным site/src/.
+    #[test]
+    fn site_is_fresh() {
+        let site = dacc_access::render_site(
+            ALL,
+            ALL_SPECS,
+            ALL_THRUSTS,
+            ALL_SLICES,
+            ALL_WORK,
+            WORK_STATES,
+            CLOSED_SLICES,
+            COMMIT,
+        );
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("корень репозитория")
+            .join("site/src");
+        let summary = fs::read_to_string(root.join("SUMMARY.md")).expect("SUMMARY.md закоммичен");
+        assert_eq!(site.summary, summary, "SUMMARY.md разошёлся с реестром");
+        for (path, content) in &site.pages {
+            let committed = fs::read_to_string(root.join(path))
+                .unwrap_or_else(|_| panic!("страница {path} закоммичена"));
+            assert_eq!(*content, committed, "страница {path} разошлась с реестром");
+        }
     }
 }

@@ -6,7 +6,9 @@
 //! вручную, без внешних зависимостей (решение 14).
 
 pub mod json;
+pub mod markdown;
 pub mod xml;
 
 pub use json::export_graph;
+pub use markdown::{render_site, Site};
 pub use xml::export_slice;
