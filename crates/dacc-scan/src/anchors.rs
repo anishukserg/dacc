@@ -13,7 +13,7 @@
 //! ошибка в разметке отвергается и при сборке продукта, и при скане, а не
 //! превращается молча в отсутствующую или иначе отображаемую разметку.
 
-use dacc_core::anchor_rules::{check_anchor_mode, check_slug_id, slug_ident};
+use dacc_core::anchor_rules::{check_anchor_mode, check_slug_id, slug_ident, ANCHOR_MODES};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use std::{fs, path::Path};
@@ -44,22 +44,30 @@ pub enum AnchorMode {
 }
 
 impl AnchorMode {
-    fn parse(s: &str) -> Result<Self, String> {
-        check_anchor_mode(s)?;
-        Ok(match s {
-            "embed" => Self::Embed,
-            "snippet" => Self::Snippet,
-            // Всё, кроме "ref", уже отвергнуто проверкой выше.
-            _ => Self::Ref,
-        })
+    /// Вариант по индексу в [`ANCHOR_MODES`]: единственное место, где порядок
+    /// вариантов связывается с порядком строк режима.
+    const fn from_index(i: usize) -> Self {
+        match i {
+            0 => Self::Ref,
+            1 => Self::Embed,
+            // Всё, кроме ref/embed/snippet, уже отвергнуто `check_anchor_mode`.
+            _ => Self::Snippet,
+        }
     }
 
+    fn parse(s: &str) -> Result<Self, String> {
+        check_anchor_mode(s)?;
+        let i = ANCHOR_MODES
+            .iter()
+            .position(|m| *m == s)
+            .expect("check_anchor_mode accepted the mode, so it is in ANCHOR_MODES");
+        Ok(Self::from_index(i))
+    }
+
+    /// Строка режима — из [`ANCHOR_MODES`], а не заново записанный литерал:
+    /// форма правила живёт в одном месте, и копия не расходится.
     pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Ref => "ref",
-            Self::Embed => "embed",
-            Self::Snippet => "snippet",
-        }
+        ANCHOR_MODES[self as usize]
     }
 }
 
@@ -393,6 +401,21 @@ impl PlanIR {
         let a = found.iter().find(|a| a.id == "plan-ir").unwrap();
         assert_eq!(a.ident, "plan_ir");
         assert_eq!(a.mode, AnchorMode::Snippet);
+    }
+
+    /// Форма правила режима живёт в одном месте ([`ANCHOR_MODES`]): строки
+    /// перечисления не записаны второй раз, а отображаются в массив порядком
+    /// вариантов. Круговая проверка ловит расхождение — копию, а не находку
+    /// ревью.
+    #[test]
+    fn anchor_mode_strings_come_from_one_place() {
+        for (i, &s) in ANCHOR_MODES.iter().enumerate() {
+            let mode = AnchorMode::parse(s).unwrap();
+            assert_eq!(mode.as_str(), s, "режим {i} разошёлся с ANCHOR_MODES");
+        }
+        assert_eq!(AnchorMode::Ref.as_str(), "ref");
+        assert_eq!(AnchorMode::Embed.as_str(), "embed");
+        assert_eq!(AnchorMode::Snippet.as_str(), "snippet");
     }
 
     #[test]
