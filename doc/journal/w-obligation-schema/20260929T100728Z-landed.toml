@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-obligation-schema"
+at = "2026-09-29T10:07:28Z"
+commit = "70dd62e5fbb606a6dc79aad8f57e1848c1669506"
+tree = "6eab83e743e90ddb2ebba21f0b14052850bf2c19"
