@@ -102,6 +102,15 @@ pub fn emit_journal(
             );
         }
     }
+
+    // Каждое обязательство погашено приземлённой работой — компилятор это
+    // вычисляет (решение 35). Молчаливое забывание обязательства невыразимо.
+    out.push_str(
+        "\n// Every obligation is redeemed by a landed work — the compiler evaluates it.\\n",
+    );
+    out.push_str(
+        "const _: () = assert!(dacc_work::obligations_redeemed(ALL_OBLIGATIONS, ALL_WORK, WORK_STATES), \"dacc: an obligation is unredeemed: no landed work discharges it\");\n",
+    );
     out
 }
 

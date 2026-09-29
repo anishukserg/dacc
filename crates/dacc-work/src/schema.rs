@@ -3,7 +3,7 @@
 
 use dacc_core::{
     axis::Subsystem, AdrRef, BlastRadius, NonEmptyStr, ObligationRef, RfcRef, SliceRef,
-    SupersededRef, Taxon, ThrustRef,
+    SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 use std::num::NonZeroU16;
 
@@ -168,10 +168,54 @@ const fn slug_eq(a: &str, b: &str) -> bool {
     true
 }
 
+/// Каждое обязательство погашено приземлённой работой с происхождением
+/// [`WorkOrigin::Obligation`] (решение 35). Функция `const`: скан порождает
+/// утверждение, и нарушение — ошибка вычисления константы, а не находка
+/// валидатора. Так молчаливое забывание обязательства невыразимо.
+pub const fn obligations_redeemed(
+    obligations: &[(&str, &Obligation)],
+    work: &[&WorkItem],
+    states: &[(WorkRef, WorkState)],
+) -> bool {
+    let mut i = 0;
+    while i < obligations.len() {
+        if !redeemed(obligations[i].0, work, states) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+const fn redeemed(slug: &str, work: &[&WorkItem], states: &[(WorkRef, WorkState)]) -> bool {
+    let mut j = 0;
+    while j < work.len() {
+        if let WorkOrigin::Obligation(reference) = work[j].origin {
+            if slug_eq(slug, reference.as_str()) {
+                let mut k = 0;
+                while k < states.len() {
+                    if slug_eq(work[j].id, states[k].0.as_str()) {
+                        return matches!(
+                            states[k].1,
+                            WorkState::Landed | WorkState::LandedFromHistory
+                        );
+                    }
+                    k += 1;
+                }
+                return false;
+            }
+        }
+        j += 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dacc_core::NonEmptyStr;
+    use dacc_core::{BlastRadius, NonEmptyStr, SliceRef, WorkRef};
+
+    dacc_core::declare_taxonomy! { Subsystem => [Core] }
 
     /// Решение 35: обязательство — отдельная запись, погашение — происхождение
     /// работы, которое приземляет код.
@@ -187,5 +231,34 @@ mod tests {
 
         let origin = WorkOrigin::Obligation(ObligationRef::__from_scan("o-fix-x"));
         assert!(origin.lands_code());
+    }
+
+    /// Решение 35: обязательство погашено только приземлённой работой с
+    /// происхождением `WorkOrigin::Obligation`.
+    #[test]
+    fn obligations_are_redeemed_only_by_a_landed_work() {
+        let obligation = Obligation {
+            id: "o-fix-x",
+            title: NonEmptyStr::new("Перейти на …"),
+            discharged_when: NonEmptyStr::new("когда …"),
+        };
+        let work = WorkItem {
+            id: "w-001",
+            title: NonEmptyStr::new("Погасить o-fix-x"),
+            slice: SliceRef::__from_scan("s-003"),
+            origin: WorkOrigin::Obligation(ObligationRef::__from_scan("o-fix-x")),
+            taxon: Subsystem::Core,
+            radius: BlastRadius::Local,
+            outcome: NonEmptyStr::new("готово"),
+        };
+
+        let obligations = [("o-fix-x", &obligation)];
+        let work = [&work];
+
+        let landed = [(WorkRef::__from_scan("w-001"), WorkState::Landed)];
+        assert!(obligations_redeemed(&obligations, &work, &landed));
+
+        let planned = [(WorkRef::__from_scan("w-001"), WorkState::Planned)];
+        assert!(!obligations_redeemed(&obligations, &work, &planned));
     }
 }

@@ -19,7 +19,8 @@ pub mod roadmap;
 mod schema;
 
 pub use schema::{
-    radius_within_slice, InquiryOutcome, Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
+    obligations_redeemed, radius_within_slice, InquiryOutcome, Obligation, Slice, Thrust, WorkItem,
+    WorkOrigin, WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
