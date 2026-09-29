@@ -84,7 +84,7 @@ fn the_full_gate_lands_work_from_a_linked_worktree() {
     assert_eq!(run.code, 0, "{}", run.output());
 
     // Полный ярус исполняется в копии, а не в главной рабочей копии, и пишет
-    // события gate и landed в дерево копии.
+    // события started, gate и landed в дерево копии (решение 42).
     let run = repo.tool_in(&tree, &["work", "land", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());

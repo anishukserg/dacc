@@ -64,24 +64,17 @@ fn assert_ok(run: &Run) {
 #[test]
 fn start_land_drop_and_close_write_events_and_commit_them() {
     let repo = planned_repo("work-lifecycle");
-    let run = repo.tool(&[
-        "work",
-        "start",
-        "w-001",
-        "--trailer",
-        "Co-Authored-By: Проба <proba@localhost>",
-    ]);
-    assert_ok(&run);
-    assert!(state_of(&repo, "w-001").contains("started"));
-    let body = repo.git(&["log", "-1", "--format=%B"]);
+    // Решение 42: work start больше не пишет отдельный коммит — событие started
+    // появляется в коммите work land.
+    let run = repo.tool(&["work", "start", "w-001"]);
+    assert_eq!(run.code, 0, "{}", run.output());
     assert!(
-        body.starts_with("[PLAN](cli): work w-001 started"),
-        "{body}"
+        run.stdout
+            .contains("work w-001 is planned; it will be recorded when it lands"),
+        "{}",
+        run.output()
     );
-    assert!(
-        body.contains("Dacc-Work: w-001\nCo-Authored-By: Проба"),
-        "{body}"
-    );
+    assert!(state_of(&repo, "w-001").contains("planned"));
 
     // Без крейта полный ярус калитки не проходит, и приземление отвергается.
     let run = repo.tool(&["work", "land", "w-001"]);
@@ -89,7 +82,8 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
     assert!(run.verdict().contains("full gate tier"), "{}", run.output());
 
     // Минимальный крейт, на котором полный ярус проходит, — приземление пишет
-    // события gate и landed, и вердикт gate несёт msrv полного яруса.
+    // события started, gate и landed одним коммитом, и вердикт gate несёт msrv
+    // полного яруса.
     minimal_crate(&repo);
     repo.git(&["add", "-A"]);
     repo.git(&[
@@ -104,7 +98,9 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
     assert_ok(&run);
     let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
     assert!(
-        files.contains("-gate.toml") && files.contains("-landed.toml"),
+        files.contains("-started.toml")
+            && files.contains("-gate.toml")
+            && files.contains("-landed.toml"),
         "{files}"
     );
     assert!(state_of(&repo, "w-001").contains("landed"));
@@ -142,11 +138,6 @@ fn illegal_requests_are_refused_before_any_event() {
     let repo = planned_repo("work-illegal");
     let head = repo.git(&["rev-parse", "HEAD"]);
     for (args, code, reason) in [
-        (
-            vec!["work", "land", "w-001"],
-            1,
-            "only a started work can be landed",
-        ),
         (vec!["work", "start", "w-009"], 1, "is not in the plan"),
         (
             vec!["work", "drop", "w-001", "--reason", " "],
@@ -166,13 +157,11 @@ fn illegal_requests_are_refused_before_any_event() {
         "отказ создал коммит"
     );
 
-    assert_ok(&repo.tool(&["work", "start", "w-001"]));
-    let run = repo.tool(&["work", "start", "w-001"]);
-    assert!(
-        run.verdict().contains("is already started"),
-        "{}",
-        run.output()
-    );
+    // Решение 42: work start не пишет коммит и не меняет стадию — повторный
+    // start проходит и ничего не пишет.
+    assert_eq!(repo.tool(&["work", "start", "w-001"]).code, 0);
+    assert_eq!(repo.tool(&["work", "start", "w-001"]).code, 0);
+    assert!(state_of(&repo, "w-001").contains("planned"));
 
     // Коммит без трейлера этой работы не приземляет её: основание проверяется до
     // полного яруса.

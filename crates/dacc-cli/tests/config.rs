@@ -129,31 +129,23 @@ fn configured_types_and_limit_replace_the_conventions() {
 }
 
 #[test]
-fn work_start_writes_into_the_configured_registry() {
+fn work_start_validates_without_a_separate_commit() {
     let repo = configured_repo("config-work-start");
+    let head = repo.git(&["rev-parse", "HEAD"]);
     let run = repo.tool(&["work", "start", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
-    assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
-
-    // Тема служебного коммита — из шаблона настройки, и она сама проходит
-    // настроенные правила: коммит создал хук commit-msg.
-    let body = repo.git(&["log", "-1", "--format=%B"]);
     assert!(
-        body.starts_with("[CHANGE](cli): начата работа w-001"),
-        "{body}"
+        run.stdout
+            .contains("work w-001 is planned; it will be recorded when it lands"),
+        "{}",
+        run.output()
     );
-    assert!(body.contains("Dacc-Work: w-001"), "{body}");
-
-    let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
-    assert!(
-        files.contains("docs/registry/journal/w-001/") && files.contains("-started.toml"),
-        "{files}"
-    );
-    assert!(
-        repo.tool(&["work", "state", "w-001"])
-            .stdout
-            .contains("started"),
-        "событие не прочитано из настроенного каталога журнала"
+    // Решение 42: work start больше не пишет отдельный коммит; событие started
+    // появится в коммите work land.
+    assert_eq!(
+        repo.git(&["rev-parse", "HEAD"]),
+        head,
+        "work start создал коммит"
     );
 }
 

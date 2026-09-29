@@ -145,7 +145,7 @@ fn words(args: &[OsString]) -> Result<(Vec<String>, Vec<String>), Refusal> {
     Ok((words, trailers))
 }
 
-fn start(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
+fn start(id: &str, _trailers: &[String]) -> Result<u8, Refusal> {
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
@@ -164,15 +164,11 @@ fn start(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
             ));
         }
     }
-    let area = work.area(id)?;
-    let event = Event::new(Subject::Work(number), time::now(), Kind::Started);
-    let message = message(
-        &config::fill(&context.repo.config.subject_started, area, id),
-        &work.title,
-        &format!("Dacc-Work: {id}"),
-        trailers,
-    );
-    record_and_commit(&context.repo, vec![event], &message)
+    // Решение 42: событие started пишется командой work land вместе с gate и
+    // landed, а не отдельным коммитом. Команда start только проверяет, что
+    // работа запланирована и её срез открыт.
+    println!("work {id} is planned; it will be recorded when it lands");
+    Ok(0)
 }
 
 fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
@@ -180,14 +176,19 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     let number = work_number(id)?;
     let work = context.work(id)?;
     let stage = context.journal.stage(&number);
-    if stage != Stage::Started {
+    if stage.is_finished() {
         return Err(refused(
             code::WORK_STAGE,
-            format!(
-                "only a started work can be landed, and {id} is {}",
-                stage_text(stage)
-            ),
+            format!("work {id} is already {}", stage_text(stage)),
         ));
+    }
+    if let Some(slice) = &work.slice {
+        if let Some(file) = context.journal.closed_slices.get(slice) {
+            return Err(refused(
+                code::SLICE_ALREADY_CLOSED,
+                format!("slice {slice} of work {id} is closed by event {file}"),
+            ));
+        }
     }
     let root = &context.repo.root;
     let object = format!("{revision}^{{commit}}");
@@ -233,6 +234,9 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
     })?;
     let area = work.area(id)?;
     let at = time::now();
+    // Решение 42: started пишется здесь же, вместе с gate и landed — церемония
+    // перестаёт быть отдельным коммитом за событие started.
+    let started = Event::new(Subject::Work(number.clone()), at.clone(), Kind::Started);
     let gate = Event::new(
         Subject::Work(number.clone()),
         at.clone(),
@@ -257,7 +261,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
         &trailer,
         trailers,
     );
-    record_and_commit(&context.repo, vec![gate, landed], &message)
+    record_and_commit(&context.repo, vec![started, gate, landed], &message)
 }
 
 fn abandon(id: &str, reason: &str, trailers: &[String]) -> Result<u8, Refusal> {
