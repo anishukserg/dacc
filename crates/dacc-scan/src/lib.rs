@@ -836,6 +836,40 @@ mod tests {
         }
     }
 
+    /// Отрицательные сценарии — удалённый якорь, дубликат идентификатора и
+    /// устаревшая ссылка — пойманы, и каждый называет способ исправления.
+    #[test]
+    fn negative_scenarios_name_the_fix() {
+        // Удалённый якорь: инлайн-ссылка прозы на неразмеченный символ.
+        let mut anchors = HashSet::new();
+        anchors.insert("plan-ir");
+        let err = check_inline_links("проза `[missing-anchor]`", "f.rs", &anchors).unwrap_err();
+        assert!(err.to_string().contains("fix:"), "{err}");
+
+        // Устаревшая ссылка: конструктор скана, вызванный руками в реестре.
+        let text =
+            "dacc_knowledge::adr!(status: DocStatus::SupersededBy(dacc_core::AdrRef::__from_scan(\"adr-2026-002\")),);";
+        let err = parse_decision(text, "adr-x").unwrap_err();
+        assert!(err.to_string().contains("fix:"), "{err}");
+
+        // Дубликат идентификатора: один id разметки в двух местах.
+        let dir = std::env::temp_dir().join(format!("dacc-neg-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("a.rs"),
+            "#[doc_anchor(id = \"hdr\")]\npub struct A;\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("b.rs"),
+            "#[doc_anchor(id = \"hdr\")]\npub struct B;\n",
+        )
+        .unwrap();
+        let err = anchors::scan_anchors(&[&dir]).unwrap_err();
+        assert!(err.to_string().contains("fix:"), "{err}");
+    }
+
     /// Точка входа раскладки (решение 27): пишет все порождённые файлы реестра.
     #[test]
     fn emit_registry_writes_all_generated_files() {
