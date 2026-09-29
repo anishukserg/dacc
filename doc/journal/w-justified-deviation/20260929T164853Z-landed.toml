@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-justified-deviation"
+at = "2026-09-29T16:48:53Z"
+commit = "0b703e2e56d18a34ddc2a7e206350fb9eea6a17b"
+tree = "16bda613b548d4dd1f2cbedc192adb6b6994d865"
