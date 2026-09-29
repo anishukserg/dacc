@@ -84,23 +84,50 @@ pub enum ScanError {
     },
 }
 
+impl ScanError {
+    /// Способ исправления — обязательная подсказка «как чинить». У каждого
+    /// варианта она есть по построению, поэтому нарушение без способа
+    /// исправления невыразимо.
+    pub const fn fix(&self) -> &'static str {
+        match self {
+            Self::Io(_) => "check the path and permissions of the file",
+            Self::Parse { .. } => "correct the syntax of the file",
+            Self::IdMismatch { .. } => "rename the file to match the identifier",
+            Self::Bypass { .. } => "reference the constant instead of calling the constructor",
+            Self::Anchor { .. } => "correct the anchor id, mode or key",
+            Self::InlineLink { .. } => "mark the referenced symbol with #[doc_anchor]",
+            Self::DeadPattern { .. } => {
+                "restore the generated constructor or update the scan pattern"
+            }
+        }
+    }
+}
+
 impl std::fmt::Display for ScanError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(m) => write!(f, "i/o: {m}"),
-            Self::Parse { file, detail } => write!(f, "{file}: not parsed: {detail}"),
-            Self::IdMismatch { file, declared, expected } => {
-                write!(f, "{file}: identifier {declared} requires the file name {expected}.rs")
-            }
+            Self::Io(m) => write!(f, "i/o: {m} — fix: {}", self.fix()),
+            Self::Parse { file, detail } => write!(f, "{file}: not parsed: {detail} — fix: {}", self.fix()),
+            Self::IdMismatch { file, declared, expected } => write!(
+                f,
+                "{file}: identifier {declared} requires the file name {expected}.rs — fix: {}",
+                self.fix()
+            ),
             Self::Bypass { file, ident } => write!(
                 f,
-                "{file}: `{ident}` is allowed in generated code only; a reference in the registry is a path to a constant"
+                "{file}: `{ident}` is allowed in generated code only; a reference in the registry is a path to a constant — fix: {}",
+                self.fix()
             ),
-            Self::Anchor { file, line, detail } => write!(f, "{file}:{line}: code anchor: {detail}"),
-            Self::InlineLink { file, detail } => write!(f, "{file}: inline link: {detail}"),
+            Self::Anchor { file, line, detail } => {
+                write!(f, "{file}:{line}: code anchor: {detail} — fix: {}", self.fix())
+            }
+            Self::InlineLink { file, detail } => {
+                write!(f, "{file}: inline link: {detail} — fix: {}", self.fix())
+            }
             Self::DeadPattern { ident } => write!(
                 f,
-                "anti-vacuity: the scan pattern for `{ident}` is dead — its positive control no longer matches"
+                "anti-vacuity: the scan pattern for `{ident}` is dead — its positive control no longer matches — fix: {}",
+                self.fix()
             ),
         }
     }
@@ -771,6 +798,42 @@ mod tests {
     fn a_dead_bypass_pattern_is_refused() {
         assert!(check_bypass_patterns_live("no constructor here").is_err());
         assert!(check_bypass_patterns_live("AdrRef::__from_scan(\"adr-x\")").is_ok());
+    }
+
+    /// Способ исправления есть у каждого нарушения: подсказка «как чинить»
+    /// невыразимо отсутствует, и она входит в сообщение.
+    #[test]
+    fn every_scan_error_names_its_fix() {
+        let errors: [ScanError; 7] = [
+            ScanError::Io("x".into()),
+            ScanError::Parse {
+                file: "f.rs".into(),
+                detail: "d".into(),
+            },
+            ScanError::IdMismatch {
+                file: "f.rs".into(),
+                declared: 1,
+                expected: "x".into(),
+            },
+            ScanError::Bypass {
+                file: "f.rs".into(),
+                ident: "i".into(),
+            },
+            ScanError::Anchor {
+                file: "f.rs".into(),
+                line: 1,
+                detail: "d".into(),
+            },
+            ScanError::InlineLink {
+                file: "f.rs".into(),
+                detail: "d".into(),
+            },
+            ScanError::DeadPattern { ident: "i".into() },
+        ];
+        for error in errors {
+            assert!(!error.fix().trim().is_empty(), "{error}: fix is empty");
+            assert!(error.to_string().contains("fix:"), "{}", error);
+        }
     }
 
     /// Точка входа раскладки (решение 27): пишет все порождённые файлы реестра.
