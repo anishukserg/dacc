@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Stable-тулчейн; коды ошибок атак сверяются под RUSTC_BOOTSTRAP",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
     context: r"
         Разработка шла на nightly без даты: любой rustup update менял

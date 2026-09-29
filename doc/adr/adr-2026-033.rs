@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Ярусы калитки: ярус коммита, полный ярус закрытия работы и бюджет",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],
     context: r"
         Калитка (решение 8) исполняет все шаги на каждом коммите хуком

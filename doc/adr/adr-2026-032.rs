@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "CiGate — проверка на пути в основную ветку: независимость вердикта и его потребителя, а не место исполнения",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Cli)],
     context: r"
         Калитка (решение 8) исполняется хуками pre-commit и pre-push на машине

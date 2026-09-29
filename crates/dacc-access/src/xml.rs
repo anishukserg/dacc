@@ -110,6 +110,7 @@ mod tests {
     use dacc_knowledge::{Breaking, DocStatus};
 
     dacc_core::declare_taxonomy! { Subsystem => [Access] }
+    dacc_core::declare_channels! { Public }
 
     #[test]
     fn escape_covers_xml_metacharacters() {
@@ -121,6 +122,7 @@ mod tests {
         let decision = ArchitectureDecision {
             title: "Проекция реестра",
             status: DocStatus::Active,
+            channel: channel::Public,
             subsystems: Subsystem::ALL,
             context: "Реестр читается только из исходников.",
             decision: "Экспортировать из скомпилированного реестра.",
@@ -135,6 +137,7 @@ mod tests {
         let spec = DomainSpecification {
             title: "Слой доступа",
             status: DocStatus::Draft,
+            channel: channel::Public,
             target: Subsystem::ALL,
             goal: "Интроспекция вместо поиска.",
             input_contract: "Реестры знания и работы.",

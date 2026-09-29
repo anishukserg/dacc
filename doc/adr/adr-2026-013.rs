@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Зависимости проверяются cargo-deny: лицензии, уязвимости, дубли, источники",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
     context: r"
         Крейты DACC подключают продукты, и каждая внешняя зависимость

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Путь изменений в master публичного репозитория: калитка в CI, перенос внешних pull request, приватные сообщения об уязвимостях",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
     context: r"
         Репозиторий опубликован на GitHub, а калитка исполнялась только хуками

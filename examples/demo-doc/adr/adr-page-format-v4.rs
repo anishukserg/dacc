@@ -1,11 +1,12 @@
 //! Ломающее решение: инструкции миграции лежат внутри варианта.
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Версия 4 формата страницы данных",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Storage)],
     context: r"
         Заголовок страницы исчерпал резерв флагов.

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Порождённый код реестра держит строгий профиль lints продукта",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[
         taxon!(Subsystem, Scan),
         taxon!(Subsystem, Knowledge),

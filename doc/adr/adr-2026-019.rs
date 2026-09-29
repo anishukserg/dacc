@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Текст инструмента — английский: вывод, создаваемые коммиты, порождённые файлы",
     status: DocStatus::SupersededBy(crate::adr::adr_2026_022),
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli)],
     context: r"
         Инструмент печатает и записывает русский текст в репозиторий продукта:

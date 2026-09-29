@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
     title: "Слой знания: реестр решений, спецификаций и разметки кода",
     status: DocStatus::Active,
+    channel: channel::Public,
     target: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],
     goal: r"
         Решение, спецификация и размеченный фрагмент кода связаны ссылками,

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Правила коммитов: форма сообщения, основание из плана, явные пути, проверка дерева коммита",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Methodology)],
     context: r"
         Работа обязана иметь основание, готовность — доказательство. До

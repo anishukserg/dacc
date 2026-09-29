@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Версионирование и выпуск — общая версия workspace, semver, теги vX.Y.Z",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge)],
     context: r"
         Крейты DACC опубликованы в crates.io версией 0.1.0 (решение 25), но в

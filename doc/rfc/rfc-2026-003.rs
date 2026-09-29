@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
     title: "Слой доступа: интроспекция вместо поиска по файлам",
     status: DocStatus::Draft,
+    channel: channel::Public,
     target: &[taxon!(Subsystem, Access), taxon!(Subsystem, Cli)],
     goal: r"
         Человек и агент узнают всё о месте в коде одной командой, не прибегая

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Журнал работы: событие — файл плоского TOML, свёртка при сборке реестра, доказательство по хэшу дерева без журнала",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],
     context: r"
         Инварианты 2 и 3 требуют, чтобы готовность имела доказательство на том

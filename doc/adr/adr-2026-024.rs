@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Имя символа в прозе — инлайн-ссылка на якорь, а не свободный текст",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],
     context: r"
         Атака E3: переименовали размеченный символ, сохранив разметку, — проза

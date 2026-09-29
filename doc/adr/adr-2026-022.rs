@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Вывод инструмента — машинный контракт: JSON по запросу, коды причин, структурный вердикт",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Cli), taxon!(Subsystem, Access)],
     context: r"
         Инструмент работает в агентной разработке, и его вывод — интерфейс для

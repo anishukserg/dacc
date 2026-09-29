@@ -5,10 +5,12 @@
 //! исходников, поэтому разойтись с кодом не может. Сериализаторы пишут строку
 //! вручную, без внешних зависимостей (решение 14).
 
+pub mod channel;
 pub mod json;
 pub mod markdown;
 pub mod xml;
 
+pub use channel::{publish_channel, ChannelDocuments};
 pub use json::export_graph;
 pub use markdown::{render_site, Site};
 pub use xml::export_slice;

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Спецификация методологии переносится в реестр целиком, вместе с прозой",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge)],
     context: r"
         Спецификация — около пяти тысяч строк markdown. Ревью и аудит нашли в

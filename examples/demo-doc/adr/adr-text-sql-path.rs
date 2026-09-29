@@ -1,11 +1,12 @@
 //! Замещённое решение: ссылка на замещающее — путь к константе, а не число.
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Текстовый SQL как единственный путь исполнения",
     status: DocStatus::SupersededBy(crate::adr::adr_direct_plan),
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Executor)],
     context: r"
         Исходное устройство: любой запрос проходит через разбор текста SQL.

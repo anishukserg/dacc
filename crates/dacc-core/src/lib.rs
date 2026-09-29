@@ -9,11 +9,13 @@
 #![doc(test(attr(forbid(unstable_features))))]
 
 pub mod anchor_rules;
+pub mod channel;
 pub mod nonempty;
 pub mod radius;
 pub mod refs;
 pub mod taxonomy;
 
+pub use channel::Channel;
 pub use nonempty::{NonEmpty, NonEmptyStr};
 pub use radius::{BlastRadius, Severity};
 pub use refs::{

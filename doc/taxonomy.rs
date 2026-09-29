@@ -3,3 +3,8 @@ dacc_core::declare_taxonomy! {
     Subsystem => [Knowledge, Work, Access, Scan, Cli, Methodology],
     Team => [Core],
 }
+
+// Каналы публикации DACC (решение 21): у DACC канал один — публичный.
+dacc_core::declare_channels! {
+    Public,
+}

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Носитель задач остаётся Rust; трение измеряется по заранее объявленному критерию",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Cli)],
     context: r"
         Носитель реестра работы менялся дважды за день (решение 2). Внешняя

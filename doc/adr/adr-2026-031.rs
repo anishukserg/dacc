@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Идентификатор слоя работы — slug из имени файла, а не число в макросе",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Work), taxon!(Subsystem, Scan), taxon!(Subsystem, Cli)],
     context: r"
         Слой работы (Thrust/Slice/WorkItem) адресуется числом: макросы

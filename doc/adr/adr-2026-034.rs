@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Полный набор публикации: пять крейтов L1, слой L2 и инструмент",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge), taxon!(Subsystem, Cli)],
     context: r"
         Решение 25 закрепило публикацию пяти крейтов L1: core, journal,

@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Правило заменяется формой записи: невыразимость вместо валидации",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Methodology), taxon!(Subsystem, Knowledge)],
     context: r"
         Правило можно попросить соблюдать, можно проверять, а можно устроить

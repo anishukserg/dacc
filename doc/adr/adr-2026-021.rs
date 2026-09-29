@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Проекция реестра: экспорт из скомпилированного реестра, каналы публикации, сайт на mdBook",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Access), taxon!(Subsystem, Methodology)],
     context: r"
         Реестр согласован с кодом, но прочесть его можно только из исходников:

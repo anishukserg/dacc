@@ -3,7 +3,7 @@
 //! Атаки на эти правила и их контроли — [`crate::attacks`].
 
 use chrono::NaiveDate;
-use dacc_core::{axis::Subsystem, AdrRef, AnchorId, NonEmpty, NonEmptyStr, RfcRef, Taxon};
+use dacc_core::{axis::Subsystem, AdrRef, AnchorId, Channel, NonEmpty, NonEmptyStr, RfcRef, Taxon};
 
 /// Статус документа.
 ///
@@ -43,6 +43,9 @@ pub struct ArchitectureDecision {
     pub status: DocStatus,
     /// Только значения оси подсистем: значение другой оси — ошибка типа.
     pub subsystems: &'static [Taxon<Subsystem>],
+    /// Канал публикации документа (решение 21): публикуется только документ
+    /// своего канала; ссылка через границу канала — отказ экспорта.
+    pub channel: Channel,
     pub context: &'static str,
     pub decision: &'static str,
     pub trade_offs: &'static [&'static str],
@@ -92,6 +95,8 @@ pub struct DomainSpecification {
     pub title: &'static str,
     pub status: DocStatus,
     pub target: &'static [Taxon<Subsystem>],
+    /// Канал публикации спецификации (решение 21).
+    pub channel: Channel,
     /// Наблюдаемый результат. Формулировка обязана быть проверяемой
     /// инструментом, а не оценочной.
     pub goal: &'static str,

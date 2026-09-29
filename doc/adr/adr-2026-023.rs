@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Идентификатор документа знания — slug из имени файла, а не число в макросе",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Scan)],
     context: r"
         Документы знания адресовались числом (`a0001`, `r0002`), а имя файла

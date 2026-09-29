@@ -132,11 +132,13 @@ mod tests {
     use dacc_knowledge::{Breaking, DocStatus};
 
     dacc_core::declare_taxonomy! { Subsystem => [Access] }
+    dacc_core::declare_channels! { Public }
 
     fn decision(title: &'static str) -> ArchitectureDecision {
         ArchitectureDecision {
             title,
             status: DocStatus::Active,
+            channel: channel::Public,
             subsystems: &[taxon!(Subsystem, Access)],
             context: "Реестр читается только из исходников.",
             decision: "Экспортировать из скомпилированного реестра.",
@@ -154,6 +156,7 @@ mod tests {
         DomainSpecification {
             title,
             status: DocStatus::Draft,
+            channel: channel::Public,
             target: &[taxon!(Subsystem, Access)],
             goal: "Интроспекция вместо поиска.",
             input_contract: "Реестры знания и работы.",

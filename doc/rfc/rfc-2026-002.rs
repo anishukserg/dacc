@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::DocStatus;
 
 dacc_knowledge::rfc!(
     title: "Слой работы: происхождение, обратимость, гейты, журнал",
     status: DocStatus::Draft,
+    channel: channel::Public,
     target: &[taxon!(Subsystem, Work)],
     goal: r"
         Единица работы не существует без основания, а её готовность

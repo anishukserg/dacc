@@ -1,10 +1,11 @@
-use crate::taxonomy::Subsystem;
+use crate::taxonomy::{channel, Subsystem};
 use dacc_core::{nonempty_str, taxon};
 use dacc_knowledge::{Breaking, DocStatus};
 
 dacc_knowledge::adr!(
     title: "Валидатор — бинарник, линкующий реестр, а не build.rs",
     status: DocStatus::Active,
+    channel: channel::Public,
     subsystems: &[taxon!(Subsystem, Knowledge), taxon!(Subsystem, Work)],
     context: r"
         Та же ловушка, что погубила схему с inventory (см. решение 1):

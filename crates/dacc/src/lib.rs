@@ -10,11 +10,11 @@
 // распространяются, а атаки выполняются под RUSTC_BOOTSTRAP (решение 12).
 #![doc(test(attr(forbid(unstable_features))))]
 
-pub use dacc_access::{export_graph, export_slice, render_site, Site};
+pub use dacc_access::{export_graph, export_slice, publish_channel, render_site, Site};
 pub use dacc_core::{
-    axis, date, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef, AnchorId, BlastRadius,
-    BreakingRef, GateRef, NonEmpty, NonEmptyStr, RfcRef, Severity, SliceRef, SupersededRef, Taxon,
-    ThrustRef, WorkRef,
+    axis, date, declare_channels, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef,
+    AnchorId, BlastRadius, BreakingRef, Channel, GateRef, NonEmpty, NonEmptyStr, RfcRef, Severity,
+    SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 pub use dacc_journal::{
     fold, parse_event, read_dir, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject,
