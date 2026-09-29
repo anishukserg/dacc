@@ -450,9 +450,11 @@ pub fn emit_registry(
     let thrusts = plan::scan_plan(&registry_dir.join("thrust"), &plan::THRUSTS)?;
     let slices = plan::scan_plan(&registry_dir.join("slice"), &plan::SLICES)?;
     let work = plan::scan_plan(&registry_dir.join("work"), &plan::WORK)?;
+    let obligations = plan::scan_plan(&registry_dir.join("obligation"), &plan::OBLIGATIONS)?;
     let mut code = plan::emit_plan(&thrusts, &plan::THRUSTS);
     code.push_str(&plan::emit_plan(&slices, &plan::SLICES));
     code.push_str(&plan::emit_plan(&work, &plan::WORK));
+    code.push_str(&plan::emit_plan(&obligations, &plan::OBLIGATIONS));
     code.push_str(&plan::emit_work_checks(&work));
     write_file(out_dir, "plan.rs", &code)?;
 
@@ -461,7 +463,15 @@ pub fn emit_registry(
 
     write_file(out_dir, "commit.rs", &commit_constant())?;
 
-    for dir in ["adr", "rfc", "thrust", "slice", "work", "journal"] {
+    for dir in [
+        "adr",
+        "rfc",
+        "thrust",
+        "slice",
+        "work",
+        "obligation",
+        "journal",
+    ] {
         println!("cargo::rerun-if-changed={dir}");
     }
     Ok(())
@@ -725,7 +735,15 @@ mod tests {
     fn emit_registry_writes_all_generated_files() {
         let root = std::env::temp_dir().join(format!("dacc-registry-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        for dir in ["adr", "rfc", "thrust", "slice", "work", "journal"] {
+        for dir in [
+            "adr",
+            "rfc",
+            "thrust",
+            "slice",
+            "work",
+            "obligation",
+            "journal",
+        ] {
             fs::create_dir_all(root.join(dir)).unwrap();
         }
         fs::write(root.join("adr/adr-direct-plan.rs"), ACTIVE).unwrap();

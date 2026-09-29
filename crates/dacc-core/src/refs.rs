@@ -108,6 +108,12 @@ declare_ref! {
     WorkRef(&'static str), "\"w-fix-gitignore\""
 }
 
+declare_ref! {
+    /// Ссылка на обязательство (Obligation). Несёт slug из имени файла, а не
+    /// порядковый номер (решение 35).
+    ObligationRef(&'static str), "\"o-fix-x\""
+}
+
 macro_rules! numbered {
     ($($name:ident),*) => {$(
         impl $name {
@@ -156,7 +162,8 @@ slug_ref!(
     BreakingRef,
     ThrustRef,
     SliceRef,
-    WorkRef
+    WorkRef,
+    ObligationRef
 );
 
 impl AnchorId {

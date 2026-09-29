@@ -177,6 +177,7 @@ fn origin_name(origin: &WorkOrigin) -> String {
         }
         WorkOrigin::Inquiry { .. } => "inquiry".to_owned(),
         WorkOrigin::Retirement(r) => format!("retirement {}", r.as_str()),
+        WorkOrigin::Obligation(r) => format!("obligation {}", r.as_str()),
         WorkOrigin::Toil { .. } => "toil".to_owned(),
     }
 }

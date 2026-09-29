@@ -2,8 +2,8 @@
 //! реестров; правило, выразимое типом, валидатором не проверяется.
 
 use dacc_core::{
-    axis::Subsystem, AdrRef, BlastRadius, NonEmptyStr, RfcRef, SliceRef, SupersededRef, Taxon,
-    ThrustRef,
+    axis::Subsystem, AdrRef, BlastRadius, NonEmptyStr, ObligationRef, RfcRef, SliceRef,
+    SupersededRef, Taxon, ThrustRef,
 };
 use std::num::NonZeroU16;
 
@@ -44,12 +44,26 @@ pub struct WorkItem {
     pub outcome: NonEmptyStr,
 }
 
+/// Обязательство: норма без исполнителя или открытый вопрос (решение 35).
+///
+/// Отдельная запись, а не поле существующей: живёт своим циклом «создано →
+/// погашено», не совпадающим с циклом работы. Погашение — приземлённая работа
+/// с происхождением [`WorkOrigin::Obligation`].
+#[derive(Debug)]
+pub struct Obligation {
+    pub id: &'static str,
+    pub title: NonEmptyStr,
+    /// Условие погашения — обязательное: без него запись не компилируется.
+    pub discharged_when: NonEmptyStr,
+}
+
 /// Происхождение работы: тип задачи и её обоснование — одно поле.
 ///
-/// Перечисление неполное относительно части III: `Mandate`, `Migration` и
-/// `DebtService` появятся вместе с реестрами, на которые они ссылаются.
-/// `#[non_exhaustive]` не ставится намеренно: новый вариант обязан сломать
-/// сборку валидатора, а не молча остаться без правила.
+/// Перечисление неполное относительно части III: `Migration` появится вместе
+/// с реестром, на который ссылается. `Mandate` и `DebtService` той же части
+/// реализованы как запись [`Obligation`] и вариант [`WorkOrigin::Obligation`]
+/// (решение 35). `#[non_exhaustive]` не ставится намеренно: новый вариант
+/// обязан сломать сборку валидатора, а не молча остаться без правила.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkOrigin {
     /// Реализация принятого решения.
@@ -73,6 +87,10 @@ pub enum WorkOrigin {
     /// Удаление кода, замещённого решением. Принимает только ссылку
     /// из модуля `superseded`.
     Retirement(SupersededRef),
+    /// Погашение обязательства (решение 35): работа, ссылающаяся на
+    /// обязательство как на основание. Обязательство погашено, когда эта
+    /// работа приземлена.
+    Obligation(ObligationRef),
     /// Рутина без архитектурного следа.
     Toil { justification: NonEmptyStr },
 }
@@ -148,4 +166,26 @@ const fn slug_eq(a: &str, b: &str) -> bool {
         i += 1;
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dacc_core::NonEmptyStr;
+
+    /// Решение 35: обязательство — отдельная запись, погашение — происхождение
+    /// работы, которое приземляет код.
+    #[test]
+    fn obligation_record_and_origin() {
+        let obligation = Obligation {
+            id: "o-fix-x",
+            title: NonEmptyStr::new("Перейти на …"),
+            discharged_when: NonEmptyStr::new("когда …"),
+        };
+        assert_eq!(obligation.id, "o-fix-x");
+        assert_eq!(obligation.discharged_when.as_str(), "когда …");
+
+        let origin = WorkOrigin::Obligation(ObligationRef::__from_scan("o-fix-x"));
+        assert!(origin.lands_code());
+    }
 }

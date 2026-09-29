@@ -13,8 +13,8 @@
 pub use dacc_access::{export_graph, export_slice, publish_channel, render_site, Site};
 pub use dacc_core::{
     axis, date, declare_channels, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef,
-    AnchorId, BlastRadius, BreakingRef, Channel, GateRef, NonEmpty, NonEmptyStr, RfcRef, Severity,
-    SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
+    AnchorId, BlastRadius, BreakingRef, Channel, GateRef, NonEmpty, NonEmptyStr, ObligationRef,
+    RfcRef, Severity, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 pub use dacc_journal::{
     fold, parse_event, read_dir, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject,
@@ -28,8 +28,8 @@ pub use dacc_scan::{
     scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError, ScannedAnchor, ScannedSlug,
 };
 pub use dacc_work::{
-    radius_within_slice, slice, thrust, work, InquiryOutcome, Slice, Thrust, WorkItem, WorkOrigin,
-    WorkState,
+    obligation, radius_within_slice, slice, thrust, work, InquiryOutcome, Obligation, Slice,
+    Thrust, WorkItem, WorkOrigin, WorkState,
 };
 
 #[cfg(test)]

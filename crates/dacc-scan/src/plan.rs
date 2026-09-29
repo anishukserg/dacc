@@ -66,6 +66,19 @@ pub const WORK: PlanKind = PlanKind {
     plural: "work items",
 };
 
+/// Реестр обязательств (решение 35).
+pub const OBLIGATIONS: PlanKind = PlanKind {
+    macro_name: "obligation",
+    module: "obligation",
+    reference: "ObligationRef",
+    record: "Obligation",
+    item: "OBLIGATION",
+    all: "ALL_OBLIGATIONS",
+    noun: "Obligation",
+    lower: "obligation",
+    plural: "obligations",
+};
+
 /// Сканирует каталог реестра одного вида.
 pub fn scan_plan(dir: &Path, kind: &PlanKind) -> Result<Vec<ScannedSlug>, ScanError> {
     crate::scan_slug_dir(dir, kind.macro_name)
@@ -184,6 +197,27 @@ mod tests {
         );
         assert!(
             emit_work_checks(&entries).contains("radius_within_slice(&w_001::WORK, ALL_SLICES)")
+        );
+    }
+
+    /// Решение 35: реестр обязательств порождает ссылки и список.
+    #[test]
+    fn emits_obligations_list() {
+        let entries = vec![ScannedSlug {
+            slug: "o-fix-x".into(),
+            status: Status::Draft,
+            file: "/x/o-fix-x.rs".into(),
+        }];
+        let code = emit_plan(&entries, &OBLIGATIONS);
+        assert!(
+            code.contains(
+                "pub const o_fix_x: ObligationRef = ObligationRef::__from_scan(\"o-fix-x\");"
+            ),
+            "{code}"
+        );
+        assert!(
+            code.contains("pub static ALL_OBLIGATIONS: &[&dacc_work::Obligation]"),
+            "{code}"
         );
     }
 }

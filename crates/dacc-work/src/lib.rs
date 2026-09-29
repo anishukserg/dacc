@@ -19,7 +19,7 @@ pub mod roadmap;
 mod schema;
 
 pub use schema::{
-    radius_within_slice, InquiryOutcome, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
+    radius_within_slice, InquiryOutcome, Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
@@ -49,5 +49,16 @@ macro_rules! work {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
         /// Запись единицы работы этого файла.
         pub static WORK: $crate::WorkItem = $crate::WorkItem { id: $id, $($field: $value),* };
+    };
+}
+
+/// Регистрация обязательства. Файл обязан называться по slug-идентификатору
+/// (`o-fix-x.rs`), а slug — первый аргумент. Условие погашения
+/// `discharged_when` обязательно (решение 35).
+#[macro_export]
+macro_rules! obligation {
+    ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
+        /// Запись обязательства этого файла.
+        pub static OBLIGATION: $crate::Obligation = $crate::Obligation { id: $id, $($field: $value),* };
     };
 }
