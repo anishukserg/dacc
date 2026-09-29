@@ -1,0 +1,47 @@
+# Покрытие кода (решение 18): cargo-llvm-cov → codecov. Плашка в README
+# ссылается на branch/master; токен CODECOV_TOKEN — секрет репозитория.
+# Actions — только GitHub и закреплены полным хэшем коммита.
+name: coverage
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  coverage:
+    name: покрытие
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Вся история
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Тулчейн и llvm-tools
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --locked
+
+      - name: Покрытие
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+
+      - name: Отправка в codecov
+        uses: codecov/codecov-action@v5 # TODO: закрепить полным хэшем (решение 18)
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

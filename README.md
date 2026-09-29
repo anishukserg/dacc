@@ -1,52 +1,34 @@
 # DACC
 
-**Docs as Compiled Code** — методология и крейты Rust для проектов, где определяющее ограничение — не скорость написания кода, а удержание архитектурной целостности системы, которую одновременно меняют десятки людей и ИИ-агентов.
+**Docs as Compiled Code** — методология и крейты Rust, где решения, спецификации и план работ — это код: ссылка на документ — путь к константе, а висячая ссылка не компилируется.
 
-*A methodology and Rust crates in which architecture decisions, specifications and the work plan are Rust code: a reference to a document is a path to a constant, and a dangling reference does not compile.*
+*A methodology and Rust crates where decisions, specifications and the work plan are code — a document reference is a path to a constant, and a dangling reference does not compile.*
 
-Решения, спецификации и план работ записываются кодом на Rust. Ссылка на документ — путь к константе, которую порождает скан реестра при сборке. Удалили решение или размеченный фрагмент кода — ссылки на него перестают собираться. Правила, которые обычно держатся на ревью, выражены типами, а обещания, объявленные компиляторными, закрыты атакующими тестами `compile_fail`.
+[![crates.io](https://img.shields.io/crates/v/dacc?label=crates.io&color=blue)](https://crates.io/crates/dacc)
+[![gate](https://github.com/anishukserg/dacc/actions/workflows/gate.yml/badge.svg)](https://github.com/anishukserg/dacc/actions/workflows/gate.yml)
+[![coverage](https://codecov.io/gh/anishukserg/dacc/branch/master/graph/badge.svg)](https://codecov.io/gh/anishukserg/dacc)
+[![mutants](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fanishukserg%2Fdacc%2Fmutation-badge%2Fmutation.json&label=mutants)](https://github.com/anishukserg/dacc/actions/workflows/mutation.yml)
 
 ## С чего читать
 
-- [GUARANTEES.md](GUARANTEES.md) — что гарантируется и чем; для людей, читать первым.
-- [DACC.md](DACC.md) — карта методологии: слои, инварианты, уровни внедрения.
-- [doc](doc) — реестр самого DACC: решения, спецификации, план и журнал работы, записанные по его же правилам.
+- [GUARANTEES.md](GUARANTEES.md) — что гарантируется и чем; читать первым.
+- [DACC.md](DACC.md) — методология: слои, инварианты, уровни внедрения.
+- [doc](doc) — реестр самого DACC: решения, спецификации, план и журнал, записанные по его же правилам.
 
 ## Крейты
 
-| Крейт | Назначение |
-|---|---|
-| [dacc-core](crates/dacc-core) | общие типы и макросы: ссылки на документы, непустые строки и списки, обратимость, таксономия |
-| [dacc-knowledge](crates/dacc-knowledge) | слой знания: схема решений и спецификаций, макросы `adr!` и `rfc!` |
-| [dacc-work](crates/dacc-work) | слой работы: направления, срезы, единицы работы и их происхождение |
-| [dacc-scan](crates/dacc-scan) | скан реестра из `build.rs`: константы-ссылки, сверки с компилятором, свёртка журнала |
-| [dacc-derive](crates/dacc-derive) | атрибут `#[doc_anchor]` — разметка кода, на которую ссылаются решения |
-| [dacc-journal](crates/dacc-journal) | журнал работы: формат событий, автомат переходов, свёртка |
-| [dacc-access](crates/dacc-access) | экспорт реестра в JSON и XML — проекция для инструментов и среза (решение 21) |
-| [dacc-cli](crates/dacc-cli) | `cargo dacc`: правила коммитов, калитка, хуки git и команды журнала |
+[dacc](crates/dacc) — фасад · [dacc-core](crates/dacc-core) · [dacc-knowledge](crates/dacc-knowledge) · [dacc-work](crates/dacc-work) · [dacc-scan](crates/dacc-scan) · [dacc-derive](crates/dacc-derive) · [dacc-journal](crates/dacc-journal) · [dacc-access](crates/dacc-access) · [dacc-cli](crates/dacc-cli)
 
-Реестр продукта в миниатюре — [examples/demo-doc](examples/demo-doc) с разметкой кода в [examples/demo-product](examples/demo-product).
-
-## Статус
-
-Рабочий черновик. Работают слой знания, скан, атрибут разметки, план в реестре, правила коммитов, журнал работы и экспорт реестра в JSON и XML; контракт команд слоя доступа `cargo dacc map`, `where`, `ls`, `show` (RFC-0003) ещё не реализован. Крейты опубликованы в crates.io. Вне самого DACC методология не внедрялась — что это значит для её обещаний, сказано в [GUARANTEES.md](GUARANTEES.md).
-
-## Сборка и проверка
-
-Разработка идёт на stable с точной версией из [rust-toolchain.toml](rust-toolchain.toml); потребителям крейтов достаточно Rust 1.83. Полной калитке нужны установленный тулчейн 1.83.0 и [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) с загруженной базой уязвимостей (`cargo deny fetch`).
+## Быстрый старт
 
 ```bash
-cargo test --workspace                     # тесты и doctest
-cargo run -p dacc-cli -- gate           # калитка коммита
-cargo run -p dacc-cli -- hooks install  # хуки git: калитка на каждом коммите
+cargo test --workspace              # тесты и doctest
+cargo run -p dacc-cli -- gate       # калитка коммита
 ```
 
-Коммит в DACC проходит калитку и несёт трейлер основания из плана — правила в решении 8, [doc/adr/adr-2026-008.rs](doc/adr/adr-2026-008.rs).
+Подробнее о сборке, калитке и коммитах — [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Участие
 
-Как предложить изменение — [CONTRIBUTING.md](CONTRIBUTING.md); об уязвимостях сообщают приватно — [SECURITY.md](SECURITY.md).
+Как предложить изменение — [CONTRIBUTING.md](CONTRIBUTING.md); об уязвимостях — приватно, [SECURITY.md](SECURITY.md). Лицензия — [Apache-2.0](LICENSE).
 
-## Лицензия
-
-[Apache License 2.0](LICENSE).

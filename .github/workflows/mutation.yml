@@ -1,0 +1,68 @@
+# Мутационное тестирование (cargo-mutants): счёт мутантов публикуется на
+# ветку mutation-badge, откуда плашку в README читает shields.io endpoint.
+# Запускается по расписанию (мутационное тестирование медленное) и вручную.
+name: mutation
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # каждый понедельник
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  mutation:
+    name: мутанты
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Вся история
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: cargo-mutants
+        run: |
+          cargo install cargo-mutants --locked
+          cargo mutants --workspace --timeout 30 --output-format json > /tmp/mutants.json 2>/dev/null || true
+
+      - name: Счёт мутантов в плашку
+        run: |
+          python3 - <<'PY'
+          import json
+          try:
+              with open('/tmp/mutants.json') as f:
+                  data = json.load(f)
+          except Exception:
+              data = {}
+          counts = data.get('mutants', data)
+          caught = counts.get('caught', 0)
+          missed = counts.get('missed', 0)
+          if caught + missed == 0:
+              message, color = 'no mutants', 'lightgrey'
+          else:
+              pct = round(100 * caught / (caught + missed))
+              message = f'{pct}% caught'
+              color = 'green' if pct >= 90 else ('yellow' if pct >= 70 else 'red')
+          with open('/tmp/mutation.json', 'w') as f:
+              json.dump({
+                  'schemaVersion': 1,
+                  'label': 'mutants',
+                  'message': message,
+                  'color': color,
+              }, f)
+          PY
+
+      - name: Публикация плашки
+        run: |
+          git checkout --orphan mutation-badge
+          git rm -rf . || true
+          cp /tmp/mutation.json mutation.json
+          git add mutation.json
+          git -c user.name='github-actions' -c user.email='github-actions@github.com' \
+            commit -m 'mutation badge'
+          git push origin mutation-badge --force
