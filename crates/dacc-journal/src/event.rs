@@ -3,26 +3,30 @@
 use crate::format::{self, Record};
 use crate::time;
 
-/// Предмет события: единица работы или срез, адресуемый slug.
+/// Предмет события: единица работы, срез или обязательство, адресуемый slug.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Subject {
     Work(String),
     Slice(String),
+    /// Обязательство (решение 35). Событий у обязательства нет: погашение —
+    /// приземлённая работа, а не событие журнала. Ось нужна для свёртки.
+    Obligation(String),
 }
 
 impl Subject {
-    /// Идентификатор в плане: `w-fix-gitignore` или `s-versioning`.
+    /// Идентификатор в плане: `w-fix-gitignore`, `s-versioning` или `o-fix-x`.
     pub fn id(&self) -> &str {
         match self {
-            Self::Work(slug) | Self::Slice(slug) => slug,
+            Self::Work(slug) | Self::Slice(slug) | Self::Obligation(slug) => slug,
         }
     }
 
-    /// Разбирает `w-fix-gitignore` или `s-versioning`.
+    /// Разбирает `w-fix-gitignore`, `s-versioning` или `o-fix-x`.
     pub fn parse(text: &str) -> Option<Subject> {
         match text.as_bytes() {
             [b'w', b'-', ..] => Some(Self::Work(text.to_owned())),
             [b's', b'-', ..] => Some(Self::Slice(text.to_owned())),
+            [b'o', b'-', ..] => Some(Self::Obligation(text.to_owned())),
             _ => None,
         }
     }
@@ -250,6 +254,7 @@ impl Event {
         let subject_key = match self.subject {
             Subject::Work(_) => "work",
             Subject::Slice(_) => "slice",
+            Subject::Obligation(_) => "obligation",
         };
         let id = self.subject.id();
         let mut fields: Vec<(String, String)> = vec![

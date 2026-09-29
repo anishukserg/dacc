@@ -44,6 +44,9 @@ pub struct Journal {
     pub last_event: BTreeMap<String, String>,
     /// Деревья из событий gate каждой работы — доказательства.
     pub proofs: BTreeMap<String, Vec<String>>,
+    /// Стадия каждого обязательства (решение 35): `Landed`, если приземлена
+    /// работа с происхождением `WorkOrigin::Obligation`, иначе `Planned`.
+    pub obligations: BTreeMap<String, Stage>,
 }
 
 impl Journal {
@@ -61,7 +64,16 @@ pub struct Violation {
 }
 
 /// Сворачивает события в состояние и перечисляет нарушения автомата.
-pub fn fold(events: &[Event]) -> (Journal, Vec<Violation>) {
+///
+/// `obligations` — slug обязательств реестра, `discharges` — пары
+/// (slug работы, slug обязательства) для работ с происхождением
+/// `WorkOrigin::Obligation`. Обязательство погашено, когда такая работа
+/// приземлена (решение 35).
+pub fn fold(
+    events: &[Event],
+    obligations: &[&str],
+    discharges: &[(&str, &str)],
+) -> (Journal, Vec<Violation>) {
     let mut ordered: Vec<&Event> = events.iter().collect();
     ordered.sort_by(|a, b| {
         (a.at.as_str(), rank(&a.kind), a.file.as_str()).cmp(&(
@@ -76,6 +88,9 @@ pub fn fold(events: &[Event]) -> (Journal, Vec<Violation>) {
         let outcome = match &event.subject {
             Subject::Slice(slice) => close_slice(&mut journal, slice, event),
             Subject::Work(work) => advance_work(&mut journal, work, event),
+            Subject::Obligation(o) => Err(format!(
+                "obligation {o} has no journal events: redemption is a landed work"
+            )),
         };
         if let Err(reason) = outcome {
             violations.push(Violation {
@@ -84,6 +99,25 @@ pub fn fold(events: &[Event]) -> (Journal, Vec<Violation>) {
             });
         }
     }
+
+    for obligation in obligations {
+        let discharged = discharges.iter().any(|(work, obl)| {
+            obl == obligation
+                && matches!(
+                    journal.stage(work),
+                    Stage::Landed | Stage::LandedFromHistory
+                )
+        });
+        journal.obligations.insert(
+            (*obligation).to_owned(),
+            if discharged {
+                Stage::Landed
+            } else {
+                Stage::Planned
+            },
+        );
+    }
+
     (journal, violations)
 }
 
@@ -225,7 +259,11 @@ mod tests {
     }
 
     fn reasons(events: &[Event]) -> Vec<String> {
-        fold(events).1.into_iter().map(|v| v.reason).collect()
+        fold(events, &[], &[])
+            .1
+            .into_iter()
+            .map(|v| v.reason)
+            .collect()
     }
 
     #[test]
@@ -235,7 +273,7 @@ mod tests {
             work(2, gate(TREE_A)),
             work(3, landed(TREE_A, Evidence::Gate)),
         ];
-        let (journal, violations) = fold(&events);
+        let (journal, violations) = fold(&events, &[], &[]);
         assert!(violations.is_empty(), "{violations:?}");
         assert_eq!(journal.stage("w-022"), Stage::Landed);
         assert_eq!(journal.stage("w-023"), Stage::Planned);
@@ -248,7 +286,7 @@ mod tests {
             work(1, Kind::Started),
             work(2, gate(TREE_A)),
         ];
-        assert!(fold(&events).1.is_empty());
+        assert!(fold(&events, &[], &[]).1.is_empty());
     }
 
     #[test]
@@ -304,12 +342,40 @@ mod tests {
             close(2),
             close(3),
         ];
-        let (journal, violations) = fold(&events);
+        let (journal, violations) = fold(&events, &[], &[]);
         assert_eq!(journal.stage("w-022"), Stage::LandedFromHistory);
         assert_eq!(journal.closed_slices.len(), 1);
         assert_eq!(violations.len(), 1);
         assert!(
             violations[0].reason.contains("is already closed"),
+            "{violations:?}"
+        );
+    }
+
+    /// Решение 35: обязательство погашено приземлённой работой, иначе остаётся
+    /// запланированным; событие обязательства — нарушение.
+    #[test]
+    fn obligations_are_redeemed_by_a_landed_discharge_work() {
+        let events = [
+            work(1, Kind::Started),
+            work(2, gate(TREE_A)),
+            work(3, landed(TREE_A, Evidence::Gate)),
+        ];
+        let (journal, violations) = fold(&events, &["o-fix-x", "o-open"], &[("w-022", "o-fix-x")]);
+        assert!(violations.is_empty(), "{violations:?}");
+        assert_eq!(journal.obligations.get("o-fix-x"), Some(&Stage::Landed));
+        assert_eq!(journal.obligations.get("o-open"), Some(&Stage::Planned));
+
+        let obligation_event = Event::new(
+            Subject::Obligation("o-fix-x".to_owned()),
+            at(1),
+            Kind::Closed,
+        );
+        let (_, violations) = fold(&[obligation_event], &[], &[]);
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.reason.contains("no journal events")),
             "{violations:?}"
         );
     }

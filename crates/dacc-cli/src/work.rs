@@ -439,7 +439,7 @@ impl Context {
                 format!("journal {} not read: {error}", dir.display()),
             )
         })?;
-        let (journal, fold_violations) = fold(&events);
+        let (journal, fold_violations) = fold(&events, &[], &[]);
         if let Some(violation) = read_violations.iter().chain(&fold_violations).next() {
             return Err(refused(
                 code::JOURNAL_NOT_FOLD,

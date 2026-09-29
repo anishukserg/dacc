@@ -111,7 +111,7 @@ mod tests {
             ),
             Event::new(work, at, Kind::Started),
         ];
-        let (journal, violations) = fold(&events);
+        let (journal, violations) = fold(&events, &[], &[]);
         assert!(violations.is_empty(), "{violations:?}");
         assert_eq!(journal.stage("w-022"), Stage::Landed);
     }
