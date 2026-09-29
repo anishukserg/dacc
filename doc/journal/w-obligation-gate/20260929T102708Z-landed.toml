@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-obligation-gate"
+at = "2026-09-29T10:27:08Z"
+commit = "95d54e84c56156ec8e6a24b515506b33b9a9706a"
+tree = "7dcd741c270dd2bf00dbd1e5a96ff9499a395d7d"
