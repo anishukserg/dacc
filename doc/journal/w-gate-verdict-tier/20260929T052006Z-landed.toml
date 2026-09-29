@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-gate-verdict-tier"
+at = "2026-09-29T05:20:06Z"
+commit = "3f8202cfe4c97121e44af42bd914e1430acc705c"
+tree = "3fd8f07dd2cbca5d8ccfebd9f5314d4aa5ff1647"
