@@ -1,9 +1,13 @@
 [book]
 title = "DACC"
 authors = ["Anishchuk Sergei"]
-language = "en"
-multilingual = false
+language = "ru"
 src = "src"
 
 [build]
 build-dir = "book"
+
+[output.html]
+default-theme = "dioxus"
+preferred-dark-theme = "dioxus"
+git-repository-url = "https://github.com/anishukserg/dacc"
