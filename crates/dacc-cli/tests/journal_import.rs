@@ -88,14 +88,13 @@ fn history_lands_traced_works_and_closes_finished_slices() {
         "название с переносом строки не прочитано: {state}"
     );
 
-    let landed = repo.git(&["show", "HEAD:doc/journal", "--name-only"]);
-    assert!(landed.contains("w-001/"), "{landed}");
     let body = repo.git(&["log", "-1", "--format=%B"]);
     assert!(body.contains("Dacc-Work: w-003"), "{body}");
-    let event = repo.git(&["grep", "-h", "commit =", "HEAD", "--", "doc/journal/w-001"]);
+    // Решение 43: приземление дописывается в одну запись, а не в каталог w-001/.
+    let journal = repo.git(&["show", "HEAD:doc/journal.toml"]);
     assert!(
-        event.contains(&first),
-        "приземление не на коммите с трейлером: {event}"
+        journal.contains(&first),
+        "приземление не на коммите с трейлером: {journal}"
     );
 
     let run = repo.tool(&["journal", "import", "--work", "w-003"]);

@@ -519,7 +519,11 @@ pub fn emit_registry(
     code.push_str(&plan::emit_limitation_checks(&limitations));
     write_file(out_dir, "plan.rs", &code)?;
 
-    let journal = journal::scan_journal(&registry_dir.join("journal"), &work)?;
+    let journal = journal::scan_journal(
+        &registry_dir.join("journal.toml"),
+        &registry_dir.join("journal"),
+        &work,
+    )?;
     write_file(out_dir, "journal.rs", &journal)?;
 
     write_file(out_dir, "commit.rs", &commit_constant())?;
@@ -533,6 +537,7 @@ pub fn emit_registry(
         "obligation",
         "limitation",
         "journal",
+        "journal.toml",
     ] {
         println!("cargo::rerun-if-changed={dir}");
     }

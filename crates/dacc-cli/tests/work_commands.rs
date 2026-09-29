@@ -97,21 +97,12 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
     let run = repo.tool(&["work", "land", "w-001"]);
     assert_ok(&run);
     let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
-    assert!(
-        files.contains("-started.toml")
-            && files.contains("-gate.toml")
-            && files.contains("-landed.toml"),
-        "{files}"
-    );
+    // Решение 43: события дописываются в одну запись, а не в отдельные файлы.
+    assert!(files.contains("journal.toml"), "{files}");
     assert!(state_of(&repo, "w-001").contains("landed"));
-    let gate = repo
-        .git(&["ls-files", "doc/journal/w-001"])
-        .lines()
-        .find(|file| file.ends_with("-gate.toml"))
-        .expect("событие gate записано")
-        .to_owned();
-    let event = repo.git(&["show", &format!("HEAD:{gate}")]);
-    assert!(event.contains("msrv = \"1.83.0\""), "{event}");
+    // Вердикт gate в одной записи несёт msrv полного яруса.
+    let journal = repo.git(&["show", "HEAD:doc/journal.toml"]);
+    assert!(journal.contains("msrv = \"1.83.0\""), "{journal}");
 
     // Срез не закрывается, пока в нём есть незавершённая работа.
     let run = repo.tool(&["slice", "close", "s-001"]);

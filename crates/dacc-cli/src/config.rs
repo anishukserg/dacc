@@ -102,9 +102,16 @@ impl Config {
         format!("{}/slice", self.doc)
     }
 
-    /// Каталог журнала работы (решение 15).
+    /// Каталог журнала работы (решение 15): прежние файлы событий, замороженная
+    /// история.
     pub fn journal_dir(&self) -> String {
         format!("{}/journal", self.doc)
+    }
+
+    /// Одна запись журнала работы (решение 43): `doc/journal.toml`, куда
+    /// дописываются новые события.
+    pub fn journal_file(&self) -> String {
+        format!("{}/journal.toml", self.doc)
     }
 
     /// Манифест крейта документов: его сборка сворачивает журнал.

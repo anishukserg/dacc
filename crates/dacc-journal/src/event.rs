@@ -120,124 +120,11 @@ impl Event {
     /// Событие из разобранного файла. Поля проверяются строго: лишнее,
     /// недостающее или неверно записанное поле — ошибка с названием поля.
     pub fn from_record(file: &str, record: &Record) -> Result<Event, String> {
-        let name = record.get("event").ok_or("no event field")?;
-        let (subject_key, own): (&str, &[&str]) = match name {
-            "started" => ("work", &[]),
-            "gate" => (
-                "work",
-                &[
-                    "gate", "tree", "verdict", "passed", "total", "skipped", "attacks", "msrv",
-                ],
-            ),
-            "landed" => ("work", &["commit", "tree", "evidence"]),
-            "abandoned" => ("work", &["reason"]),
-            "closed" => ("slice", &[]),
-            other => {
-                return Err(format!(
-                    "unknown event `{other}`: started, gate, landed, abandoned, closed"
-                ))
-            }
-        };
-        for (key, _) in &record.fields {
-            let known = key == "event" || key == "at" || key == subject_key;
-            if !known && !own.contains(&key.as_str()) {
-                return Err(format!("extra field `{key}` on a {name} event"));
-            }
-        }
-
-        let subject_text = record
-            .get(subject_key)
-            .ok_or_else(|| format!("no {subject_key} field on a {name} event"))?;
-        let subject = Subject::parse(subject_text)
-            .filter(|subject| {
-                matches!(
-                    (subject, subject_key),
-                    (Subject::Work(_), "work") | (Subject::Slice(_), "slice")
-                )
-            })
-            .ok_or_else(|| {
-                let example = if subject_key == "work" {
-                    "w-fix-gitignore"
-                } else {
-                    "s-versioning"
-                };
-                format!("field {subject_key} is an identifier like {example}, not {subject_text:?}")
-            })?;
-
-        let at = record.get("at").ok_or("no at field")?;
-        if !time::is_timestamp(at) {
-            return Err(format!(
-                "field at is a UTC time like 2026-09-11T03:15:00Z, not {at:?}"
-            ));
-        }
-
-        let required = |key: &str| {
-            record
-                .get(key)
-                .filter(|value| !value.trim().is_empty())
-                .map(str::to_owned)
-                .ok_or_else(|| format!("no non-empty field {key} on a {name} event"))
-        };
-        let number = |key: &str| {
-            let value = required(key)?;
-            value
-                .parse::<usize>()
-                .map_err(|_| format!("field {key} is a non-negative number, not {value:?}"))
-        };
-        let hash = |key: &str| {
-            let value = required(key)?;
-            if is_hash(&value) {
-                Ok(value)
-            } else {
-                Err(format!(
-                    "field {key} is a git hash of 40 or 64 lowercase hexadecimal characters"
-                ))
-            }
-        };
-        let kind = match name {
-            "started" => Kind::Started,
-            "gate" => Kind::Gate {
-                gate: required("gate")?,
-                tree: hash("tree")?,
-                verdict: match record.get("verdict") {
-                    Some(verdict) => GateVerdict::Prose(verdict.to_owned()),
-                    None => GateVerdict::Structured {
-                        passed: number("passed")?,
-                        total: number("total")?,
-                        skipped: record.get("skipped").map_or_else(Vec::new, |skipped| {
-                            skipped
-                                .split(',')
-                                .map(str::trim)
-                                .filter(|step| !step.is_empty())
-                                .map(str::to_owned)
-                                .collect()
-                        }),
-                        attacks: number("attacks")?,
-                        msrv: record.get("msrv").map(str::to_owned),
-                    },
-                },
-            },
-            "landed" => Kind::Landed {
-                commit: hash("commit")?,
-                tree: hash("tree")?,
-                evidence: match record.get("evidence") {
-                    None => Evidence::Gate,
-                    Some("history") => Evidence::History,
-                    Some(other) => {
-                        return Err(format!("field evidence is only history, not {other:?}"))
-                    }
-                },
-            },
-            "abandoned" => Kind::Abandoned {
-                reason: required("reason")?,
-            },
-            _ => Kind::Closed,
-        };
-
+        let (subject, at, kind) = parse_fields(record)?;
         let event = Event {
             file: file.to_owned(),
             subject,
-            at: at.to_owned(),
+            at,
             kind,
         };
         if !event.file_matches() {
@@ -247,6 +134,18 @@ impl Event {
             ));
         }
         Ok(event)
+    }
+
+    /// Событие из таблицы одной записи журнала (решение 43): события адресуются
+    /// позицией, а не именем файла, поэтому имя файла не сверяется.
+    pub fn from_entry(record: &Record, index: usize) -> Result<Event, String> {
+        let (subject, at, kind) = parse_fields(record)?;
+        Ok(Event {
+            file: format!("journal.toml#{index}"),
+            subject,
+            at,
+            kind,
+        })
     }
 
     /// Текст файла события.
@@ -310,6 +209,12 @@ impl Event {
         format::render(&fields)
     }
 
+    /// Текст события как таблицы `[[events]]` для одной записи журнала
+    /// (решение 43): заголовок таблицы и плоские поля события.
+    pub fn to_table(&self) -> String {
+        format!("[[events]]\n{}", self.to_text())
+    }
+
     /// Путь файла соответствует предмету, времени и виду события. При
     /// совпадении времени допускается числовой суффикс `-N`.
     fn file_matches(&self) -> bool {
@@ -324,6 +229,126 @@ impl Event {
             .and_then(|rest| rest.strip_suffix(".toml"))
             .is_some_and(|number| !number.is_empty() && number.bytes().all(|b| b.is_ascii_digit()))
     }
+}
+
+/// Поля события из записи: (subject, at, kind). Имя файла не участвует — его
+/// сверяет `from_record`, а `from_entry` событий одной записи не сверяет.
+fn parse_fields(record: &Record) -> Result<(Subject, String, Kind), String> {
+    let name = record.get("event").ok_or("no event field")?;
+    let (subject_key, own): (&str, &[&str]) = match name {
+        "started" => ("work", &[]),
+        "gate" => (
+            "work",
+            &[
+                "gate", "tree", "verdict", "passed", "total", "skipped", "attacks", "msrv",
+            ],
+        ),
+        "landed" => ("work", &["commit", "tree", "evidence"]),
+        "abandoned" => ("work", &["reason"]),
+        "closed" => ("slice", &[]),
+        other => {
+            return Err(format!(
+                "unknown event `{other}`: started, gate, landed, abandoned, closed"
+            ))
+        }
+    };
+    for (key, _) in &record.fields {
+        let known = key == "event" || key == "at" || key == subject_key;
+        if !known && !own.contains(&key.as_str()) {
+            return Err(format!("extra field `{key}` on a {name} event"));
+        }
+    }
+
+    let subject_text = record
+        .get(subject_key)
+        .ok_or_else(|| format!("no {subject_key} field on a {name} event"))?;
+    let subject = Subject::parse(subject_text)
+        .filter(|subject| {
+            matches!(
+                (subject, subject_key),
+                (Subject::Work(_), "work") | (Subject::Slice(_), "slice")
+            )
+        })
+        .ok_or_else(|| {
+            let example = if subject_key == "work" {
+                "w-fix-gitignore"
+            } else {
+                "s-versioning"
+            };
+            format!("field {subject_key} is an identifier like {example}, not {subject_text:?}")
+        })?;
+
+    let at = record.get("at").ok_or("no at field")?;
+    if !time::is_timestamp(at) {
+        return Err(format!(
+            "field at is a UTC time like 2026-09-11T03:15:00Z, not {at:?}"
+        ));
+    }
+
+    let required = |key: &str| {
+        record
+            .get(key)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| format!("no non-empty field {key} on a {name} event"))
+    };
+    let number = |key: &str| {
+        let value = required(key)?;
+        value
+            .parse::<usize>()
+            .map_err(|_| format!("field {key} is a non-negative number, not {value:?}"))
+    };
+    let hash = |key: &str| {
+        let value = required(key)?;
+        if is_hash(&value) {
+            Ok(value)
+        } else {
+            Err(format!(
+                "field {key} is a git hash of 40 or 64 lowercase hexadecimal characters"
+            ))
+        }
+    };
+    let kind = match name {
+        "started" => Kind::Started,
+        "gate" => Kind::Gate {
+            gate: required("gate")?,
+            tree: hash("tree")?,
+            verdict: match record.get("verdict") {
+                Some(verdict) => GateVerdict::Prose(verdict.to_owned()),
+                None => GateVerdict::Structured {
+                    passed: number("passed")?,
+                    total: number("total")?,
+                    skipped: record.get("skipped").map_or_else(Vec::new, |skipped| {
+                        skipped
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|step| !step.is_empty())
+                            .map(str::to_owned)
+                            .collect()
+                    }),
+                    attacks: number("attacks")?,
+                    msrv: record.get("msrv").map(str::to_owned),
+                },
+            },
+        },
+        "landed" => Kind::Landed {
+            commit: hash("commit")?,
+            tree: hash("tree")?,
+            evidence: match record.get("evidence") {
+                None => Evidence::Gate,
+                Some("history") => Evidence::History,
+                Some(other) => {
+                    return Err(format!("field evidence is only history, not {other:?}"))
+                }
+            },
+        },
+        "abandoned" => Kind::Abandoned {
+            reason: required("reason")?,
+        },
+        _ => Kind::Closed,
+    };
+
+    Ok((subject, at.to_owned(), kind))
 }
 
 /// Путь файла события от каталога журнала; `attempt` больше нуля добавляет
@@ -503,5 +528,39 @@ mod tests {
             error.contains("expected w-022/20260911T031500Z-started.toml"),
             "{error}"
         );
+    }
+
+    /// Решение 43: события одной записи журнала проходят круг через таблицы
+    /// `[[events]]` — запись адресуется позицией, а не именем файла.
+    #[test]
+    fn events_round_trip_through_the_single_journal() {
+        let landed = Kind::Landed {
+            commit: TREE.into(),
+            tree: TREE.into(),
+            evidence: Evidence::Gate,
+        };
+        let events = [
+            Event::new(
+                Subject::Work("w-022".to_owned()),
+                "2026-09-11T03:15:00Z".to_owned(),
+                Kind::Started,
+            ),
+            Event::new(
+                Subject::Work("w-022".to_owned()),
+                "2026-09-11T03:15:01Z".to_owned(),
+                landed.clone(),
+            ),
+        ];
+        let text = events.iter().map(Event::to_table).collect::<String>();
+        let records = crate::format::parse_events(&text).expect("массив таблиц");
+        let read: Vec<Event> = records
+            .iter()
+            .enumerate()
+            .map(|(index, record)| Event::from_entry(record, index).expect("событие"))
+            .collect();
+        assert_eq!(read[0].kind, Kind::Started);
+        assert_eq!(read[1].kind, landed);
+        assert_eq!(read[0].file, "journal.toml#0");
+        assert_eq!(read[1].file, "journal.toml#1");
     }
 }

@@ -58,6 +58,56 @@ pub fn read_dir(dir: &Path) -> io::Result<(Vec<Event>, Vec<Violation>)> {
     Ok((events, violations))
 }
 
+/// Читает одну запись журнала `journal.toml` (решение 43): массив таблиц
+/// `[[events]]`, по таблице на событие. Отсутствующий файл — пустой журнал, а
+/// не ошибка: запись появляется с первым событием. Неразобранная таблица —
+/// нарушение с её позицией.
+pub fn read_file(path: &Path) -> io::Result<(Vec<Event>, Vec<Violation>)> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok((Vec::new(), Vec::new()));
+        }
+        Err(error) => return Err(error),
+    };
+    let text = match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(_) => {
+            return Ok((
+                Vec::new(),
+                vec![Violation {
+                    file: "journal.toml".to_owned(),
+                    reason: "the file is not UTF-8".to_owned(),
+                }],
+            ));
+        }
+    };
+    let records = match format::parse_events(&text) {
+        Ok(records) => records,
+        Err(error) => {
+            return Ok((
+                Vec::new(),
+                vec![Violation {
+                    file: "journal.toml".to_owned(),
+                    reason: format!("line {}: {}", error.line, error.reason),
+                }],
+            ));
+        }
+    };
+    let mut events = Vec::new();
+    let mut violations = Vec::new();
+    for (index, record) in records.into_iter().enumerate() {
+        match Event::from_entry(&record, index) {
+            Ok(event) => events.push(event),
+            Err(reason) => violations.push(Violation {
+                file: format!("journal.toml#{index}"),
+                reason,
+            }),
+        }
+    }
+    Ok((events, violations))
+}
+
 fn collect(root: &Path, dir: &Path, files: &mut Vec<(String, PathBuf)>) -> io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;

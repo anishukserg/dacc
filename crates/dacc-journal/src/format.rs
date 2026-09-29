@@ -34,26 +34,67 @@ pub fn parse(text: &str) -> Result<Record, FormatError> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let fail = |reason: String| FormatError {
-            line: index + 1,
-            reason,
-        };
-        let (key, value) = line
-            .split_once('=')
-            .ok_or_else(|| fail("expected `key = \"string\"`".to_owned()))?;
-        let key = key.trim();
-        if !is_key(key) {
-            return Err(fail(format!(
-                "key `{key}` is lowercase latin letters, digits and `_`, starting with a letter"
-            )));
-        }
-        if record.get(key).is_some() {
-            return Err(fail(format!("key `{key}` is repeated")));
-        }
-        let value = parse_string(value.trim()).map_err(fail)?;
-        record.fields.push((key.to_owned(), value));
+        parse_pair(&mut record, line, index + 1)?;
     }
     Ok(record)
+}
+
+/// Разбирает одну запись журнала (решение 43): массив таблиц `[[events]]`, по
+/// одной таблице на событие. Запись без таблиц — ошибка.
+pub fn parse_events(text: &str) -> Result<Vec<Record>, FormatError> {
+    let mut records = Vec::new();
+    let mut current: Option<Record> = None;
+    for (index, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line_no = index + 1;
+        if line == "[[events]]" {
+            if let Some(record) = current.take() {
+                records.push(record);
+            }
+            current = Some(Record::default());
+            continue;
+        }
+        let record = current.as_mut().ok_or_else(|| FormatError {
+            line: line_no,
+            reason: "expected `[[events]]` before the first event".to_owned(),
+        })?;
+        parse_pair(record, line, line_no)?;
+    }
+    if let Some(record) = current {
+        records.push(record);
+    }
+    if records.is_empty() {
+        return Err(FormatError {
+            line: 1,
+            reason: "the journal has no events".to_owned(),
+        });
+    }
+    Ok(records)
+}
+
+fn parse_pair(record: &mut Record, line: &str, line_no: usize) -> Result<(), FormatError> {
+    let fail = |reason: String| FormatError {
+        line: line_no,
+        reason,
+    };
+    let (key, value) = line
+        .split_once('=')
+        .ok_or_else(|| fail("expected `key = \"string\"`".to_owned()))?;
+    let key = key.trim();
+    if !is_key(key) {
+        return Err(fail(format!(
+            "key `{key}` is lowercase latin letters, digits and `_`, starting with a letter"
+        )));
+    }
+    if record.get(key).is_some() {
+        return Err(fail(format!("key `{key}` is repeated")));
+    }
+    let value = parse_string(value.trim()).map_err(fail)?;
+    record.fields.push((key.to_owned(), value));
+    Ok(())
 }
 
 /// Текст записи: пары в заданном порядке. Управляющие символы, кроме перевода

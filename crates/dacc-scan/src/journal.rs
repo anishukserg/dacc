@@ -10,11 +10,20 @@ use dacc_core::anchor_rules::slug_ident;
 use dacc_journal::{fold, Event, Stage, Subject, Violation};
 use std::{collections::BTreeSet, fmt::Write as _, path::Path};
 
-/// Читает каталог журнала и порождает модуль состояния. Отсутствующий каталог
-/// — ошибка: опечатка в пути не превращается в пустой журнал.
-pub fn scan_journal(dir: &Path, work: &[ScannedSlug]) -> Result<String, ScanError> {
-    let (events, violations) = dacc_journal::read_dir(dir)
-        .map_err(|error| ScanError::Io(format!("{}: {error}", dir.display())))?;
+/// Читает одну запись журнала `journal.toml` и прежний каталог файлов и
+/// порождает модуль состояния (решение 43): новые события дописываются в одну
+/// запись, прежние файлы остаются замороженной историей, и свёртка читает оба
+/// источника.
+pub fn scan_journal(file: &Path, dir: &Path, work: &[ScannedSlug]) -> Result<String, ScanError> {
+    let (mut events, mut violations) = dacc_journal::read_file(file)
+        .map_err(|error| ScanError::Io(format!("{}: {error}", file.display())))?;
+    // Прежних файлов может не быть у нового проекта: каталог необязателен.
+    if dir.exists() {
+        let (dir_events, dir_violations) = dacc_journal::read_dir(dir)
+            .map_err(|error| ScanError::Io(format!("{}: {error}", dir.display())))?;
+        events.extend(dir_events);
+        violations.extend(dir_violations);
+    }
     Ok(emit_journal(&events, &violations, work))
 }
 

@@ -13,16 +13,18 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
-/// Хэш дерева без каталога журнала; `journal` — каталог журнала из настройки
+/// Хэш дерева без журнала: и без прежнего каталога `journal/`, и без одной
+/// записи `journal.toml` (решение 43). `journal` — каталог журнала из настройки
 /// того дерева, о котором идёт речь (решение 20), `tree` — любой указатель на
 /// дерево: sha дерева, коммит, `HEAD`.
 pub fn content_hash(root: &Path, journal: &str, tree: &str) -> Option<String> {
     let listing = git::read(root, &["ls-tree", "-r", "-z", "--full-tree", tree])?;
-    let journal = format!("{journal}/");
+    let journal_dir = format!("{journal}/");
+    let journal_file = format!("{journal}.toml");
     let mut kept = String::new();
     for entry in listing.split('\0').filter(|entry| !entry.is_empty()) {
         let path = entry.split_once('\t').map_or("", |(_, path)| path);
-        if !path.starts_with(&journal) {
+        if !path.starts_with(&journal_dir) && path != journal_file {
             kept.push_str(entry);
             kept.push('\0');
         }

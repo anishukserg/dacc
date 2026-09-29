@@ -23,11 +23,10 @@
 use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::{commit, config, gate, git, hooks, layout, proof};
-use dacc_journal::event::relative_path;
 use dacc_journal::{fold, time, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject};
 use std::ffi::OsString;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
 
@@ -444,13 +443,27 @@ impl Context {
     pub fn open() -> Result<Context, Refusal> {
         let repo = git::Repo::discover(Path::new("."))
             .map_err(|problem| usage(code::REPO_DISCOVER, problem))?;
+        let file = repo.root.join(repo.config.journal_file());
         let dir = repo.root.join(repo.config.journal_dir());
-        let (events, read_violations) = dacc_journal::read_dir(&dir).map_err(|error| {
-            usage(
-                code::JOURNAL_NOT_READ,
-                format!("journal {} not read: {error}", dir.display()),
-            )
-        })?;
+        let (mut events, mut read_violations) =
+            dacc_journal::read_file(&file).map_err(|error| {
+                usage(
+                    code::JOURNAL_NOT_READ,
+                    format!("journal {} not read: {error}", file.display()),
+                )
+            })?;
+        // Прежние файлы — замороженная история (решение 43); их может не быть у
+        // нового проекта.
+        if dir.is_dir() {
+            let (dir_events, dir_violations) = dacc_journal::read_dir(&dir).map_err(|error| {
+                usage(
+                    code::JOURNAL_NOT_READ,
+                    format!("journal {} not read: {error}", dir.display()),
+                )
+            })?;
+            events.extend(dir_events);
+            read_violations.extend(dir_violations);
+        }
         let (journal, fold_violations) = fold(&events, &[], &[]);
         if let Some(violation) = read_violations.iter().chain(&fold_violations).next() {
             return Err(refused(
@@ -772,68 +785,46 @@ fn message(subject: &str, body: &str, basis: &str, trailers: &[String]) -> Strin
     text
 }
 
-/// Записывает события в журнал и коммитит ровно их. Если коммит не создан,
-/// записанные файлы удаляются: событие без коммита — не история.
+/// Дописывает события в одну запись журнала `journal.toml` и коммитит ровно её
+/// (решение 43). Если коммит не создан, дописанное откатывается: событие без
+/// коммита — не история.
 fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Result<u8, Refusal> {
-    let journal = repo.root.join(repo.config.journal_dir());
-    let mut written: Vec<PathBuf> = Vec::new();
-    for event in events {
-        let mut attempt = 0;
-        let mut relative = event.file.clone();
-        while journal.join(&relative).exists() {
-            attempt += 1;
-            relative = relative_path(&event.subject, &event.at, &event.kind, attempt);
-        }
-        let path = journal.join(&relative);
-        let text = Event {
-            file: relative,
-            ..event
-        }
-        .to_text();
-        let stored = path
-            .parent()
-            .map_or(Ok(()), fs::create_dir_all)
-            .and_then(|()| fs::write(&path, text));
-        if let Err(error) = stored {
-            remove(&written);
-            return Err(usage(
-                code::EVENT_NOT_WRITTEN,
-                format!("event {} not written: {error}", path.display()),
-            ));
-        }
-        written.push(path);
+    let file = repo.root.join(repo.config.journal_file());
+    // Append-only: прежняя версия записи — префикс новой, поэтому читаем текущую
+    // и дописываем события таблицами [[events]].
+    let previous = fs::read_to_string(&file).unwrap_or_default();
+    let mut text = previous.clone();
+    for event in &events {
+        text.push_str(&event.to_table());
+    }
+    if let Err(error) = fs::write(&file, &text) {
+        return Err(usage(
+            code::EVENT_NOT_WRITTEN,
+            format!("{} not written: {error}", file.display()),
+        ));
     }
     let message_file = repo.git_dir.join(layout::JOURNAL_MESSAGE);
     if let Err(error) = fs::write(&message_file, message) {
-        remove(&written);
+        let _ = fs::write(&file, previous);
         return Err(usage(
             code::COMMIT_MESSAGE_NOT_WRITTEN,
             format!("commit message not written: {error}"),
         ));
     }
-    let mut args = vec![
+    let args = vec![
         OsString::from("-F"),
         message_file.clone().into_os_string(),
         OsString::from("--"),
+        file.strip_prefix(&repo.root)
+            .unwrap_or(&file)
+            .as_os_str()
+            .to_owned(),
     ];
-    for path in &written {
-        args.push(
-            path.strip_prefix(&repo.root)
-                .unwrap_or(path)
-                .as_os_str()
-                .to_owned(),
-        );
-    }
     let code = commit::run(&args);
     let _ = fs::remove_file(&message_file);
     if code != 0 {
-        remove(&written);
+        // Откатить дописанные события: событие без коммита — не история.
+        let _ = fs::write(&file, previous);
     }
     Ok(code)
-}
-
-fn remove(files: &[PathBuf]) {
-    for file in files {
-        let _ = fs::remove_file(file);
-    }
 }

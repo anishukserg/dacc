@@ -788,13 +788,24 @@ impl Gate {
     /// сборка крейта документов.
     fn journal(&mut self) -> Result<(), Fail> {
         let dir = self.tree.join(self.config.journal_dir());
-        if !dir.is_dir() {
+        let file = self.tree.join(self.config.journal_file());
+        if !dir.is_dir() && !file.is_file() {
             self.skipped.push("journal");
             return Ok(());
         }
         let mut problems = self.changed_event_files();
-        let (events, _) = dacc_journal::read_dir(&dir)
+        problems.extend(self.changed_journal_file());
+        // Одна запись и прежний каталог читаются вместе (решение 43).
+        let (file_events, _) = dacc_journal::read_file(&file)
             .map_err(|error| start_fail(format!("journal not read: {error}")))?;
+        let (dir_events, _) = if dir.is_dir() {
+            dacc_journal::read_dir(&dir)
+                .map_err(|error| start_fail(format!("journal not read: {error}")))?
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        let mut events = file_events;
+        events.extend(dir_events);
         for event in &events {
             let Kind::Landed { commit, tree, .. } = &event.kind else {
                 continue;
@@ -859,6 +870,23 @@ impl Gate {
             }
         }
         problems
+    }
+
+    /// Одна запись журнала из HEAD (решение 43): прежняя версия — префикс новой,
+    /// поэтому событие не переписывается, а только дописывается. Нет файла в
+    /// HEAD — первый коммит — сравнивать не с чем.
+    fn changed_journal_file(&self) -> Vec<String> {
+        let journal = self.config.journal_file();
+        let Some(head) = git::read(&self.root, &["show", &format!("HEAD:{journal}")]) else {
+            return Vec::new();
+        };
+        let text = fs::read_to_string(self.tree.join(&journal)).unwrap_or_default();
+        if !text.starts_with(&head) {
+            return vec![format!(
+                "{journal}: the journal file is not append-only (the committed version is not a prefix)"
+            )];
+        }
+        Vec::new()
     }
 
     /// cargo из дерева с каталогом сборки `build`.
