@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-shorten-titles"
+at = "2026-09-29T17:31:37Z"
+commit = "e8c09dc5396d5367b3be41345e6b622631978ead"
+tree = "141b6718d27edde3f2e319c7b5b67d366e39a55f"
