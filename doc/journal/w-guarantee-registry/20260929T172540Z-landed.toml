@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-guarantee-registry"
+at = "2026-09-29T17:25:40Z"
+commit = "41fdac07e1ff98fdebc9a752b5d48377b2450ee5"
+tree = "9452345419e750fc113e406493f5f0676229bb7a"
