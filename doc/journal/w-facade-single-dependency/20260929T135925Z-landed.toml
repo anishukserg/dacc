@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-facade-single-dependency"
+at = "2026-09-29T13:59:25Z"
+commit = "93cd264e041c9d01a087f0d752c6c91a95d67f4b"
+tree = "efba33477e85a830d9fb6f4d141d645e67c2ad8d"
