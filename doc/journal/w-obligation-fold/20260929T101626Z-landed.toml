@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-obligation-fold"
+at = "2026-09-29T10:16:26Z"
+commit = "277ad87ef3b45091e63ba307074f30570e73e26b"
+tree = "6de5949b7d691064acb5afd3f50bc0e127504b7c"
