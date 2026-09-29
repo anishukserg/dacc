@@ -7,7 +7,7 @@ use std::{env, path::PathBuf};
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
-    if let Err(error) = dacc_scan::emit_registry(&manifest, &out) {
+    if let Err(error) = dacc_scan::emit_registry(&manifest, &[], &out) {
         println!("cargo::error=dacc: {error}");
         std::process::exit(1);
     }

@@ -24,8 +24,8 @@ pub use dacc_knowledge::{
     adr, rfc, ArchitectureDecision, Breaking, DocStatus, DomainSpecification,
 };
 pub use dacc_scan::{
-    emit_anchors, emit_refs, scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError,
-    ScannedAnchor, ScannedSlug,
+    check_inline_links, emit_anchor_refs, emit_anchors, emit_refs, extract_inline_links,
+    scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError, ScannedAnchor, ScannedSlug,
 };
 pub use dacc_work::{
     radius_within_slice, slice, thrust, work, InquiryOutcome, Slice, Thrust, WorkItem, WorkOrigin,

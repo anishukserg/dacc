@@ -19,9 +19,9 @@
 pub mod anchors;
 pub mod journal;
 pub mod plan;
-pub use anchors::{emit_anchors, scan_anchors, AnchorMode, ScannedAnchor};
+pub use anchors::{emit_anchor_refs, emit_anchors, scan_anchors, AnchorMode, ScannedAnchor};
 
-use std::{fmt::Write as _, fs, path::Path};
+use std::{collections::HashSet, fmt::Write as _, fs, path::Path};
 
 use dacc_core::anchor_rules::slug_ident;
 
@@ -71,6 +71,11 @@ pub enum ScanError {
         line: usize,
         detail: String,
     },
+    /// Инлайн-ссылка прозы указывает на несуществующую разметку (решение 24).
+    InlineLink {
+        file: String,
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for ScanError {
@@ -86,6 +91,7 @@ impl std::fmt::Display for ScanError {
                 "{file}: `{ident}` is allowed in generated code only; a reference in the registry is a path to a constant"
             ),
             Self::Anchor { file, line, detail } => write!(f, "{file}:{line}: code anchor: {detail}"),
+            Self::InlineLink { file, detail } => write!(f, "{file}: inline link: {detail}"),
         }
     }
 }
@@ -98,6 +104,74 @@ pub fn scan_specs(dir: &Path) -> Result<Vec<ScannedSlug>, ScanError> {
 /// Сканирует каталог реестра решений (`adr!`).
 pub fn scan_decisions(dir: &Path) -> Result<Vec<ScannedSlug>, ScanError> {
     scan_slug_dir(dir, "adr")
+}
+
+/// Извлекает из прозы ссылки формы `` `[id]` `` (решение 24): обратные кавычки,
+/// квадратные скобки с slug-идентификатором разметки, закрывающие обратные
+/// кавычки. Только эта форма проверяется; свободное упоминание имени символа
+/// ссылкой не является и не извлекается.
+pub fn extract_inline_links(text: &str) -> Vec<String> {
+    let mut links = Vec::new();
+    let mut i = 0;
+    while i < text.len() {
+        let Some(pos) = text[i..].find('`') else {
+            break;
+        };
+        let at = i + pos;
+        let after = &text[at + 1..];
+        if let Some(rest) = after.strip_prefix('[') {
+            if let Some(end) = rest.find(']') {
+                let id = &rest[..end];
+                if rest[end + 1..].starts_with('`')
+                    && dacc_core::anchor_rules::check_slug_id(id).is_ok()
+                {
+                    links.push(id.to_owned());
+                }
+            }
+        }
+        i = at + 1;
+    }
+    links
+}
+
+/// Сверяет инлайн-ссылки прозы файла реестра с разметкой: несуществующий
+/// якорь — отказ (решение 24).
+pub fn check_inline_links(
+    text: &str,
+    file: &str,
+    anchors: &HashSet<&str>,
+) -> Result<(), ScanError> {
+    for id in extract_inline_links(text) {
+        if !anchors.contains(id.as_str()) {
+            return Err(ScanError::InlineLink {
+                file: file.to_owned(),
+                detail: format!(
+                    "prose link `[{id}]` references an anchor that is not marked with `#[doc_anchor]`"
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Сверяет инлайн-ссылки всех файлов каталога реестра (`adr` или `rfc`).
+fn check_inline_links_in_dir(dir: &Path, anchors: &HashSet<&str>) -> Result<(), ScanError> {
+    let entries =
+        fs::read_dir(dir).map_err(|e| ScanError::Io(format!("{}: {e}", dir.display())))?;
+    for entry in entries {
+        let path = entry.map_err(|e| ScanError::Io(e.to_string()))?.path();
+        let is_rs = path.extension().is_some_and(|e| e == "rs");
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        if !is_rs || stem == "mod" {
+            continue;
+        }
+        let text = fs::read_to_string(&path).map_err(|e| ScanError::Io(e.to_string()))?;
+        check_inline_links(&text, &path.display().to_string(), anchors)?;
+    }
+    Ok(())
 }
 
 /// имя его файла (slug), а не число внутри макроса.
@@ -355,7 +429,18 @@ pub fn emit_spec_refs(specs: &[ScannedSlug]) -> String {
 /// спецификаций, плана и журнала, порождение и запись всех файлов в `out_dir`.
 /// build.rs потребителя сводится к одному вызову; каталоги реестра ожидаются в
 /// корне `registry_dir` — он же корень крейта документов.
-pub fn emit_registry(registry_dir: &Path, out_dir: &Path) -> Result<(), ScanError> {
+pub fn emit_registry(
+    registry_dir: &Path,
+    src_dirs: &[&Path],
+    out_dir: &Path,
+) -> Result<(), ScanError> {
+    // Разметка кода нужна раньше остального: по ней сверяются инлайн-ссылки
+    // прозы решений и спецификаций (решение 24).
+    let anchors = anchors::scan_anchors(src_dirs)?;
+    let anchor_ids: HashSet<&str> = anchors.iter().map(|a| a.id.as_str()).collect();
+    check_inline_links_in_dir(&registry_dir.join("adr"), &anchor_ids)?;
+    check_inline_links_in_dir(&registry_dir.join("rfc"), &anchor_ids)?;
+
     let decisions = scan_decisions(&registry_dir.join("adr"))?;
     write_file(out_dir, "adr.rs", &emit_refs(&decisions))?;
 
@@ -515,6 +600,45 @@ mod tests {
         assert!(err.to_string().contains("__from_scan"), "{err}");
     }
 
+    /// Решение 24: извлекается только форма `` `[id]` ``; свободное упоминание
+    /// имени символа и иная скобочная форма ссылкой не являются.
+    #[test]
+    fn extracts_inline_links_and_ignores_free_mentions() {
+        let text = "Форма `[plan-ir]` и свободное упоминание plan_ir, а ещё `[hdr]` и `[Plan-IR]`.";
+        let links = extract_inline_links(text);
+        assert_eq!(links, vec!["plan-ir".to_owned(), "hdr".to_owned()]);
+    }
+
+    /// Решение 24: ссылка на несуществующий якорь — отказ сборки.
+    #[test]
+    fn inline_link_to_unmarked_anchor_is_refused() {
+        let anchors: HashSet<&str> = ["plan-ir"].into_iter().collect();
+        let err = check_inline_links("Ссылка `[hdr]` не туда.", "a.rs", &anchors).unwrap_err();
+        assert!(err.to_string().contains("hdr"), "{err}");
+    }
+
+    /// Решение 24: удаление разметки ломает ссылку — та же ссылка, которая
+    /// резолвилась при разметке, становится отказом, когда якорь исчезает.
+    #[test]
+    fn removing_markup_breaks_the_link() {
+        let with_anchor: HashSet<&str> = ["plan-ir"].into_iter().collect();
+        assert!(check_inline_links("Ссылка `[plan-ir]`.", "a.rs", &with_anchor).is_ok());
+
+        let without_anchor: HashSet<&str> = HashSet::new();
+        let err = check_inline_links("Ссылка `[plan-ir]`.", "a.rs", &without_anchor).unwrap_err();
+        assert!(err.to_string().contains("plan-ir"), "{err}");
+    }
+
+    /// Решение 24: свободное упоминание имени символа (без формы ссылки) не
+    /// проверяется и отказа не даёт.
+    #[test]
+    fn free_mention_of_a_symbol_is_not_checked() {
+        let anchors: HashSet<&str> = HashSet::new();
+        assert!(
+            check_inline_links("Упоминание plan_ir без формы ссылки.", "a.rs", &anchors).is_ok()
+        );
+    }
+
     /// Снимок порождаемого текста: весь он английский (решение 22).
     ///
     /// Порождённый код попадает на страницы `cargo doc` чужого реестра, и
@@ -608,7 +732,7 @@ mod tests {
         let out = root.join("out");
         fs::create_dir_all(&out).unwrap();
 
-        emit_registry(&root, &out).unwrap();
+        emit_registry(&root, &[], &out).unwrap();
 
         for name in ["adr.rs", "rfc.rs", "plan.rs", "journal.rs", "commit.rs"] {
             assert!(out.join(name).is_file(), "{name} is missing");
