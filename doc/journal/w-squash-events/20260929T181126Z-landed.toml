@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-squash-events"
+at = "2026-09-29T18:11:26Z"
+commit = "a130895d1e4721af7f72f53341e61461d3795771"
+tree = "0d0b0eb1b1bf61f76e0f8b685895b6f6107136df"
