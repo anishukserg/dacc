@@ -7,9 +7,7 @@ dacc_work::work!("w-gate-explicit-tree-gitignore",
     slice: crate::slice::s_pilot_gate_findings_2,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Рабочее дерево калитка обходит по списку git и .gitignore уважает, а явное дерево (gate --repo <root> <dir>) обходит вручную, пропуская только target/ и .git/: игнорируемые файлы в нём попадают в шаги внешних имён и ссылок (решение 8)."
-        ),
+        limitation: crate::limitation::l_gate_explicit_tree_gitignore,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

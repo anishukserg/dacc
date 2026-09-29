@@ -7,9 +7,7 @@ dacc_work::work!("w-markdown-link-step",
     slice: crate::slice::s_commit_rules,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Калитка на дереве коммита проверяет относительные ссылки в markdown (решение 8)."
-        ),
+        limitation: crate::limitation::l_markdown_link_step,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

@@ -7,9 +7,7 @@ dacc_work::work!("w-limitations-registry",
     slice: crate::slice::s_typed_checks,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Работы с происхождением Divergence называют расхождение текстом, но реестр не сверяется с кодом: необъявленное расхождение не ловится сборкой."
-        ),
+        limitation: crate::limitation::l_limitations_registry,
     },
     taxon: taxon!(Subsystem, Work),
     radius: BlastRadius::Crate,

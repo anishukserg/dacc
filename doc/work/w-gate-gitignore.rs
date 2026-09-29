@@ -7,9 +7,7 @@ dacc_work::work!("w-gate-gitignore",
     slice: crate::slice::s_pilot_gate_findings,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Калитка обходит дерево, пропуская только каталоги target/ и .git/: игнорируемые .gitignore пути (.venv-docs с site-packages) и чужой битый license.txt ломают шаги внешних имён и ссылок, хотя в репозиторий не входят (решение 8)."
-        ),
+        limitation: crate::limitation::l_gate_gitignore,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

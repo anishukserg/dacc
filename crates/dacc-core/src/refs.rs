@@ -114,6 +114,12 @@ declare_ref! {
     ObligationRef(&'static str), "\"o-fix-x\""
 }
 
+declare_ref! {
+    /// Ссылка на ограничение (Limitation). Несёт slug из имени файла, а не
+    /// порядковый номер.
+    LimitationRef(&'static str), "\"l-fix-x\""
+}
+
 macro_rules! numbered {
     ($($name:ident),*) => {$(
         impl $name {
@@ -163,7 +169,8 @@ slug_ref!(
     ThrustRef,
     SliceRef,
     WorkRef,
-    ObligationRef
+    ObligationRef,
+    LimitationRef
 );
 
 impl AnchorId {

@@ -7,9 +7,7 @@ dacc_work::work!("w-truth-of-now",
     slice: crate::slice::s_registry_hygiene,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_003,
-        violated: NonEmptyStr::new(
-            "Проекции (roadmap, сайт) порождаются из реестра, но правило «проекция не хранит контракт» не выражено: проекция может начать дублировать нормативное."
-        ),
+        limitation: crate::limitation::l_truth_of_now,
     },
     taxon: taxon!(Subsystem, Access),
     radius: BlastRadius::Local,

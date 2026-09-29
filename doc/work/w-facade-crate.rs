@@ -7,9 +7,7 @@ dacc_work::work!("w-facade-crate",
     slice: crate::slice::s_facade_crate,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_001,
-        violated: NonEmptyStr::new(
-            "Решение 7 называет публичной поверхностью фасадный крейт и cargo-dacc, но фасадного крейта в репозитории нет: потребитель подключает крейты по одному."
-        ),
+        limitation: crate::limitation::l_facade_crate,
     },
     taxon: taxon!(Subsystem, Knowledge),
     radius: BlastRadius::Crate,

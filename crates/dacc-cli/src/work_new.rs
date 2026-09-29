@@ -28,7 +28,7 @@ enum Origin {
     Specification(String),
     Divergence {
         rfc: String,
-        violated: String,
+        limitation: String,
     },
     Inquiry {
         question: String,
@@ -43,7 +43,7 @@ enum Origin {
 struct OriginArgs {
     adr: Option<String>,
     rfc: Option<String>,
-    violated: Option<String>,
+    limitation: Option<String>,
     question: Option<String>,
     produces: Option<String>,
     timebox: Option<String>,
@@ -145,7 +145,7 @@ impl WorkSpec {
         let mut origin_type = None;
         let mut adr = None;
         let mut rfc = None;
-        let mut violated = None;
+        let mut limitation = None;
         let mut question = None;
         let mut produces = None;
         let mut timebox = None;
@@ -168,7 +168,7 @@ impl WorkSpec {
                 "--origin" => origin_type = Some(value("--origin")?.clone()),
                 "--adr" => adr = Some(value("--adr")?.clone()),
                 "--rfc" => rfc = Some(value("--rfc")?.clone()),
-                "--violated" => violated = Some(value("--violated")?.clone()),
+                "--limitation" => limitation = Some(value("--limitation")?.clone()),
                 "--question" => question = Some(value("--question")?.clone()),
                 "--produces" => produces = Some(value("--produces")?.clone()),
                 "--timebox" => timebox = Some(value("--timebox")?.clone()),
@@ -216,7 +216,7 @@ impl WorkSpec {
             &OriginArgs {
                 adr,
                 rfc,
-                violated,
+                limitation,
                 question,
                 produces,
                 timebox,
@@ -270,10 +270,10 @@ impl WorkSpec {
             Origin::Specification(rfc) => {
                 format!("WorkOrigin::Specification(crate::rfc::{})", ident(rfc))
             }
-            Origin::Divergence { rfc, violated } => format!(
-                "WorkOrigin::Divergence {{ specification: crate::rfc::{}, violated: NonEmptyStr::new({}) }}",
+            Origin::Divergence { rfc, limitation } => format!(
+                "WorkOrigin::Divergence {{ specification: crate::rfc::{}, limitation: crate::limitation::{} }}",
                 ident(rfc),
-                rust_string(violated)
+                ident(limitation)
             ),
             Origin::Inquiry {
                 question,
@@ -312,10 +312,10 @@ fn parse_origin(
                 .rfc
                 .clone()
                 .ok_or_else(|| usage(code::USAGE, "--origin divergence needs --rfc <rfc-slug>"))?,
-            violated: args
-                .violated
+            limitation: args
+                .limitation
                 .clone()
-                .ok_or_else(|| usage(code::USAGE, "--origin divergence needs --violated"))?,
+                .ok_or_else(|| usage(code::USAGE, "--origin divergence needs --limitation <l-slug>"))?,
         }),
         Some("inquiry") => {
             let produces = args

@@ -7,9 +7,7 @@ dacc_work::work!("w-scan-english-errors",
     slice: crate::slice::s_scan_english,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_001,
-        violated: NonEmptyStr::new(
-            "Текст, порождаемый инструментом, английский, включая комментарии и документацию порождённых файлов и сообщения, которые они выдают компилятором (решение 22)."
-        ),
+        limitation: crate::limitation::l_scan_english_errors,
     },
     taxon: taxon!(Subsystem, Scan),
     radius: BlastRadius::Crate,

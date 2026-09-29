@@ -7,9 +7,7 @@ dacc_work::work!("w-markdown-code-link",
     slice: crate::slice::s_tool_defects,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Проверка содержательна: шаг калитки отвергает документ за настоящую битую ссылку, а не за форму записи (решения 8 и 14)."
-        ),
+        limitation: crate::limitation::l_markdown_code_link,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

@@ -19,8 +19,8 @@ pub mod roadmap;
 mod schema;
 
 pub use schema::{
-    obligations_redeemed, radius_within_slice, toil_within_local_radius, InquiryOutcome,
-    Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
+    limitations_declared, obligations_redeemed, radius_within_slice, toil_within_local_radius,
+    InquiryOutcome, Limitation, Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
@@ -62,5 +62,16 @@ macro_rules! obligation {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
         /// Запись обязательства этого файла.
         pub static OBLIGATION: $crate::Obligation = $crate::Obligation { id: $id, $($field: $value),* };
+    };
+}
+
+/// Регистрация ограничения. Файл обязан называться по slug-идентификатору
+/// (`l-fix-x.rs`), а slug — первый аргумент. Утверждение о расхождении
+/// `violated` обязательно: необъявленное расхождение не выразимо.
+#[macro_export]
+macro_rules! limitation {
+    ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
+        /// Запись ограничения этого файла.
+        pub static LIMITATION: $crate::Limitation = $crate::Limitation { id: $id, $($field: $value),* };
     };
 }

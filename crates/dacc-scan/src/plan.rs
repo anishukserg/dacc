@@ -79,6 +79,20 @@ pub const OBLIGATIONS: PlanKind = PlanKind {
     plural: "obligations",
 };
 
+/// Реестр ограничений: расхождение фактического с заявленным, объявленное
+/// отдельной записью, на которую ссылается работа `WorkOrigin::Divergence`.
+pub const LIMITATIONS: PlanKind = PlanKind {
+    macro_name: "limitation",
+    module: "limitation",
+    reference: "LimitationRef",
+    record: "Limitation",
+    item: "LIMITATION",
+    all: "ALL_LIMITATIONS",
+    noun: "Limitation",
+    lower: "limitation",
+    plural: "limitations",
+};
+
 /// Сканирует каталог реестра одного вида.
 pub fn scan_plan(dir: &Path, kind: &PlanKind) -> Result<Vec<ScannedSlug>, ScanError> {
     crate::scan_slug_dir(dir, kind.macro_name)
@@ -174,6 +188,18 @@ pub fn emit_obligation_checks(obligations: &[ScannedSlug]) -> String {
     }
     String::from(
         "// Every obligation is redeemed by a landed work with WorkOrigin::Obligation — the compiler evaluates it (decision 35).\nconst _: () = assert!(dacc_work::obligations_redeemed(ALL_OBLIGATIONS, ALL_WORK, WORK_STATES), \"dacc: an obligation is not redeemed by a landed discharge work\");\n",
+    )
+}
+
+/// Утверждение «каждое ограничение объявлено работой с происхождением
+/// `WorkOrigin::Divergence`, ссылающейся на него путём».
+/// Порождается, когда в реестре есть ограничения.
+pub fn emit_limitation_checks(limitations: &[ScannedSlug]) -> String {
+    if limitations.is_empty() {
+        return String::new();
+    }
+    String::from(
+        "// Every limitation is declared by a Divergence work — the compiler evaluates it.\nconst _: () = assert!(dacc_work::limitations_declared(ALL_LIMITATIONS, ALL_WORK), \"dacc: a limitation is not declared by a Divergence work\");\n",
     )
 }
 

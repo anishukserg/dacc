@@ -7,9 +7,7 @@ dacc_work::work!("w-config-refusal",
     slice: crate::slice::s_tool_defects,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Отказ называет, как его исправить, а проверка оснований покрывает каждый коммит на пути в основную ветку, включая корневой (решения 8 и 18)."
-        ),
+        limitation: crate::limitation::l_config_refusal,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

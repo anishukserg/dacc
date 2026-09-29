@@ -7,9 +7,7 @@ dacc_work::work!("w-first-commit",
     slice: crate::slice::s_tool_defects,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Правила коммита исполнимы самим инструментом с первого коммита: обходить их отдельным git add не требуется (решение 8)."
-        ),
+        limitation: crate::limitation::l_first_commit,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

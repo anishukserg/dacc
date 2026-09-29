@@ -20,8 +20,8 @@ pub use channel::Channel;
 pub use nonempty::{NonEmpty, NonEmptyStr};
 pub use radius::{BlastRadius, Severity};
 pub use refs::{
-    AdrRef, AnchorId, BreakingRef, GateRef, ObligationRef, RfcRef, SliceRef, SupersededRef,
-    ThrustRef, WorkRef,
+    AdrRef, AnchorId, BreakingRef, GateRef, LimitationRef, ObligationRef, RfcRef, SliceRef,
+    SupersededRef, ThrustRef, WorkRef,
 };
 pub use taxonomy::{axis, Taxon};
 

@@ -2,8 +2,8 @@
 //! реестров; правило, выразимое типом, валидатором не проверяется.
 
 use dacc_core::{
-    axis::Subsystem, AdrRef, BlastRadius, NonEmpty, NonEmptyStr, ObligationRef, RfcRef, SliceRef,
-    SupersededRef, Taxon, ThrustRef, WorkRef,
+    axis::Subsystem, AdrRef, BlastRadius, LimitationRef, NonEmpty, NonEmptyStr, ObligationRef,
+    RfcRef, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 use std::num::NonZeroU16;
 
@@ -60,6 +60,19 @@ pub struct Obligation {
     pub criteria: NonEmpty<NonEmptyStr>,
 }
 
+/// Ограничение: расхождение фактического с заявленным, объявленное отдельной
+/// записью реестра. Работа с происхождением [`WorkOrigin::Divergence`]
+/// ссылается на него, а не называет расхождение свободным текстом, поэтому
+/// необъявленное расхождение не компилируется.
+#[derive(Debug)]
+pub struct Limitation {
+    pub id: &'static str,
+    pub title: NonEmptyStr,
+    /// Что расходится с заявленным — обязательное: без него запись не
+    /// компилируется.
+    pub violated: NonEmptyStr,
+}
+
 /// Происхождение работы: тип задачи и её обоснование — одно поле.
 ///
 /// Перечисление неполное относительно части III: `Migration` появится вместе
@@ -73,12 +86,12 @@ pub enum WorkOrigin {
     Decision(AdrRef),
     /// Реализация доменной спецификации.
     Specification(RfcRef),
-    /// Расхождение фактического с заявленным. Реестра инвариантов с путями
-    /// пока нет, поэтому нарушенное утверждение названо текстом рядом со
-    /// спецификацией, где оно объявлено.
+    /// Расхождение фактического с заявленным. Нарушенное утверждение живёт в
+    /// записи [`Limitation`], а работа ссылается на него путём — необъявленное
+    /// расхождение не компилируется.
     Divergence {
         specification: RfcRef,
-        violated: NonEmptyStr,
+        limitation: LimitationRef,
     },
     /// Снятие неопределённости. Поля, объявляющего приземление кода, нет:
     /// исследование, уезжающее в main, невыразимо.
@@ -224,6 +237,34 @@ const fn redeemed(slug: &str, work: &[&WorkItem], states: &[(WorkRef, WorkState)
     false
 }
 
+/// Каждое ограничение объявлено работой с происхождением
+/// [`WorkOrigin::Divergence`], ссылающейся на него путём. Функция `const`: скан
+/// порождает утверждение, и необъявленное ограничение — ошибка вычисления
+/// константы, а не находка валидатора.
+pub const fn limitations_declared(limitations: &[&Limitation], work: &[&WorkItem]) -> bool {
+    let mut i = 0;
+    while i < limitations.len() {
+        if !declared(limitations[i].id, work) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+const fn declared(slug: &str, work: &[&WorkItem]) -> bool {
+    let mut j = 0;
+    while j < work.len() {
+        if let WorkOrigin::Divergence { limitation, .. } = work[j].origin {
+            if slug_eq(slug, limitation.as_str()) {
+                return true;
+            }
+        }
+        j += 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,6 +325,45 @@ mod tests {
 
         let planned = [(WorkRef::__from_scan("w-001"), WorkState::Planned)];
         assert!(!obligations_redeemed(&obligations, &work, &planned));
+    }
+
+    /// Ограничение объявлено работой с происхождением Divergence, ссылающейся
+    /// на него путём; работа иного происхождения ограничение не объявляет.
+    #[test]
+    fn limitations_are_declared_by_a_divergence_work() {
+        let limitation = Limitation {
+            id: "l-fix-x",
+            title: NonEmptyStr::new("Ограничение"),
+            violated: NonEmptyStr::new("фактическое расходится с заявленным"),
+        };
+        let declaring = WorkItem {
+            id: "w-001",
+            title: NonEmptyStr::new("Объявить ограничение"),
+            slice: SliceRef::__from_scan("s-003"),
+            origin: WorkOrigin::Divergence {
+                specification: RfcRef::__from_scan("rfc-2026-002"),
+                limitation: LimitationRef::__from_scan("l-fix-x"),
+            },
+            taxon: Subsystem::Core,
+            radius: BlastRadius::Local,
+            outcome: NonEmptyStr::new("готово"),
+        };
+
+        let limitations = [&limitation];
+        assert!(limitations_declared(&limitations, &[&declaring]));
+
+        let other = WorkItem {
+            id: "w-002",
+            title: NonEmptyStr::new("Другая работа"),
+            slice: SliceRef::__from_scan("s-003"),
+            origin: WorkOrigin::Toil {
+                justification: NonEmptyStr::new("рутина"),
+            },
+            taxon: Subsystem::Core,
+            radius: BlastRadius::Local,
+            outcome: NonEmptyStr::new("готово"),
+        };
+        assert!(!limitations_declared(&limitations, &[&other]));
     }
 
     /// Рутина не может объявить радиус выше Local: правило выражает тип, а

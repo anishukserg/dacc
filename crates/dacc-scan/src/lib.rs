@@ -480,13 +480,16 @@ pub fn emit_registry(
     let slices = plan::scan_plan(&registry_dir.join("slice"), &plan::SLICES)?;
     let work = plan::scan_plan(&registry_dir.join("work"), &plan::WORK)?;
     let obligations = plan::scan_plan(&registry_dir.join("obligation"), &plan::OBLIGATIONS)?;
+    let limitations = plan::scan_plan(&registry_dir.join("limitation"), &plan::LIMITATIONS)?;
     let mut code = plan::emit_plan(&thrusts, &plan::THRUSTS);
     code.push_str(&plan::emit_plan(&slices, &plan::SLICES));
     code.push_str(&plan::emit_plan(&work, &plan::WORK));
     code.push_str(&plan::emit_plan(&obligations, &plan::OBLIGATIONS));
+    code.push_str(&plan::emit_plan(&limitations, &plan::LIMITATIONS));
     code.push_str(&plan::emit_work_checks(&work));
     code.push_str(&plan::emit_toil_checks(&work));
     code.push_str(&plan::emit_obligation_checks(&obligations));
+    code.push_str(&plan::emit_limitation_checks(&limitations));
     write_file(out_dir, "plan.rs", &code)?;
 
     let journal = journal::scan_journal(&registry_dir.join("journal"), &work)?;
@@ -501,6 +504,7 @@ pub fn emit_registry(
         "slice",
         "work",
         "obligation",
+        "limitation",
         "journal",
     ] {
         println!("cargo::rerun-if-changed={dir}");
@@ -781,6 +785,7 @@ mod tests {
             "slice",
             "work",
             "obligation",
+            "limitation",
             "journal",
         ] {
             fs::create_dir_all(root.join(dir)).unwrap();

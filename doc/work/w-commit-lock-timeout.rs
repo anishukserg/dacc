@@ -7,9 +7,7 @@ dacc_work::work!("w-commit-lock-timeout",
     slice: crate::slice::s_cargo_dacc_tool,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Параллельный коммит ждёт блокировку, а блокировку умершего процесса снимает ожидающий (решения 8 и 14)."
-        ),
+        limitation: crate::limitation::l_commit_lock_timeout,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

@@ -7,9 +7,7 @@ dacc_work::work!("w-single-form",
     slice: crate::slice::s_registry_hygiene,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_001,
-        violated: NonEmptyStr::new(
-            "anchor_rules — «одно место на всех исполнителей», но механизма, который ловит копии формы правила, нет: дубль парсера не ловится."
-        ),
+        limitation: crate::limitation::l_single_form,
     },
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Local,

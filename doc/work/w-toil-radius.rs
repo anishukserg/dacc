@@ -7,9 +7,7 @@ dacc_work::work!("w-toil-radius",
     slice: crate::slice::s_toil_radius,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "происхождение Toil объявляет «рутину», но радиус работы никак не ограничен: оправдание непустой строкой допускает тронуть публичный API без среза и решения"
-        ),
+        limitation: crate::limitation::l_toil_radius,
     },
     taxon: taxon!(Subsystem, Work),
     radius: BlastRadius::Crate,

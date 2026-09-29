@@ -7,9 +7,7 @@ dacc_work::work!("w-anti-vacuity",
     slice: crate::slice::s_typed_checks,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Скан-паттерны DACC (например, поиск обхода __from_scan) могут протухнуть молча: ноль сырых совпадений выглядит как чистое дерево, а не как умершая проверка."
-        ),
+        limitation: crate::limitation::l_anti_vacuity,
     },
     taxon: taxon!(Subsystem, Scan),
     radius: BlastRadius::Crate,

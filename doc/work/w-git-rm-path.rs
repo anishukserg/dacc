@@ -7,9 +7,7 @@ dacc_work::work!("w-git-rm-path",
     slice: crate::slice::s_cargo_dacc_tool,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Пути перечисляются явно — новые, изменённые и удалённые; коммитятся ровно они (решение 8)."
-        ),
+        limitation: crate::limitation::l_git_rm_path,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

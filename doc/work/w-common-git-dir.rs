@@ -7,9 +7,7 @@ dacc_work::work!("w-common-git-dir",
     slice: crate::slice::s_tool_defects,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Доказательство готовности принадлежит репозиторию: калитка, пройденная в изолированной рабочей копии, остаётся доказательством того же дерева (решения 4 и 15)."
-        ),
+        limitation: crate::limitation::l_common_git_dir,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

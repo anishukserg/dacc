@@ -7,9 +7,7 @@ dacc_work::work!("w-obligation-criteria",
     slice: crate::slice::s_typed_checks,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Obligation несёт только discharged_when (свободный текст): вопрос погашается «когда-нибудь», критерии решения не названы."
-        ),
+        limitation: crate::limitation::l_obligation_criteria,
     },
     taxon: taxon!(Subsystem, Work),
     radius: BlastRadius::Crate,

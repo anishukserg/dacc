@@ -7,9 +7,7 @@ dacc_work::work!("w-hooks-partial-install",
     slice: crate::slice::s_tool_defects,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Установка хуков ставит все правила или отказывает: частичная установка, выглядящая успешной, оставляет основание коммита непроверенным (решения 8 и 14)."
-        ),
+        limitation: crate::limitation::l_hooks_partial_install,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

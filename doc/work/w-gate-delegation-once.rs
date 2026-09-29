@@ -7,9 +7,7 @@ dacc_work::work!("w-gate-delegation-once",
     slice: crate::slice::s_pilot_gate_findings_2,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Решение 28 объявляет команду проекта одной проверкой с одним исполнителем, но условие «gate_command задана» повторяется в каждом из шести шагов cargo и в счётчике шагов: решение о делегировании размазано по коду и при добавлении шага может разойтись."
-        ),
+        limitation: crate::limitation::l_gate_delegation_once,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

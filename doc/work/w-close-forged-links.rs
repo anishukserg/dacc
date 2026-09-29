@@ -9,7 +9,7 @@ dacc_work::work!("w-close-forged-links",
     slice: crate::slice::s_close_knowledge_attacks,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_001,
-        violated: NonEmptyStr::new("Ссылка на живое решение из позиции «замещённое» не компилируется."),
+        limitation: crate::limitation::l_close_forged_links,
     },
     taxon: taxon!(Subsystem, Knowledge),
     radius: BlastRadius::Crate,

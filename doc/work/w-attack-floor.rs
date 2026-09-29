@@ -7,9 +7,7 @@ dacc_work::work!("w-attack-floor",
     slice: crate::slice::s_close_knowledge_attacks,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Пол атак измеряет исполненные атаки, а не любые прошедшие примеры: иначе число добирается обычными doctest, и обещание «атаки не удалены» держится доброй волей (решение 12)."
-        ),
+        limitation: crate::limitation::l_attack_floor,
     },
     taxon: taxon!(Subsystem, Cli),
     radius: BlastRadius::Local,

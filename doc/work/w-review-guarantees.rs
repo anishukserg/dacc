@@ -7,9 +7,7 @@ dacc_work::work!("w-review-guarantees",
     slice: crate::slice::s_review_guarantees,
     origin: WorkOrigin::Divergence {
         specification: crate::rfc::rfc_2026_002,
-        violated: NonEmptyStr::new(
-            "Объявлено «несуществующая дата — ошибка компиляции» и «молчаливое забывание обязательства невыразимо», но журнал принимал 31 февраля, а погашение обязательств не было подключено к сборке; work new писал замер мимо настроенного корня и оставлял файл при отказе."
-        ),
+        limitation: crate::limitation::l_review_guarantees,
     },
     taxon: taxon!(Subsystem, Methodology),
     radius: BlastRadius::Crate,
