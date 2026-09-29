@@ -264,6 +264,11 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
         args.push(OsString::from("--journal-only"));
     }
     args.push(tree.as_os_str().to_owned());
+    if !journal_only {
+        // Полный ярус (решение 33): хук коммита исполняет MSRV и зависимости —
+        // доказательство несёт msrv, и work land принимает его.
+        args.push(OsString::from("--full"));
+    }
     if !tree.join(layout::TOOL_MANIFEST).is_file() {
         let (code, verdict, structured) = gate::run_for_proof(&args);
         let json = structured.map(|verdict| verdict.json());

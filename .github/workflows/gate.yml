@@ -76,7 +76,9 @@ jobs:
           printf '%s\n' "$NAMES" > "$info/dacc-external-names"
 
       - name: Калитка
-        run: cargo run --quiet --locked -p dacc-cli -- gate
+        # Полный ярус (решение 33): CI на пути в master исполняет MSRV и
+        # зависимости — ярус коммита их пропускает.
+        run: cargo run --quiet --locked -p dacc-cli -- gate --full
 
       - name: Основания коммитов
         env:

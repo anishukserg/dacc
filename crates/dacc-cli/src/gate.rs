@@ -2,7 +2,7 @@
 //! вердикт.
 //!
 //! ```text
-//! cargo dacc gate [--repo <directory>] [--journal-only] [--format json|text] [<tree>]
+//! cargo dacc gate [--repo <directory>] [--journal-only] [--full] [--format json|text] [<tree>]
 //! ```
 //!
 //! Хук pre-commit передаёт выгруженное дерево коммита; без аргумента
@@ -46,6 +46,11 @@
 //! С `--journal-only` — для коммита, дерево которого без журнала уже прошло
 //! калитку, — выполняются шаги 1–3 и сборка крейта документов, где журнал
 //! сворачивается; команда проекта не выполняется: это дерево уже проверено.
+//!
+//! Два яруса (решение 33): без `--full` исполняется ярус коммита — шаги 1–10;
+//! `--full` добавляет полный ярус закрытия работы — шаги 11–13 (MSRV и
+//! зависимости). Хук pre-commit исполняет полный ярус, чтобы доказательство
+//! несло `msrv`; CI на пути в master — тоже полный ярус.
 //!
 //! Отсутствующий инструмент — отказ шага, а не пропуск. Шаг без предмета
 //! проверки называется невыполненным, а не пройденным.
@@ -187,14 +192,28 @@ fn tree_command(program: &str, dir: &Path) -> Command {
     command
 }
 
-/// Общее число шагов полной калитки: команда проекта заменяет шесть
-/// стандартных шагов cargo и добавляет себя. Число в вердикте обязано быть
-/// правдой.
-fn total(config: &Config) -> usize {
-    if config.gate_command.is_some() {
+/// Сколько шагов полного яруса закрытия работы исполняет калитка поверх яруса
+/// коммита: сборка на минимальной версии, атаки на ней и проверка зависимостей
+/// (решение 33).
+const FULL_TIER_STEPS: usize = 3;
+
+/// Общее число шагов калитки: команда проекта заменяет шесть стандартных шагов
+/// cargo и добавляет себя. Число в вердикте обязано быть правдой. Ярус коммита
+/// не исполняет полный ярус, и его шаги вычитаются.
+fn total(config: &Config, full: bool) -> usize {
+    let base = if config.gate_command.is_some() {
         DACC_TOTAL - DELEGATED_STEPS + 1
     } else {
         DACC_TOTAL
+    };
+    if full {
+        base
+    } else if config.gate_command.is_some() {
+        // В делегированном случае сборка MSRV и зависимости заменены командой
+        // проекта; из полного яруса остаётся только атака на минимальной версии.
+        base - 1
+    } else {
+        base - FULL_TIER_STEPS
     }
 }
 
@@ -353,6 +372,7 @@ struct Args {
     repo: Option<PathBuf>,
     tree: Option<PathBuf>,
     journal_only: bool,
+    full: bool,
 }
 
 impl Args {
@@ -361,6 +381,7 @@ impl Args {
             repo: None,
             tree: None,
             journal_only: false,
+            full: false,
         };
         let mut rest = args;
         while let Some((first, tail)) = rest.split_first() {
@@ -374,6 +395,10 @@ impl Args {
                 }
                 Some("--journal-only") => {
                     parsed.journal_only = true;
+                    rest = tail;
+                }
+                Some("--full") => {
+                    parsed.full = true;
                     rest = tail;
                 }
                 Some("--format") => {
@@ -409,6 +434,7 @@ struct Gate {
     target: PathBuf,
     config: Config,
     journal_only: bool,
+    full: bool,
     passed: usize,
     skipped: Vec<&'static str>,
 }
@@ -434,6 +460,7 @@ impl Gate {
             target,
             config,
             journal_only: args.journal_only,
+            full: args.full,
             passed: 0,
             skipped: Vec::new(),
         })
@@ -537,81 +564,88 @@ impl Gate {
             self.cargo_step("cargo doc -D warnings", "doc", &mut doc)?;
         }
 
-        // Обещанная потребителям невыразимость проверяется на обещанном им
-        // компиляторе (решение 12).
-        let msrv = fs::read_to_string(&manifest)
-            .ok()
-            .and_then(|text| minimum_rust(&text))
-            .ok_or_else(|| {
-                start_fail(
-                    "no rust-version in the tree's Cargo.toml — the minimum version is not checked",
-                )
-            })?;
-        let toolchain = format!("+{msrv}");
+        // Полный ярус (решение 33): MSRV и зависимости — только при приземлении
+        // работы. Ярус коммита их пропускает, и вердикт остаётся без msrv.
+        let (msrv, msrv_attacks) = if self.full {
+            // Обещанная потребителям невыразимость проверяется на обещанном им
+            // компиляторе (решение 12).
+            let msrv = fs::read_to_string(&manifest)
+                .ok()
+                .and_then(|text| minimum_rust(&text))
+                .ok_or_else(|| {
+                    start_fail(
+                        "no rust-version in the tree's Cargo.toml — the minimum version is not checked",
+                    )
+                })?;
+            let toolchain = format!("+{msrv}");
 
-        if !delegated {
-            let mut msrv_check = self.cargo(&self.build_dir("msrv"));
-            msrv_check
+            if !delegated {
+                let mut msrv_check = self.cargo(&self.build_dir("msrv"));
+                msrv_check
+                    .arg(&toolchain)
+                    .args(["check", "--manifest-path"])
+                    .arg(&manifest)
+                    .args(["--workspace", "--all-targets", "--locked"]);
+                let label = format!("cargo {toolchain} check --all-targets");
+                self.cargo_step(&label, "msrv-check", &mut msrv_check)?;
+            }
+
+            self.probe_codes(
+                "msrv-probe",
+                &self.build_dir("msrv-probe"),
+                Some(&toolchain),
+            )?;
+            let mut msrv_attacks = self.cargo(&self.build_dir("msrv-attacks"));
+            msrv_attacks
                 .arg(&toolchain)
-                .args(["check", "--manifest-path"])
+                .env("RUSTC_BOOTSTRAP", "1")
+                .args(["test", "--manifest-path"])
                 .arg(&manifest)
-                .args(["--workspace", "--all-targets", "--locked"]);
-            let label = format!("cargo {toolchain} check --all-targets");
-            self.cargo_step(&label, "msrv-check", &mut msrv_check)?;
-        }
-
-        self.probe_codes(
-            "msrv-probe",
-            &self.build_dir("msrv-probe"),
-            Some(&toolchain),
-        )?;
-        let mut msrv_attacks = self.cargo(&self.build_dir("msrv-attacks"));
-        msrv_attacks
-            .arg(&toolchain)
-            .env("RUSTC_BOOTSTRAP", "1")
-            .args(["test", "--manifest-path"])
-            .arg(&manifest)
-            .args(["--workspace", "--doc", "--no-fail-fast", "--locked"]);
-        let label = format!("attacks on {msrv}: cargo test --doc");
-        let log = self.cargo_step(&label, "msrv-attacks", &mut msrv_attacks)?;
-        let msrv_attacks = count_attacks(&log);
-        if msrv_attacks < floor {
-            return Err(fail(format!(
-                "on {msrv} attacks passed {msrv_attacks} at floor {floor} — attacks were not run or were removed"
-            )));
-        }
-
-        // Политика по сохранённой базе, без сети: коммит от сети не зависит.
-        // Базу обновляет pre-push; без базы шаг отказывает (решение 13). Шаг
-        // заменяется командой проекта, когда она задана (решение 28).
-        if !delegated {
-            let policy = self.tree.join(layout::DENY_POLICY);
-            if !policy.is_file() {
-                return Err(fail(
-                    "no deny.toml in the tree — no dependency policy is set (decision 13)",
-                ));
+                .args(["--workspace", "--doc", "--no-fail-fast", "--locked"]);
+            let label = format!("attacks on {msrv}: cargo test --doc");
+            let log = self.cargo_step(&label, "msrv-attacks", &mut msrv_attacks)?;
+            let msrv_attacks = count_attacks(&log);
+            if msrv_attacks < floor {
+                return Err(fail(format!(
+                    "on {msrv} attacks passed {msrv_attacks} at floor {floor} — attacks were not run or were removed"
+                )));
             }
-            if !installed("cargo-deny") {
-                return Err(start_fail(
-                    "cargo-deny is not installed — cargo install cargo-deny --locked",
-                ));
+
+            // Политика по сохранённой базе, без сети: коммит от сети не зависит.
+            // Базу обновляет pre-push; без базы шаг отказывает (решение 13). Шаг
+            // заменяется командой проекта, когда она задана (решение 28).
+            if !delegated {
+                let policy = self.tree.join(layout::DENY_POLICY);
+                if !policy.is_file() {
+                    return Err(fail(
+                        "no deny.toml in the tree — no dependency policy is set (decision 13)",
+                    ));
+                }
+                if !installed("cargo-deny") {
+                    return Err(start_fail(
+                        "cargo-deny is not installed — cargo install cargo-deny --locked",
+                    ));
+                }
+                let mut deny = self.cargo(&target);
+                deny.args(["deny", "--manifest-path"])
+                    .arg(&manifest)
+                    .arg("--config")
+                    .arg(&policy)
+                    .args(["--frozen", "check"]);
+                self.cargo_step("cargo deny check", "deny", &mut deny)?;
             }
-            let mut deny = self.cargo(&target);
-            deny.args(["deny", "--manifest-path"])
-                .arg(&manifest)
-                .arg("--config")
-                .arg(&policy)
-                .args(["--frozen", "check"]);
-            self.cargo_step("cargo deny check", "deny", &mut deny)?;
-        }
+            (Some(msrv), Some(msrv_attacks))
+        } else {
+            (None, None)
+        };
 
         Ok(Verdict {
             passed: self.passed,
-            total: total(&self.config),
+            total: total(&self.config, self.full),
             skipped: self.skipped,
             attacks: Some(attacks),
-            msrv: Some(msrv),
-            msrv_attacks: Some(msrv_attacks),
+            msrv,
+            msrv_attacks,
             journal_only: false,
         })
     }
@@ -1266,13 +1300,16 @@ mod tests {
     }
 
     /// Число шагов в вердикте — правда: команда проекта заменяет шесть
-    /// стандартных шагов cargo и добавляет себя (решение 28).
+    /// стандартных шагов cargo и добавляет себя (решение 28); ярус коммита не
+    /// исполняет полный ярус (решение 33).
     #[test]
     fn the_project_command_replaces_the_cargo_steps_in_the_total() {
         let mut config = Config::default();
-        assert_eq!(total(&config), DACC_TOTAL);
+        assert_eq!(total(&config, true), DACC_TOTAL);
+        assert_eq!(total(&config, false), DACC_TOTAL - FULL_TIER_STEPS);
         config.gate_command = Some(vec!["make".to_owned(), "check".to_owned()]);
-        assert_eq!(total(&config), DACC_TOTAL - DELEGATED_STEPS + 1);
+        assert_eq!(total(&config, true), DACC_TOTAL - DELEGATED_STEPS + 1);
+        assert_eq!(total(&config, false), DACC_TOTAL - DELEGATED_STEPS);
     }
 
     #[test]
