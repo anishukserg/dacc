@@ -1,0 +1,21 @@
+[[events]]
+event = "started"
+work = "w-single-journal-code"
+at = "2026-09-29T19:07:35Z"
+[[events]]
+event = "gate"
+work = "w-single-journal-code"
+at = "2026-09-29T19:07:35Z"
+gate = "commit"
+tree = "2d892f018a9fde1f97fd2c5ace23d6ca8b0cc4f1"
+passed = "11"
+total = "12"
+skipped = "external names"
+attacks = "24"
+msrv = "1.83.0"
+[[events]]
+event = "landed"
+work = "w-single-journal-code"
+at = "2026-09-29T19:07:35Z"
+commit = "792a883f589e41a3aa1051ca1528bdc0b58d05c0"
+tree = "2d892f018a9fde1f97fd2c5ace23d6ca8b0cc4f1"
