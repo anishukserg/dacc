@@ -151,6 +151,17 @@ pub const fn radius_within_slice(work: &WorkItem, slices: &[&Slice]) -> bool {
     false
 }
 
+/// Работа с происхождением `Toil` не может объявить радиус выше `Local`:
+/// рутина не трогает публичный API крейта. Функция `const`: скан порождает
+/// утверждение на каждую единицу работы, и нарушение становится ошибкой
+/// вычисления константы, а не находкой валидатора.
+pub const fn toil_within_local_radius(work: &WorkItem) -> bool {
+    if let WorkOrigin::Toil { .. } = work.origin {
+        return matches!(work.radius, BlastRadius::Local);
+    }
+    true
+}
+
 /// Побайтовое сравнение slug в `const`: `==` для `&str` нестабилен в константах.
 const fn slug_eq(a: &str, b: &str) -> bool {
     let a = a.as_bytes();
@@ -260,5 +271,35 @@ mod tests {
 
         let planned = [(WorkRef::__from_scan("w-001"), WorkState::Planned)];
         assert!(!obligations_redeemed(&obligations, &work, &planned));
+    }
+
+    /// Рутина не может объявить радиус выше Local: правило выражает тип, а
+    /// проверяет его компилятор. Не-Toil происхождение радиус не ограничивает.
+    #[test]
+    fn toil_is_capped_at_local_radius() {
+        let toil = |radius| WorkItem {
+            id: "w-001",
+            title: NonEmptyStr::new("рутина"),
+            slice: SliceRef::__from_scan("s-003"),
+            origin: WorkOrigin::Toil {
+                justification: NonEmptyStr::new("рутина"),
+            },
+            taxon: Subsystem::Core,
+            radius,
+            outcome: NonEmptyStr::new("готово"),
+        };
+        assert!(toil_within_local_radius(&toil(BlastRadius::Local)));
+        assert!(!toil_within_local_radius(&toil(BlastRadius::Crate)));
+
+        let decision = WorkItem {
+            id: "w-002",
+            title: NonEmptyStr::new("решение"),
+            slice: SliceRef::__from_scan("s-003"),
+            origin: WorkOrigin::Decision(AdrRef::__from_scan("adr-2026-001")),
+            taxon: Subsystem::Core,
+            radius: BlastRadius::Crate,
+            outcome: NonEmptyStr::new("готово"),
+        };
+        assert!(toil_within_local_radius(&decision));
     }
 }

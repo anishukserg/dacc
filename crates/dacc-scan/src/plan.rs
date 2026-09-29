@@ -147,6 +147,23 @@ pub fn emit_work_checks(work: &[ScannedSlug]) -> String {
     out
 }
 
+/// Утверждения «работа с происхождением Toil не выше Local». Порождаются на
+/// каждую единицу работы: правило связывает происхождение и радиус, а вычисляет
+/// его компилятор.
+pub fn emit_toil_checks(work: &[ScannedSlug]) -> String {
+    let mut out = String::from(
+        "// A Toil work item cannot declare a radius above Local — the compiler evaluates it.\n",
+    );
+    for w in work {
+        let ident = slug_ident(&w.slug);
+        let _ = writeln!(
+            out,
+            "const _: () = assert!(dacc_work::toil_within_local_radius(&{ident}::WORK), \"dacc: the Toil work {ident} declares a radius above Local\");",
+        );
+    }
+    out
+}
+
 /// Утверждение «каждое обязательство погашено приземлённой работой с
 /// происхождением `WorkOrigin::Obligation`» (решение 35).
 /// Порождается, когда в реестре есть обязательства: правило связывает
@@ -249,5 +266,20 @@ mod tests {
             "{code}"
         );
         assert!(emit_obligation_checks(&[]).is_empty());
+    }
+
+    /// Toil-ограничение радиуса порождается на каждую единицу работы.
+    #[test]
+    fn emits_toil_radius_checks() {
+        let entries = vec![ScannedSlug {
+            slug: "w-001".into(),
+            status: Status::Draft,
+            file: "/x/w-001.rs".into(),
+        }];
+        assert!(
+            emit_toil_checks(&entries).contains("toil_within_local_radius(&w_001::WORK)"),
+            "{}",
+            emit_toil_checks(&entries)
+        );
     }
 }

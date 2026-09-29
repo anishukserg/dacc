@@ -11,7 +11,7 @@ dacc_work::work!("w-site-theme",
         ),
     },
     taxon: taxon!(Subsystem, Access),
-    radius: BlastRadius::Crate,
+    radius: BlastRadius::Local,
     outcome: NonEmptyStr::new(
         "Сайт реестра: светлая тема dioxus (Inter, фиолетовый акцент), второстепенные разделы — в <details> по умолчанию закрыты, интерфейс mdBook на русском."
     ),

@@ -28,8 +28,8 @@ pub use dacc_scan::{
     scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError, ScannedAnchor, ScannedSlug,
 };
 pub use dacc_work::{
-    obligation, obligations_redeemed, radius_within_slice, slice, thrust, work, InquiryOutcome,
-    Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
+    obligation, obligations_redeemed, radius_within_slice, slice, thrust, toil_within_local_radius,
+    work, InquiryOutcome, Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
 };
 
 #[cfg(test)]

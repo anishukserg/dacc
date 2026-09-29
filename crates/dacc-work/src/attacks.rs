@@ -90,3 +90,43 @@
 //!     dacc_work::WorkOrigin::Retirement(retired)
 //! }
 //! ```
+//!
+//! ## Рутина объявляет радиус выше Local
+//!
+//! ```compile_fail,E0080
+//! use dacc_core::{BlastRadius, NonEmptyStr, RfcRef, SliceRef, ThrustRef};
+//! use dacc_work::{Slice, WorkItem, WorkOrigin};
+//! dacc_core::declare_taxonomy! { Subsystem => [Core] }
+//! static SLICE: Slice = Slice {
+//!     id: "s-001", title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan("t-001"),
+//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
+//!     max_radius: BlastRadius::Crate,
+//! };
+//! static WORK: WorkItem = WorkItem {
+//!     id: "w-001", title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan("s-001"),
+//!     origin: WorkOrigin::Toil { justification: NonEmptyStr::new("рутина") },
+//!     taxon: Subsystem::Core, radius: BlastRadius::Crate,
+//!     outcome: NonEmptyStr::new("готово"),
+//! };
+//! const _: () = assert!(dacc_work::toil_within_local_radius(&WORK));
+//! ```
+//!
+//! Контроль — тот же заготовок, радиус Local:
+//!
+//! ```
+//! use dacc_core::{BlastRadius, NonEmptyStr, RfcRef, SliceRef, ThrustRef};
+//! use dacc_work::{Slice, WorkItem, WorkOrigin};
+//! dacc_core::declare_taxonomy! { Subsystem => [Core] }
+//! static SLICE: Slice = Slice {
+//!     id: "s-001", title: NonEmptyStr::new("срез"), thrust: ThrustRef::__from_scan("t-001"),
+//!     outcome: NonEmptyStr::new("исход"), specification: RfcRef::__from_scan("rfc-2026-001"),
+//!     max_radius: BlastRadius::Crate,
+//! };
+//! static WORK: WorkItem = WorkItem {
+//!     id: "w-001", title: NonEmptyStr::new("работа"), slice: SliceRef::__from_scan("s-001"),
+//!     origin: WorkOrigin::Toil { justification: NonEmptyStr::new("рутина") },
+//!     taxon: Subsystem::Core, radius: BlastRadius::Local,
+//!     outcome: NonEmptyStr::new("готово"),
+//! };
+//! const _: () = assert!(dacc_work::toil_within_local_radius(&WORK));
+//! ```

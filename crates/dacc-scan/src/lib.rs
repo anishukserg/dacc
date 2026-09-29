@@ -456,6 +456,7 @@ pub fn emit_registry(
     code.push_str(&plan::emit_plan(&work, &plan::WORK));
     code.push_str(&plan::emit_plan(&obligations, &plan::OBLIGATIONS));
     code.push_str(&plan::emit_work_checks(&work));
+    code.push_str(&plan::emit_toil_checks(&work));
     code.push_str(&plan::emit_obligation_checks(&obligations));
     write_file(out_dir, "plan.rs", &code)?;
 
