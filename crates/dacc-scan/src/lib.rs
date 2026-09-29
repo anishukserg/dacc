@@ -76,6 +76,12 @@ pub enum ScanError {
         file: String,
         detail: String,
     },
+    /// Скан-паттерн протух: положительный контроль перестал матчиться, и ноль
+    /// сырых совпадений выглядел бы как чистое дерево, а не как умершая
+    /// проверка (anti-vacuity).
+    DeadPattern {
+        ident: String,
+    },
 }
 
 impl std::fmt::Display for ScanError {
@@ -92,6 +98,10 @@ impl std::fmt::Display for ScanError {
             ),
             Self::Anchor { file, line, detail } => write!(f, "{file}:{line}: code anchor: {detail}"),
             Self::InlineLink { file, detail } => write!(f, "{file}: inline link: {detail}"),
+            Self::DeadPattern { ident } => write!(
+                f,
+                "anti-vacuity: the scan pattern for `{ident}` is dead — its positive control no longer matches"
+            ),
         }
     }
 }
@@ -282,6 +292,23 @@ fn find_bypass_in(stream: proc_macro2::TokenStream) -> Option<String> {
     })
 }
 
+/// Anti-vacuity: скан-паттерн, у которого ноль сырых совпадений, неотличим от
+/// чистого дерева. Положительный контроль держит паттерн живым: конструктор,
+/// который скан ищет как обход, обязан по-прежнему порождаться самим сканом.
+/// Если порождённый код перестал нести это имя, поиск протух — ошибка сборки,
+/// а не тихо чистое дерево.
+fn check_bypass_patterns_live(generated: &str) -> Result<(), ScanError> {
+    // Скан сам порождает `__from_scan` в каждом модуле ссылок; `__new_unchecked`
+    // порождается макросами объявления dacc-core и жив, пока те компилируются.
+    // Скан держит положительный контроль за тем именем, которое сам наблюдает.
+    if !generated.contains("__from_scan") {
+        return Err(ScanError::DeadPattern {
+            ident: "__from_scan".to_owned(),
+        });
+    }
+    Ok(())
+}
+
 /// Классификация по токенам верхнего уровня. Может ошибиться на необычной
 /// записи статуса — поэтому порождённый код сверяет её с вычисленным
 /// значением (`emit_refs`).
@@ -442,7 +469,9 @@ pub fn emit_registry(
     check_inline_links_in_dir(&registry_dir.join("rfc"), &anchor_ids)?;
 
     let decisions = scan_decisions(&registry_dir.join("adr"))?;
-    write_file(out_dir, "adr.rs", &emit_refs(&decisions))?;
+    let adr_refs = emit_refs(&decisions);
+    check_bypass_patterns_live(&adr_refs)?;
+    write_file(out_dir, "adr.rs", &adr_refs)?;
 
     let specs = scan_specs(&registry_dir.join("rfc"))?;
     write_file(out_dir, "rfc.rs", &emit_spec_refs(&specs))?;
@@ -730,6 +759,14 @@ mod tests {
     fn mention_in_prose_is_not_a_bypass() {
         let text = "dacc_knowledge::adr!(status: DocStatus::Active, context: r#\"вызов __from_scan руками запрещён\"#,);";
         assert!(parse_decision(text, "adr-2026-001").is_ok());
+    }
+
+    /// Anti-vacuity: порождённый код без конструктора скана — протухший
+    /// паттерн поиска обхода, а не чистое дерево.
+    #[test]
+    fn a_dead_bypass_pattern_is_refused() {
+        assert!(check_bypass_patterns_live("no constructor here").is_err());
+        assert!(check_bypass_patterns_live("AdrRef::__from_scan(\"adr-x\")").is_ok());
     }
 
     /// Точка входа раскладки (решение 27): пишет все порождённые файлы реестра.
