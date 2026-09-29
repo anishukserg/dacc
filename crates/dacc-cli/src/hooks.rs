@@ -264,11 +264,9 @@ fn run_gate(repo: &git::Repo, tree: &Path, journal_only: bool) -> GateRun {
         args.push(OsString::from("--journal-only"));
     }
     args.push(tree.as_os_str().to_owned());
-    if !journal_only {
-        // Полный ярус (решение 33): хук коммита исполняет MSRV и зависимости —
-        // доказательство несёт msrv, и work land принимает его.
-        args.push(OsString::from("--full"));
-    }
+    // Ярус коммита (решение 33): хук pre-commit исполняет только дешёвые шаги
+    // без `--full` — доказательство не несёт msrv, коммит дешёвый. Полный ярус
+    // исполняет work land при приземлении работы.
     if !tree.join(layout::TOOL_MANIFEST).is_file() {
         let (code, verdict, structured) = gate::run_for_proof(&args);
         let json = structured.map(|verdict| verdict.json());
@@ -453,7 +451,7 @@ fn dependencies_pass(repo: &git::Repo, sha: &str) -> bool {
 
 /// Выгружает дерево коммита `sha` через временный индекс, не трогая индекс
 /// репозитория.
-fn export_commit(repo: &git::Repo, sha: &str, tree: &Path) -> Result<(), String> {
+pub(crate) fn export_commit(repo: &git::Repo, sha: &str, tree: &Path) -> Result<(), String> {
     let index = repo.git_dir.join(layout::PUSH_INDEX);
     let _ = fs::remove_dir_all(tree);
     fs::create_dir_all(tree).map_err(|error| error.to_string())?;

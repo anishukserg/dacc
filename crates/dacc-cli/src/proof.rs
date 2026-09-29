@@ -97,13 +97,6 @@ pub fn verdict(common_dir: &Path, hash: &str) -> Option<String> {
     text.lines().nth(1).map(str::to_owned)
 }
 
-/// Структурный вердикт сохранённого доказательства в JSON (решение 22). Для
-/// прежнего доказательства с одной лишь прозой — `None`.
-pub fn structured(common_dir: &Path, hash: &str) -> Option<String> {
-    let text = fs::read_to_string(path(common_dir, hash)).ok()?;
-    text.lines().nth(2).map(str::to_owned)
-}
-
 fn hash_stdin(root: &Path, text: &str) -> Option<String> {
     run_with_input(root, &["hash-object", "--stdin"], text).map(|out| out.trim().to_owned())
 }

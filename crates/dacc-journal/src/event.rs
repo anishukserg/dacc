@@ -46,13 +46,15 @@ pub enum GateVerdict {
     /// Прозаический вердикт прежнего события (решение 19).
     Prose(String),
     /// Структурный вердикт нового события: пройденные шаги, их общее число,
-    /// пропущенные, число прошедших атак и минимальный тулчейн.
+    /// пропущенные, число прошедших атак и минимальный тулчейн. `msrv` есть
+    /// только у полного яруса; ярус коммита минимальную версию не исполняет
+    /// (решение 33), и `msrv` у него отсутствует.
     Structured {
         passed: usize,
         total: usize,
         skipped: Vec<String>,
         attacks: usize,
-        msrv: String,
+        msrv: Option<String>,
     },
 }
 
@@ -207,7 +209,7 @@ impl Event {
                                 .collect()
                         }),
                         attacks: number("attacks")?,
-                        msrv: required("msrv")?,
+                        msrv: record.get("msrv").map(str::to_owned),
                     },
                 },
             },
@@ -281,7 +283,9 @@ impl Event {
                             fields.push(("skipped".to_owned(), skipped.join(", ")));
                         }
                         fields.push(("attacks".to_owned(), attacks.to_string()));
-                        fields.push(("msrv".to_owned(), msrv.clone()));
+                        if let Some(msrv) = msrv {
+                            fields.push(("msrv".to_owned(), msrv.clone()));
+                        }
                     }
                 }
             }
@@ -371,7 +375,7 @@ mod tests {
                         total: 12,
                         skipped: vec!["external names".to_owned()],
                         attacks: 20,
-                        msrv: "1.83.0".to_owned(),
+                        msrv: Some("1.83.0".to_owned()),
                     },
                 },
             ),
@@ -428,10 +432,33 @@ mod tests {
                     total: 12,
                     skipped: vec!["external names".to_owned()],
                     attacks: 20,
-                    msrv: "1.83.0".to_owned(),
+                    msrv: Some("1.83.0".to_owned()),
                 },
             }
         );
+    }
+
+    /// Ярус коммита (решение 33): структурный вердикт без `msrv` читается и
+    /// записывается без поля `msrv` — разница ярусов выразима без нового поля.
+    #[test]
+    fn commit_tier_verdict_omits_msrv_in_the_file() {
+        let structured = "event = \"gate\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ngate = \"commit\"\ntree = \"0123456789abcdef0123456789abcdef01234567\"\npassed = \"9\"\ntotal = \"9\"\nskipped = \"external names\"\nattacks = \"20\"\n";
+        let read = event("w-022/20260911T031500Z-gate.toml", structured).unwrap();
+        assert_eq!(
+            read.kind,
+            Kind::Gate {
+                gate: "commit".into(),
+                tree: TREE.into(),
+                verdict: GateVerdict::Structured {
+                    passed: 9,
+                    total: 9,
+                    skipped: vec!["external names".to_owned()],
+                    attacks: 20,
+                    msrv: None,
+                },
+            }
+        );
+        assert_eq!(read.to_text(), structured);
     }
 
     #[test]

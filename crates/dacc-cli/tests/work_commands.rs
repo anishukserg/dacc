@@ -5,7 +5,6 @@
 mod common;
 
 use common::{Run, TempRepo};
-use std::fs;
 
 /// Репозиторий с таксономией, срезом s-001, работами w-001 и w-002 в нём,
 /// каталогом журнала и хуком commit-msg.
@@ -46,17 +45,11 @@ fn planned_repo(name: &str) -> TempRepo {
     repo
 }
 
-/// Доказательство для дерева HEAD — как после прохождения калитки.
-fn prove_head(repo: &TempRepo) {
-    let hash = repo
-        .tool(&["journal", "hash", "HEAD"])
-        .stdout
-        .trim()
-        .to_owned();
-    let proofs = repo.path(".git/dacc-proofs");
-    fs::create_dir_all(&proofs).expect("каталог доказательств");
-    fs::write(proofs.join(hash), "2026-09-11T10:00:00Z\nGATE OK (проба)\n")
-        .expect("доказательство записано");
+/// Минимальный крейт, на котором полный ярус калитки проходит.
+fn minimal_crate(repo: &TempRepo) {
+    for (path, text) in common::minimal_crate_files() {
+        repo.write(path, text);
+    }
 }
 
 fn state_of(repo: &TempRepo, id: &str) -> String {
@@ -90,12 +83,23 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
         "{body}"
     );
 
-    // Без доказательства для дерева коммита работы приземление отвергается.
+    // Без крейта полный ярус калитки не проходит, и приземление отвергается.
     let run = repo.tool(&["work", "land", "w-001"]);
     assert_eq!(run.code, 1, "{}", run.output());
-    assert!(run.verdict().contains("no proof"), "{}", run.output());
+    assert!(run.verdict().contains("full gate tier"), "{}", run.output());
 
-    prove_head(&repo);
+    // Минимальный крейт, на котором полный ярус проходит, — приземление пишет
+    // события gate и landed, и вердикт gate несёт msrv полного яруса.
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
     let run = repo.tool(&["work", "land", "w-001"]);
     assert_ok(&run);
     let files = repo.git(&["show", "--name-only", "--format=", "HEAD"]);
@@ -104,6 +108,14 @@ fn start_land_drop_and_close_write_events_and_commit_them() {
         "{files}"
     );
     assert!(state_of(&repo, "w-001").contains("landed"));
+    let gate = repo
+        .git(&["ls-files", "doc/journal/w-001"])
+        .lines()
+        .find(|file| file.ends_with("-gate.toml"))
+        .expect("событие gate записано")
+        .to_owned();
+    let event = repo.git(&["show", &format!("HEAD:{gate}")]);
+    assert!(event.contains("msrv = \"1.83.0\""), "{event}");
 
     // Срез не закрывается, пока в нём есть незавершённая работа.
     let run = repo.tool(&["slice", "close", "s-001"]);
@@ -162,7 +174,8 @@ fn illegal_requests_are_refused_before_any_event() {
         run.output()
     );
 
-    // Коммит без трейлера этой работы не приземляет её, даже с доказательством.
+    // Коммит без трейлера этой работы не приземляет её: основание проверяется до
+    // полного яруса.
     repo.write("x.txt", "x\n");
     repo.git(&["add", "x.txt"]);
     repo.git(&[
@@ -173,7 +186,6 @@ fn illegal_requests_are_refused_before_any_event() {
         "-m",
         "Dacc-Work: w-002",
     ]);
-    prove_head(&repo);
     let run = repo.tool(&["work", "land", "w-001"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(

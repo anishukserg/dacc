@@ -36,6 +36,7 @@ pub const COMMIT_NOT_ANCESTOR: Code = "commit-not-in-history";
 pub const COMMIT_NOT_BASED: Code = "commit-not-based-on-work";
 pub const TREE_NOT_READ: Code = "tree-not-read";
 pub const NO_PROOF: Code = "no-proof";
+pub const FULL_TIER_FAILED: Code = "full-tier-failed";
 pub const REASON_REQUIRED: Code = "reason-required";
 pub const SLICE_ID: Code = "not-slice-id";
 pub const SLICE_NO_WORKS: Code = "slice-has-no-works";
@@ -120,6 +121,10 @@ pub const ALL: &[(&str, &str)] = &[
     ),
     (TREE_NOT_READ, "work: the tree of the commit cannot be read"),
     (NO_PROOF, "work: no gate proof for the tree"),
+    (
+        FULL_TIER_FAILED,
+        "work: the full gate tier did not pass on the tree",
+    ),
     (REASON_REQUIRED, "work: --reason <reason> is required"),
     (SLICE_ID, "slice: the id is not of the form s-slug"),
     (SLICE_NO_WORKS, "slice: the slice has no works"),

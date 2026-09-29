@@ -49,8 +49,9 @@
 //!
 //! Два яруса (решение 33): без `--full` исполняется ярус коммита — шаги 1–10;
 //! `--full` добавляет полный ярус закрытия работы — шаги 11–13 (MSRV и
-//! зависимости). Хук pre-commit исполняет полный ярус, чтобы доказательство
-//! несло `msrv`; CI на пути в master — тоже полный ярус.
+//! зависимости). Хук pre-commit исполняет ярус коммита, чтобы коммит был
+//! дешёвым; полный ярус исполняет `work land` при приземлении работы, и его
+//! доказательство несёт `msrv`. CI на пути в master — тоже полный ярус.
 //!
 //! Отсутствующий инструмент — отказ шага, а не пропуск. Шаг без предмета
 //! проверки называется невыполненным, а не пройденным.
@@ -298,14 +299,22 @@ impl Verdict {
                 "GATE OK ({} of {}; journal only — the tree without the journal is already checked",
                 self.passed, self.total
             )
-        } else {
+        } else if let (Some(msrv), Some(msrv_attacks)) = (&self.msrv, self.msrv_attacks) {
             format!(
                 "GATE OK ({} of {}; attacks {}, on {} — {}",
                 self.passed,
                 self.total,
                 self.attacks.unwrap_or(0),
-                self.msrv.as_deref().unwrap_or_default(),
-                self.msrv_attacks.unwrap_or(0)
+                msrv,
+                msrv_attacks
+            )
+        } else {
+            // Ярус коммита (решение 33): атаки есть, MSRV не проверялся.
+            format!(
+                "GATE OK ({} of {}; attacks {}",
+                self.passed,
+                self.total,
+                self.attacks.unwrap_or(0)
             )
         };
         if !self.skipped.is_empty() {
@@ -317,7 +326,8 @@ impl Verdict {
     }
 
     /// Машинный вердикт: пройденные и общее число шагов, атаки, тулчейн и
-    /// невыполненные шаги полями.
+    /// невыполненные шаги полями. `msrv` и `msrv_attacks` есть только у полного
+    /// яруса (решение 33): ярус коммита их не несёт, и поля отсутствуют.
     pub fn json(&self) -> String {
         let mut verdict = format!(
             "{{\"ok\":true,\"passed\":{},\"total\":{}",
@@ -326,12 +336,13 @@ impl Verdict {
         if self.journal_only {
             verdict.push_str(",\"journal_only\":true");
         } else {
-            verdict.push_str(&format!(
-                ",\"attacks\":{},\"msrv\":{},\"msrv_attacks\":{}",
-                self.attacks.unwrap_or(0),
-                format::string(self.msrv.as_deref().unwrap_or_default()),
-                self.msrv_attacks.unwrap_or(0)
-            ));
+            verdict.push_str(&format!(",\"attacks\":{}", self.attacks.unwrap_or(0)));
+            if let Some(msrv) = &self.msrv {
+                verdict.push_str(&format!(",\"msrv\":{}", format::string(msrv)));
+            }
+            if let Some(msrv_attacks) = self.msrv_attacks {
+                verdict.push_str(&format!(",\"msrv_attacks\":{msrv_attacks}"));
+            }
         }
         if !self.skipped.is_empty() {
             verdict.push_str(",\"skipped\":[");
@@ -1346,6 +1357,29 @@ mod tests {
         assert_eq!(
             verdict.json(),
             "{\"ok\":true,\"passed\":11,\"total\":12,\"attacks\":20,\"msrv\":\"1.83.0\",\"msrv_attacks\":20,\"skipped\":[\"external names\",\"markdown links\"]}"
+        );
+    }
+
+    /// Ярус коммита (решение 33): атаки есть, MSRV не проверялся — проза не
+    /// называет тулчейн, JSON не несёт `msrv` и `msrv_attacks`.
+    #[test]
+    fn commit_tier_verdict_omits_msrv() {
+        let verdict = Verdict {
+            passed: 8,
+            total: DACC_TOTAL - FULL_TIER_STEPS,
+            skipped: vec!["external names"],
+            attacks: Some(20),
+            msrv: None,
+            msrv_attacks: None,
+            journal_only: false,
+        };
+        assert_eq!(
+            verdict.text(),
+            "GATE OK (8 of 9; attacks 20; not run: external names)"
+        );
+        assert_eq!(
+            verdict.json(),
+            "{\"ok\":true,\"passed\":8,\"total\":9,\"attacks\":20,\"skipped\":[\"external names\"]}"
         );
     }
 

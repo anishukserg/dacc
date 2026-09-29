@@ -10,7 +10,8 @@ use common::TempRepo;
 use std::fs;
 use std::path::PathBuf;
 
-/// Репозиторий с реестром, работой w-001 и базовым коммитом по её основанию.
+/// Репозиторий с реестром, работой w-001, минимальным крейтом для полного
+/// яруса и базовым коммитом по её основанию.
 fn planned_repo(name: &str) -> TempRepo {
     let repo = TempRepo::new(name);
     repo.write(
@@ -22,6 +23,9 @@ fn planned_repo(name: &str) -> TempRepo {
         "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Работа\"),\n    taxon: taxon!(Subsystem, Cli),\n);\n",
     );
     repo.write("doc/journal/README.md", "журнал\n");
+    for (path, text) in common::minimal_crate_files() {
+        repo.write(path, text);
+    }
     repo.git(&["add", "-A"]);
     repo.git(&[
         "commit",
@@ -72,30 +76,16 @@ fn external_names_are_seen_from_a_linked_worktree() {
 }
 
 #[test]
-fn a_proof_of_the_repository_lands_work_from_a_linked_worktree() {
-    let repo = planned_repo("worktree-proof");
-    let code = repo.git(&["rev-parse", "HEAD"]).trim().to_owned();
-    let tree = worktree(&repo, "wt-proof");
+fn the_full_gate_lands_work_from_a_linked_worktree() {
+    let repo = planned_repo("worktree-land");
+    let tree = worktree(&repo, "wt-land");
 
     let run = repo.tool_in(&tree, &["work", "start", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
 
-    // Доказательство принадлежит репозиторию, а не копии, в которой прошла
-    // калитка.
-    let hash = repo
-        .tool_in(&tree, &["journal", "hash", &code])
-        .stdout
-        .trim()
-        .to_owned();
-    let proofs = repo.path(".git/dacc-proofs");
-    fs::create_dir_all(&proofs).expect("каталог доказательств");
-    fs::write(
-        proofs.join(&hash),
-        "2026-09-21T00:00:00Z\nGATE OK (12 of 12)\n",
-    )
-    .expect("доказательство записано");
-
-    let run = repo.tool_in(&tree, &["work", "land", "w-001", "--commit", &code]);
+    // Полный ярус исполняется в копии, а не в главной рабочей копии, и пишет
+    // события gate и landed в дерево копии.
+    let run = repo.tool_in(&tree, &["work", "land", "w-001"]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
 }

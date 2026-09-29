@@ -22,7 +22,7 @@
 
 use crate::code::{self, Code};
 use crate::format::{self, Format};
-use crate::{commit, config, git, layout, proof};
+use crate::{commit, config, gate, git, hooks, layout, proof};
 use dacc_journal::event::relative_path;
 use dacc_journal::{fold, time, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject};
 use std::ffi::OsString;
@@ -222,12 +222,11 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             format!("the tree of commit {} cannot be read", short(&commit)),
         )
     })?;
-    let verdict = gate_verdict(&context.repo.common_dir, &tree).ok_or_else(|| {
+    let verdict = full_gate_verdict(&context.repo, &commit).map_err(|problem| {
         refused(
-            code::NO_PROOF,
+            code::FULL_TIER_FAILED,
             format!(
-                "no proof for tree {} of commit {}: the gate did not pass on this tree here — the commit was made without the hook or on another machine",
-                short(&tree),
+                "the full gate tier did not pass on commit {}: {problem}",
                 short(&commit)
             ),
         )
@@ -717,51 +716,36 @@ fn short(hash: &str) -> &str {
     hash.get(..12).unwrap_or(hash)
 }
 
-/// Вердикт калитки для события gate из доказательства: структурный, если
-/// доказательство новое, иначе проза прежнего доказательства (решение 22).
-fn gate_verdict(common_dir: &Path, tree: &str) -> Option<GateVerdict> {
-    if let Some(json) = proof::structured(common_dir, tree) {
-        return structured_verdict(&json);
+/// Полный ярус закрытия работы (решение 33): выгружает дерево коммита и
+/// исполняет `gate --full` — ярус коммита плюс MSRV и зависимости. Вердикт
+/// структурный и обязательно с `msrv`: ярус коммита работу не приземляет.
+fn full_gate_verdict(repo: &git::Repo, commit: &str) -> Result<GateVerdict, String> {
+    let tree = repo.git_dir.join(layout::COMMIT_TREE_DIR).join("land");
+    hooks::export_commit(repo, commit, &tree)?;
+    let args = vec![
+        OsString::from("--repo"),
+        repo.root.clone().into_os_string(),
+        OsString::from("--full"),
+        tree.as_os_str().to_owned(),
+    ];
+    let (code, prose, structured) = gate::run_for_proof(&args);
+    if code != 0 {
+        return Err(prose);
     }
-    proof::verdict(common_dir, tree).map(GateVerdict::Prose)
-}
-
-/// Структурный вердикт из JSON доказательства: поля пройденных шагов, их
-/// общего числа, пропущенных, числа прошедших атак и минимального тулчейна.
-fn structured_verdict(json: &str) -> Option<GateVerdict> {
-    let field = |key: &str| {
-        let needle = format!("\"{key}\":");
-        let rest = json.find(&needle).map(|at| &json[at + needle.len()..])?;
-        if let Some(stripped) = rest.strip_prefix('"') {
-            let end = stripped.find('"')?;
-            Some(stripped[..end].to_owned())
-        } else {
-            let end = rest.find([',', '}']).unwrap_or(rest.len());
-            Some(rest[..end].trim().to_owned())
-        }
+    let verdict = structured.ok_or_else(|| "the gate returned no structured verdict".to_owned())?;
+    let Some(msrv) = verdict.msrv.clone() else {
+        return Err("the gate ran the commit tier, not the full tier — no msrv".to_owned());
     };
-    let number = |key: &str| field(key).and_then(|value| value.parse::<usize>().ok());
-    let skipped = json
-        .find("\"skipped\":[")
-        .and_then(|at| {
-            let rest = &json[at + "\"skipped\":[".len()..];
-            let end = rest.find(']')?;
-            Some(&rest[..end])
-        })
-        .map(|inner| {
-            inner
-                .split(',')
-                .map(|item| item.trim().trim_matches('"').to_owned())
-                .filter(|item| !item.is_empty())
-                .collect()
-        })
-        .unwrap_or_default();
-    Some(GateVerdict::Structured {
-        passed: number("passed")?,
-        total: number("total")?,
-        skipped,
-        attacks: number("attacks")?,
-        msrv: field("msrv")?,
+    Ok(GateVerdict::Structured {
+        passed: verdict.passed,
+        total: verdict.total,
+        skipped: verdict
+            .skipped
+            .iter()
+            .map(|step| step.to_string())
+            .collect(),
+        attacks: verdict.attacks.unwrap_or(0),
+        msrv: Some(msrv),
     })
 }
 
