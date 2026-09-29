@@ -1,0 +1,5 @@
+event = "landed"
+work = "w-single-journal"
+at = "2026-09-29T18:12:52Z"
+commit = "d7a048509d2df9d22cbec808ed8bf4c0a9e3bc3b"
+tree = "39aa0028ca4bd10ac21c03aeef287473b210add5"
