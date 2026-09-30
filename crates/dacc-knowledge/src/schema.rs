@@ -110,3 +110,60 @@ pub struct DomainSpecification {
     /// Решения, реализующие эту спецификацию.
     pub decided_by: &'static [AdrRef],
 }
+
+/// Инвариант: гарантия, которая обязана держаться (решение 45). Статус —
+/// вариант, а не строка: запись не может сказать «Enforced», не сказав, как
+/// нарушение было проведено.
+#[derive(Debug)]
+pub struct Invariant {
+    pub id: &'static str,
+    /// Как далеко инвариант доведён.
+    pub status: InvariantStatus,
+    /// Что обязано держаться.
+    pub statement: NonEmptyStr,
+    /// Почему обязано держаться и как выглядит нарушение.
+    pub rationale: &'static str,
+    /// Разметка кода, где инвариант держится.
+    pub enforced_by: &'static [AnchorId],
+    /// Разметка тестов, которые его доказывают.
+    pub tests: &'static [AnchorId],
+}
+
+/// Как далеко доведён инвариант (решение 45).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InvariantStatus {
+    /// Решено, не построено: кода, тестов и обхода нет.
+    Planned,
+    /// Код и тесты есть; обход описан, но не опробован.
+    Claimed { bypass: NonEmptyStr },
+    /// Код, тесты и попытка обхода существуют.
+    Enforced(Enforced),
+}
+
+/// Проверенный инвариант: нарушение невыразимо или обход опробован тестами.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Enforced {
+    /// Типы делают нарушение невыразимым.
+    Unrepresentable,
+    /// Описанный обход опробован атакующими тестами.
+    Adversarial {
+        bypass: NonEmptyStr,
+        tests: &'static [AnchorId],
+    },
+}
+
+/// Независимое чтение (решение 46): угол, находки и их судьба.
+#[derive(Debug)]
+pub struct Review {
+    pub id: &'static str,
+    /// Что прочитано.
+    pub title: NonEmptyStr,
+    /// Угол, под которым читали, — граница чтения на записи.
+    pub angle: NonEmptyStr,
+    /// Каждая находка и что с ней стало.
+    pub findings: NonEmpty<NonEmptyStr>,
+    /// Кто читал; для вердикта — читатель, не пишущий других записей.
+    pub authors: NonEmpty<NonEmptyStr>,
+    /// Когда чтение состоялось.
+    pub decided_at: NaiveDate,
+}

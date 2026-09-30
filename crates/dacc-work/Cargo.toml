@@ -15,4 +15,3 @@ workspace = true
 
 [dependencies]
 dacc-core = { workspace = true }
-chrono = { workspace = true }

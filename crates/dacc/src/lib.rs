@@ -13,15 +13,16 @@
 pub use dacc_access::{export_graph, export_slice, publish_channel, render_site, Site};
 pub use dacc_core::{
     axis, date, declare_channels, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef,
-    AnchorId, BlastRadius, BreakingRef, Channel, GateRef, NonEmpty, NonEmptyStr, ObligationRef,
-    RfcRef, Severity, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
+    AnchorId, BlastRadius, BreakingRef, Channel, GateRef, InvariantRef, NonEmpty, NonEmptyStr,
+    ObligationRef, ReviewRef, RfcRef, Severity, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 pub use dacc_journal::{
     fold, parse_event, read_dir, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject,
     Violation,
 };
 pub use dacc_knowledge::{
-    adr, rfc, ArchitectureDecision, Breaking, DocStatus, DomainSpecification,
+    adr, invariant, review, rfc, ArchitectureDecision, Breaking, DocStatus, DomainSpecification,
+    Enforced, Invariant, InvariantStatus, Review,
 };
 pub use dacc_scan::{
     check_inline_links, emit_anchor_refs, emit_anchors, emit_refs, extract_inline_links,

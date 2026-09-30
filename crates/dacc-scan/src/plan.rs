@@ -16,6 +16,8 @@ pub struct PlanKind {
     module: &'static str,
     reference: &'static str,
     record: &'static str,
+    /// Крейт, владеющий типом записи: `dacc_work` или `dacc_knowledge`.
+    crate_name: &'static str,
     item: &'static str,
     all: &'static str,
     /// Запись вида в документации порождённого кода: «Slice 3».
@@ -33,6 +35,7 @@ pub const THRUSTS: PlanKind = PlanKind {
     module: "thrust",
     reference: "ThrustRef",
     record: "Thrust",
+    crate_name: "dacc_work",
     item: "THRUST",
     all: "ALL_THRUSTS",
     noun: "Thrust",
@@ -46,6 +49,7 @@ pub const SLICES: PlanKind = PlanKind {
     module: "slice",
     reference: "SliceRef",
     record: "Slice",
+    crate_name: "dacc_work",
     item: "SLICE",
     all: "ALL_SLICES",
     noun: "Slice",
@@ -59,6 +63,7 @@ pub const WORK: PlanKind = PlanKind {
     module: "work",
     reference: "WorkRef",
     record: "WorkItem",
+    crate_name: "dacc_work",
     item: "WORK",
     all: "ALL_WORK",
     noun: "Work item",
@@ -72,6 +77,7 @@ pub const OBLIGATIONS: PlanKind = PlanKind {
     module: "obligation",
     reference: "ObligationRef",
     record: "Obligation",
+    crate_name: "dacc_work",
     item: "OBLIGATION",
     all: "ALL_OBLIGATIONS",
     noun: "Obligation",
@@ -86,6 +92,7 @@ pub const LIMITATIONS: PlanKind = PlanKind {
     module: "limitation",
     reference: "LimitationRef",
     record: "Limitation",
+    crate_name: "dacc_work",
     item: "LIMITATION",
     all: "ALL_LIMITATIONS",
     noun: "Limitation",
@@ -99,6 +106,7 @@ pub const UPGRADES: PlanKind = PlanKind {
     module: "upgrade",
     reference: "UpgradeRef",
     record: "Upgrade",
+    crate_name: "dacc_work",
     item: "UPGRADE",
     all: "ALL_UPGRADES",
     noun: "Upgrade",
@@ -112,6 +120,7 @@ pub const INVARIANTS: PlanKind = PlanKind {
     module: "invariant",
     reference: "InvariantRef",
     record: "Invariant",
+    crate_name: "dacc_knowledge",
     item: "INVARIANT",
     all: "ALL_INVARIANTS",
     noun: "Invariant",
@@ -125,6 +134,7 @@ pub const REVIEWS: PlanKind = PlanKind {
     module: "review",
     reference: "ReviewRef",
     record: "Review",
+    crate_name: "dacc_knowledge",
     item: "REVIEW",
     all: "ALL_REVIEWS",
     noun: "Review",
@@ -173,8 +183,8 @@ pub fn emit_plan(entries: &[ScannedSlug], kind: &PlanKind) -> String {
 
     let _ = writeln!(
         out,
-        "\n/// All {} of the registry.\npub static {}: &[&dacc_work::{}] = &[",
-        kind.plural, kind.all, kind.record
+        "\n/// All {} of the registry.\npub static {}: &[&{}::{}] = &[",
+        kind.plural, kind.all, kind.crate_name, kind.record
     );
     for e in entries {
         let ident = slug_ident(&e.slug);
