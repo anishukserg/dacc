@@ -45,6 +45,7 @@
   - [adr-2026-041 — Гарантия как запись](decisions/adr-2026-041.md)
   - [adr-2026-042 — Жизненный цикл работы — события started, gate и landed в одном коммите приземления](decisions/adr-2026-042.md)
   - [adr-2026-043 — Журнал — одна append-only запись, а не файл на событие](decisions/adr-2026-043.md)
+  - [adr-2026-044 — Инструкция повышения версии — отдельная запись upgrade!](decisions/adr-2026-044.md)
 - [Specifications](specifications/README.md)
   - [rfc-2026-001 — Слой знания](specifications/rfc-2026-001.md)
   - [rfc-2026-002 — Слой работы](specifications/rfc-2026-002.md)
