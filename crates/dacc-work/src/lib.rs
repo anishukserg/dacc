@@ -20,8 +20,8 @@ mod schema;
 
 pub use schema::{
     limitations_declared, obligations_redeemed, radius_within_slice, toil_within_local_radius,
-    InquiryOutcome, Limitation, Obligation, Slice, Thrust, Upgrade, WorkItem, WorkOrigin,
-    WorkState,
+    Enforced, InquiryOutcome, Invariant, InvariantStatus, Limitation, Obligation, Slice, Thrust,
+    Upgrade, WorkItem, WorkOrigin, WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
@@ -85,5 +85,15 @@ macro_rules! upgrade {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
         /// Запись инструкции повышения версии этого файла.
         pub static UPGRADE: $crate::Upgrade = $crate::Upgrade { id: $id, $($field: $value),* };
+    };
+}
+
+/// Регистрация инварианта. Файл обязан называться по slug-идентификатору
+/// (`i0001.rs`), а slug — первый аргумент. Статус обязателен (решение 45).
+#[macro_export]
+macro_rules! invariant {
+    ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
+        /// Запись инварианта этого файла.
+        pub static INVARIANT: $crate::Invariant = $crate::Invariant { id: $id, $($field: $value),* };
     };
 }

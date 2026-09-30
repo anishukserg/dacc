@@ -2,8 +2,8 @@
 //! реестров; правило, выразимое типом, валидатором не проверяется.
 
 use dacc_core::{
-    axis::Subsystem, AdrRef, BlastRadius, LimitationRef, NonEmpty, NonEmptyStr, ObligationRef,
-    RfcRef, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
+    axis::Subsystem, AdrRef, AnchorId, BlastRadius, LimitationRef, NonEmpty, NonEmptyStr,
+    ObligationRef, RfcRef, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 use std::num::NonZeroU16;
 
@@ -88,6 +88,47 @@ pub struct Upgrade {
     pub subject: NonEmptyStr,
     /// Что потребитель обязан сделать.
     pub how: NonEmptyStr,
+}
+
+/// Инвариант: гарантия, которая обязана держаться (решение 45). Статус —
+/// вариант, а не строка: запись не может сказать «Enforced», не сказав, как
+/// нарушение было проведено.
+#[derive(Debug)]
+pub struct Invariant {
+    pub id: &'static str,
+    /// Как далеко инвариант доведён.
+    pub status: InvariantStatus,
+    /// Что обязано держаться.
+    pub statement: NonEmptyStr,
+    /// Почему обязано держаться и как выглядит нарушение.
+    pub rationale: &'static str,
+    /// Разметка кода, где инвариант держится.
+    pub enforced_by: &'static [AnchorId],
+    /// Разметка тестов, которые его доказывают.
+    pub tests: &'static [AnchorId],
+}
+
+/// Как далеко доведён инвариант (решение 45).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InvariantStatus {
+    /// Решено, не построено: кода, тестов и обхода нет.
+    Planned,
+    /// Код и тесты есть; обход описан, но не опробован.
+    Claimed { bypass: NonEmptyStr },
+    /// Код, тесты и попытка обхода существуют.
+    Enforced(Enforced),
+}
+
+/// Проверенный инвариант: нарушение невыразимо или обход опробован тестами.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Enforced {
+    /// Типы делают нарушение невыразимым.
+    Unrepresentable,
+    /// Описанный обход опробован атакующими тестами.
+    Adversarial {
+        bypass: NonEmptyStr,
+        tests: &'static [AnchorId],
+    },
 }
 
 /// Происхождение работы: тип задачи и её обоснование — одно поле.

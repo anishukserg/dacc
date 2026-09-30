@@ -106,6 +106,19 @@ pub const UPGRADES: PlanKind = PlanKind {
     plural: "upgrades",
 };
 
+/// Реестр инвариантов (решение 45).
+pub const INVARIANTS: PlanKind = PlanKind {
+    macro_name: "invariant",
+    module: "invariant",
+    reference: "InvariantRef",
+    record: "Invariant",
+    item: "INVARIANT",
+    all: "ALL_INVARIANTS",
+    noun: "Invariant",
+    lower: "invariant",
+    plural: "invariants",
+};
+
 /// Сканирует каталог реестра одного вида.
 pub fn scan_plan(dir: &Path, kind: &PlanKind) -> Result<Vec<ScannedSlug>, ScanError> {
     crate::scan_slug_dir(dir, kind.macro_name)

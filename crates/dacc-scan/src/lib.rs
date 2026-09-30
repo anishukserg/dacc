@@ -509,12 +509,14 @@ pub fn emit_registry(
     let obligations = plan::scan_plan(&registry_dir.join("obligation"), &plan::OBLIGATIONS)?;
     let limitations = plan::scan_plan(&registry_dir.join("limitation"), &plan::LIMITATIONS)?;
     let upgrades = plan::scan_plan(&registry_dir.join("upgrade"), &plan::UPGRADES)?;
+    let invariants = plan::scan_plan(&registry_dir.join("invariant"), &plan::INVARIANTS)?;
     let mut code = plan::emit_plan(&thrusts, &plan::THRUSTS);
     code.push_str(&plan::emit_plan(&slices, &plan::SLICES));
     code.push_str(&plan::emit_plan(&work, &plan::WORK));
     code.push_str(&plan::emit_plan(&obligations, &plan::OBLIGATIONS));
     code.push_str(&plan::emit_plan(&limitations, &plan::LIMITATIONS));
     code.push_str(&plan::emit_plan(&upgrades, &plan::UPGRADES));
+    code.push_str(&plan::emit_plan(&invariants, &plan::INVARIANTS));
     code.push_str(&plan::emit_work_checks(&work));
     code.push_str(&plan::emit_toil_checks(&work));
     code.push_str(&plan::emit_obligation_checks(&obligations));
@@ -539,6 +541,7 @@ pub fn emit_registry(
         "obligation",
         "limitation",
         "upgrade",
+        "invariant",
         "journal",
         "journal.toml",
     ] {
@@ -892,6 +895,7 @@ mod tests {
             "obligation",
             "limitation",
             "upgrade",
+            "invariant",
             "journal",
         ] {
             fs::create_dir_all(root.join(dir)).unwrap();

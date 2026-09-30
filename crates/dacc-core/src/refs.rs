@@ -126,6 +126,12 @@ declare_ref! {
     UpgradeRef(&'static str), "\"u-0-4-0-scan-journal\""
 }
 
+declare_ref! {
+    /// Ссылка на инвариант (Invariant). Несёт slug из имени файла, а не
+    /// порядковый номер (решение 45).
+    InvariantRef(&'static str), "\"i0001\""
+}
+
 macro_rules! numbered {
     ($($name:ident),*) => {$(
         impl $name {
@@ -177,7 +183,8 @@ slug_ref!(
     WorkRef,
     ObligationRef,
     LimitationRef,
-    UpgradeRef
+    UpgradeRef,
+    InvariantRef
 );
 
 impl AnchorId {
