@@ -1,6 +1,7 @@
 //! Схема слоя работы. Ссылки — пути к константам, порождённым сканом
 //! реестров; правило, выразимое типом, валидатором не проверяется.
 
+use chrono::NaiveDate;
 use dacc_core::{
     axis::Subsystem, AdrRef, AnchorId, BlastRadius, LimitationRef, NonEmpty, NonEmptyStr,
     ObligationRef, RfcRef, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
@@ -129,6 +130,22 @@ pub enum Enforced {
         bypass: NonEmptyStr,
         tests: &'static [AnchorId],
     },
+}
+
+/// Независимое чтение (решение 46): угол, находки и их судьба.
+#[derive(Debug)]
+pub struct Review {
+    pub id: &'static str,
+    /// Что прочитано.
+    pub title: NonEmptyStr,
+    /// Угол, под которым читали, — граница чтения на записи.
+    pub angle: NonEmptyStr,
+    /// Каждая находка и что с ней стало.
+    pub findings: NonEmpty<NonEmptyStr>,
+    /// Кто читал; для вердикта — читатель, не пишущий других записей.
+    pub authors: NonEmpty<NonEmptyStr>,
+    /// Когда чтение состоялось.
+    pub decided_at: NaiveDate,
 }
 
 /// Происхождение работы: тип задачи и её обоснование — одно поле.

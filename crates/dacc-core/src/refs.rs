@@ -132,6 +132,12 @@ declare_ref! {
     InvariantRef(&'static str), "\"i0001\""
 }
 
+declare_ref! {
+    /// Ссылка на независимое чтение (Review). Несёт slug из имени файла, а не
+    /// порядковый номер (решение 46).
+    ReviewRef(&'static str), "\"v0001\""
+}
+
 macro_rules! numbered {
     ($($name:ident),*) => {$(
         impl $name {
@@ -184,7 +190,8 @@ slug_ref!(
     ObligationRef,
     LimitationRef,
     UpgradeRef,
-    InvariantRef
+    InvariantRef,
+    ReviewRef
 );
 
 impl AnchorId {

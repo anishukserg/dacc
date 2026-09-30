@@ -20,8 +20,8 @@ mod schema;
 
 pub use schema::{
     limitations_declared, obligations_redeemed, radius_within_slice, toil_within_local_radius,
-    Enforced, InquiryOutcome, Invariant, InvariantStatus, Limitation, Obligation, Slice, Thrust,
-    Upgrade, WorkItem, WorkOrigin, WorkState,
+    Enforced, InquiryOutcome, Invariant, InvariantStatus, Limitation, Obligation, Review, Slice,
+    Thrust, Upgrade, WorkItem, WorkOrigin, WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
@@ -95,5 +95,16 @@ macro_rules! invariant {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
         /// Запись инварианта этого файла.
         pub static INVARIANT: $crate::Invariant = $crate::Invariant { id: $id, $($field: $value),* };
+    };
+}
+
+/// Регистрация независимого чтения. Файл обязан называться по
+/// slug-идентификатору (`v0001.rs`), а slug — первый аргумент. Угол `angle` и
+/// находки `findings` обязательны (решение 46).
+#[macro_export]
+macro_rules! review {
+    ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
+        /// Запись чтения этого файла.
+        pub static REVIEW: $crate::Review = $crate::Review { id: $id, $($field: $value),* };
     };
 }

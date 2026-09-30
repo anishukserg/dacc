@@ -119,6 +119,19 @@ pub const INVARIANTS: PlanKind = PlanKind {
     plural: "invariants",
 };
 
+/// Реестр независимых чтений (решение 46).
+pub const REVIEWS: PlanKind = PlanKind {
+    macro_name: "review",
+    module: "review",
+    reference: "ReviewRef",
+    record: "Review",
+    item: "REVIEW",
+    all: "ALL_REVIEWS",
+    noun: "Review",
+    lower: "review",
+    plural: "reviews",
+};
+
 /// Сканирует каталог реестра одного вида.
 pub fn scan_plan(dir: &Path, kind: &PlanKind) -> Result<Vec<ScannedSlug>, ScanError> {
     crate::scan_slug_dir(dir, kind.macro_name)
