@@ -47,6 +47,7 @@
   - [adr-2026-043 — Журнал — одна append-only запись, а не файл на событие](decisions/adr-2026-043.md)
   - [adr-2026-044 — Инструкция повышения версии — отдельная запись upgrade!](decisions/adr-2026-044.md)
   - [adr-2026-045 — Инвариант — отдельный тип invariant! со статусом](decisions/adr-2026-045.md)
+  - [adr-2026-046 — Независимое чтение — отдельный тип review!](decisions/adr-2026-046.md)
 - [Specifications](specifications/README.md)
   - [rfc-2026-001 — Слой знания](specifications/rfc-2026-001.md)
   - [rfc-2026-002 — Слой работы](specifications/rfc-2026-002.md)
