@@ -86,3 +86,7 @@ work = "w-metrics-command"
 at = "2026-09-30T03:56:19Z"
 commit = "3410bec89e145542980d568ae692b8af994e78e1"
 tree = "5d8f48cb8e065183cd0eb32853af63c07dd53933"
+[[events]]
+event = "closed"
+slice = "s-measurable"
+at = "2026-09-30T03:56:32Z"
