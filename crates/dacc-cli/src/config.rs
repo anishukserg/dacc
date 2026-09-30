@@ -108,6 +108,11 @@ impl Config {
         format!("{}/journal", self.doc)
     }
 
+    /// Каталог инструкций повышения версии (решение 44).
+    pub fn upgrade_dir(&self) -> String {
+        format!("{}/upgrade", self.doc)
+    }
+
     /// Одна запись журнала работы (решение 43): `doc/journal.toml`, куда
     /// дописываются новые события.
     pub fn journal_file(&self) -> String {

@@ -185,6 +185,93 @@ fn kind_index(kind: &Kind) -> usize {
     }
 }
 
+/// `cargo dacc upgrade [<from>] <to>` (решение 44): шаги повышения версии из
+/// реестра upgrade!, сгруппированные по версии. Без аргументов — все шаги.
+pub fn run_upgrade(args: &[OsString]) -> u8 {
+    finish(words(args).and_then(|(words, _)| {
+        let (from, to) = match words.as_slice() {
+            [] => (None, None),
+            [to] => (None, Some(to.as_str())),
+            [from, to] => (Some(from.as_str()), Some(to.as_str())),
+            _ => return Err(usage(code::USAGE, "upgrade [<from>] <to>")),
+        };
+        upgrade(from, to)
+    }))
+}
+
+/// Читает реестр upgrade! и печатает шаги subject + how по версиям.
+fn upgrade(from: Option<&str>, to: Option<&str>) -> Result<u8, Refusal> {
+    let context = Context::open()?;
+    let dir = context.repo.root.join(context.repo.config.upgrade_dir());
+    let records = read_upgrades(&dir)?;
+    let mut grouped = std::collections::BTreeMap::<&str, Vec<&UpgradeRecord>>::new();
+    for record in &records {
+        if to.is_some_and(|to| record.to.as_str() != to)
+            || from.is_some_and(|from| record.from.as_str() != from)
+        {
+            continue;
+        }
+        grouped.entry(record.to.as_str()).or_default().push(record);
+    }
+    if grouped.is_empty() {
+        let target = to.map_or("the registry".to_owned(), str::to_string);
+        println!("no upgrade steps for {target}");
+        return Ok(0);
+    }
+    for (version, steps) in grouped {
+        println!("Upgrade to {version}:");
+        for step in steps {
+            println!("  {}: {}", step.subject, step.how);
+        }
+    }
+    Ok(0)
+}
+
+/// Запись инструкции повышения версии, прочитанная из текста файла `u-*.rs`.
+struct UpgradeRecord {
+    from: String,
+    to: String,
+    subject: String,
+    how: String,
+}
+
+impl UpgradeRecord {
+    fn parse(text: &str) -> Option<UpgradeRecord> {
+        Some(UpgradeRecord {
+            from: quoted_after(text, "from: NonEmptyStr::new(")?,
+            to: quoted_after(text, "to: NonEmptyStr::new(")?,
+            subject: quoted_after(text, "subject: NonEmptyStr::new(")?,
+            how: quoted_after(text, "how: NonEmptyStr::new(")?,
+        })
+    }
+}
+
+/// Читает записи upgrade! из каталога; отсутствующий каталог — пустой реестр.
+fn read_upgrades(dir: &Path) -> Result<Vec<UpgradeRecord>, Refusal> {
+    let mut records = Vec::new();
+    if !dir.is_dir() {
+        return Ok(records);
+    }
+    let entries = fs::read_dir(dir).map_err(|error| {
+        usage(
+            code::PLAN_NOT_READ,
+            format!("upgrade {} not read: {error}", dir.display()),
+        )
+    })?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.ends_with(".rs") {
+            continue;
+        }
+        let text = fs::read_to_string(entry.path()).unwrap_or_default();
+        if let Some(record) = UpgradeRecord::parse(&text) {
+            records.push(record);
+        }
+    }
+    records.sort_by(|a, b| a.to.cmp(&b.to).then_with(|| a.subject.cmp(&b.subject)));
+    Ok(records)
+}
+
 /// Отказ команды: код возврата, стабильный код причины и текст.
 #[derive(Debug)]
 pub struct Refusal {
@@ -959,5 +1046,18 @@ mod tests {
         assert_eq!(stage_index(Stage::Abandoned), 4);
         assert_eq!(kind_index(&Kind::Started), 0);
         assert_eq!(kind_index(&Kind::Closed), 4);
+    }
+
+    /// Запись upgrade! читает from/to/subject/how из текста файла.
+    #[test]
+    fn upgrade_record_parses_fields() {
+        let record = UpgradeRecord::parse(
+            "dacc_work::upgrade!(\"u-x\",\n    from: NonEmptyStr::new(\"0.3.0\"),\n    to: NonEmptyStr::new(\"0.4.0\"),\n    subject: NonEmptyStr::new(\"s\"),\n    how: NonEmptyStr::new(\"h\"),\n);",
+        )
+        .unwrap();
+        assert_eq!(record.from, "0.3.0");
+        assert_eq!(record.to, "0.4.0");
+        assert_eq!(record.subject, "s");
+        assert_eq!(record.how, "h");
     }
 }
