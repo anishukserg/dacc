@@ -220,3 +220,7 @@ work = "w-handoff-protocol"
 at = "2026-09-30T04:57:09Z"
 commit = "1f59ad9841b98297cc7549baa9e2aa5465765360"
 tree = "d15f963432560d610cece98e5fcc270cdc405da5"
+[[events]]
+event = "closed"
+slice = "s-handoff"
+at = "2026-09-30T04:58:18Z"
