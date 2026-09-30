@@ -93,6 +93,19 @@ pub const LIMITATIONS: PlanKind = PlanKind {
     plural: "limitations",
 };
 
+/// Реестр инструкций повышения версии (решение 44).
+pub const UPGRADES: PlanKind = PlanKind {
+    macro_name: "upgrade",
+    module: "upgrade",
+    reference: "UpgradeRef",
+    record: "Upgrade",
+    item: "UPGRADE",
+    all: "ALL_UPGRADES",
+    noun: "Upgrade",
+    lower: "upgrade",
+    plural: "upgrades",
+};
+
 /// Сканирует каталог реестра одного вида.
 pub fn scan_plan(dir: &Path, kind: &PlanKind) -> Result<Vec<ScannedSlug>, ScanError> {
     crate::scan_slug_dir(dir, kind.macro_name)

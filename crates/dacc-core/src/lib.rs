@@ -21,7 +21,7 @@ pub use nonempty::{NonEmpty, NonEmptyStr};
 pub use radius::{BlastRadius, Severity};
 pub use refs::{
     AdrRef, AnchorId, BreakingRef, GateRef, LimitationRef, ObligationRef, RfcRef, SliceRef,
-    SupersededRef, ThrustRef, WorkRef,
+    SupersededRef, ThrustRef, UpgradeRef, WorkRef,
 };
 pub use taxonomy::{axis, Taxon};
 

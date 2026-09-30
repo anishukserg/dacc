@@ -508,11 +508,13 @@ pub fn emit_registry(
     let work = plan::scan_plan(&registry_dir.join("work"), &plan::WORK)?;
     let obligations = plan::scan_plan(&registry_dir.join("obligation"), &plan::OBLIGATIONS)?;
     let limitations = plan::scan_plan(&registry_dir.join("limitation"), &plan::LIMITATIONS)?;
+    let upgrades = plan::scan_plan(&registry_dir.join("upgrade"), &plan::UPGRADES)?;
     let mut code = plan::emit_plan(&thrusts, &plan::THRUSTS);
     code.push_str(&plan::emit_plan(&slices, &plan::SLICES));
     code.push_str(&plan::emit_plan(&work, &plan::WORK));
     code.push_str(&plan::emit_plan(&obligations, &plan::OBLIGATIONS));
     code.push_str(&plan::emit_plan(&limitations, &plan::LIMITATIONS));
+    code.push_str(&plan::emit_plan(&upgrades, &plan::UPGRADES));
     code.push_str(&plan::emit_work_checks(&work));
     code.push_str(&plan::emit_toil_checks(&work));
     code.push_str(&plan::emit_obligation_checks(&obligations));
@@ -536,6 +538,7 @@ pub fn emit_registry(
         "work",
         "obligation",
         "limitation",
+        "upgrade",
         "journal",
         "journal.toml",
     ] {
@@ -888,6 +891,7 @@ mod tests {
             "work",
             "obligation",
             "limitation",
+            "upgrade",
             "journal",
         ] {
             fs::create_dir_all(root.join(dir)).unwrap();

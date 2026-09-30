@@ -20,7 +20,8 @@ mod schema;
 
 pub use schema::{
     limitations_declared, obligations_redeemed, radius_within_slice, toil_within_local_radius,
-    InquiryOutcome, Limitation, Obligation, Slice, Thrust, WorkItem, WorkOrigin, WorkState,
+    InquiryOutcome, Limitation, Obligation, Slice, Thrust, Upgrade, WorkItem, WorkOrigin,
+    WorkState,
 };
 
 /// Регистрация направления. Файл обязан называться по slug-идентификатору
@@ -73,5 +74,16 @@ macro_rules! limitation {
     ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
         /// Запись ограничения этого файла.
         pub static LIMITATION: $crate::Limitation = $crate::Limitation { id: $id, $($field: $value),* };
+    };
+}
+
+/// Регистрация инструкции повышения версии. Файл обязан называться по
+/// slug-идентификатору (`u-0-4-0-scan-journal.rs`), а slug — первый аргумент.
+/// Поля `from`, `to`, `subject` и `how` обязательны (решение 44).
+#[macro_export]
+macro_rules! upgrade {
+    ($id:literal, $($field:ident : $value:expr),* $(,)?) => {
+        /// Запись инструкции повышения версии этого файла.
+        pub static UPGRADE: $crate::Upgrade = $crate::Upgrade { id: $id, $($field: $value),* };
     };
 }

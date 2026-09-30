@@ -120,6 +120,12 @@ declare_ref! {
     LimitationRef(&'static str), "\"l-fix-x\""
 }
 
+declare_ref! {
+    /// Ссылка на инструкцию повышения версии (Upgrade). Несёт slug из имени
+    /// файла, а не порядковый номер (решение 44).
+    UpgradeRef(&'static str), "\"u-0-4-0-scan-journal\""
+}
+
 macro_rules! numbered {
     ($($name:ident),*) => {$(
         impl $name {
@@ -170,7 +176,8 @@ slug_ref!(
     SliceRef,
     WorkRef,
     ObligationRef,
-    LimitationRef
+    LimitationRef,
+    UpgradeRef
 );
 
 impl AnchorId {
