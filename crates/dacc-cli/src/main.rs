@@ -49,6 +49,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc slice close <s-slug>
   cargo dacc journal hash [<revision>]
   cargo dacc journal import --work <w-slug> [--close-finished-slices]
+  cargo dacc metrics
 
   The work, slice and journal import commands accept --trailer <trailer> for
   extra trailer lines of the commit message.";
@@ -73,6 +74,7 @@ fn main() -> ExitCode {
         "work" => work::run_work(rest),
         "slice" => work::run_slice(rest),
         "journal" => journal::run(rest),
+        "metrics" => work::run_metrics(rest),
         "help" | "--help" | "-h" => {
             println!("{USAGE}");
             0

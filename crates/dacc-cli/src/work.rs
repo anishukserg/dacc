@@ -86,6 +86,105 @@ pub fn run_slice(args: &[OsString]) -> u8 {
     }))
 }
 
+/// `cargo dacc metrics` (решение 44): счётчики пилота одной командой — коммиты
+/// с основанием, записи журнала по видам, радиусы и стадии работ.
+pub fn run_metrics(args: &[OsString]) -> u8 {
+    finish(words(args).and_then(|(words, _)| {
+        if !words.is_empty() {
+            return Err(usage(code::USAGE, "metrics"));
+        }
+        metrics()
+    }))
+}
+
+/// Считает счётчики из реестра и журнала и печатает их построчно.
+fn metrics() -> Result<u8, Refusal> {
+    let context = Context::open()?;
+    let root = &context.repo.root;
+
+    // Коммиты с основанием: трейлер Dacc-Work / Dacc-Slice в тексте коммита.
+    let total = git::read(root, &["rev-list", "--count", "HEAD"])
+        .and_then(|out| out.trim().parse::<usize>().ok())
+        .unwrap_or(0);
+    let with_basis = git::read(root, &["log", "--format=%s%n%b"])
+        .map(|log| {
+            log.lines()
+                .filter(|line| line.starts_with("Dacc-Work:") || line.starts_with("Dacc-Slice:"))
+                .count()
+        })
+        .unwrap_or(0);
+
+    // Стадии работ и радиусы из плана.
+    let works = context.works()?;
+    let mut stages = [0usize; 5];
+    let mut radii = std::collections::BTreeMap::<String, usize>::new();
+    for (number, work) in &works {
+        stages[stage_index(context.journal.stage(number))] += 1;
+        if let Some(radius) = &work.radius {
+            *radii.entry(radius.clone()).or_default() += 1;
+        }
+    }
+
+    // Записи журнала по видам: одна запись и прежние файлы-события.
+    let file = root.join(context.repo.config.journal_file());
+    let dir = root.join(context.repo.config.journal_dir());
+    let (file_events, _) =
+        dacc_journal::read_file(&file).unwrap_or_else(|_| (Vec::new(), Vec::new()));
+    let (dir_events, _) = if dir.is_dir() {
+        dacc_journal::read_dir(&dir).unwrap_or_else(|_| (Vec::new(), Vec::new()))
+    } else {
+        (Vec::new(), Vec::new())
+    };
+    let mut kinds = [0usize; 5];
+    for event in file_events.iter().chain(&dir_events) {
+        kinds[kind_index(&event.kind)] += 1;
+    }
+
+    println!("commits: {total} total, {with_basis} with basis");
+    println!(
+        "work states: {} planned, {} started, {} landed, {} from history, {} abandoned",
+        stages[0], stages[1], stages[2], stages[3], stages[4]
+    );
+    let radii_text = if radii.is_empty() {
+        "none".to_owned()
+    } else {
+        radii
+            .iter()
+            .map(|(radius, count)| format!("{radius} {count}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    println!("radii: {radii_text}");
+    println!(
+        "journal: {} started, {} gate, {} landed, {} abandoned, {} closed",
+        kinds[0], kinds[1], kinds[2], kinds[3], kinds[4]
+    );
+    Ok(0)
+}
+
+/// Индекс стадии в счётчике работ: planned, started, landed, from history,
+/// abandoned.
+fn stage_index(stage: Stage) -> usize {
+    match stage {
+        Stage::Planned => 0,
+        Stage::Started => 1,
+        Stage::Landed => 2,
+        Stage::LandedFromHistory => 3,
+        Stage::Abandoned => 4,
+    }
+}
+
+/// Индекс вида в счётчике журнала: started, gate, landed, abandoned, closed.
+fn kind_index(kind: &Kind) -> usize {
+    match kind {
+        Kind::Started => 0,
+        Kind::Gate { .. } => 1,
+        Kind::Landed { .. } => 2,
+        Kind::Abandoned { .. } => 3,
+        Kind::Closed => 4,
+    }
+}
+
 /// Отказ команды: код возврата, стабильный код причины и текст.
 #[derive(Debug)]
 pub struct Refusal {
@@ -529,12 +628,14 @@ struct Record {
     title: String,
     slice: Option<String>,
     area: Option<String>,
+    radius: Option<String>,
 }
 
 impl Record {
     fn parse(text: &str) -> Record {
         const SLICE: &str = "slice: crate::slice::s";
         const TAXON: &str = "taxon!(Subsystem, ";
+        const RADIUS: &str = "radius: BlastRadius::";
         Record {
             title: quoted_after(text, "title: NonEmptyStr::new(").unwrap_or_default(),
             slice: text
@@ -547,6 +648,11 @@ impl Record {
                 .find(TAXON)
                 .and_then(|at| text[at + TAXON.len()..].split_once(')'))
                 .map(|(name, _)| name.trim().to_lowercase()),
+            radius: text
+                .find(RADIUS)
+                .and_then(|at| text.get(at + RADIUS.len()..))
+                .and_then(|rest| rest.split([',', ')']).next())
+                .map(|radius| radius.trim().to_lowercase()),
         }
     }
 
@@ -827,4 +933,31 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
         let _ = fs::write(&file, previous);
     }
     Ok(code)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Радиус читается из текста работы: `radius: BlastRadius::Xxx`.
+    #[test]
+    fn record_parses_radius() {
+        let crate_radius =
+            Record::parse("dacc_work::work!(\"w-x\",\n    radius: BlastRadius::Crate,\n);");
+        assert_eq!(crate_radius.radius.as_deref(), Some("crate"));
+        let local = Record::parse("dacc_work::work!(\"w-x\",\n    radius: BlastRadius::Local,\n);");
+        assert_eq!(local.radius.as_deref(), Some("local"));
+    }
+
+    /// Индексы стадий и видов ложатся на счётчики `metrics`.
+    #[test]
+    fn stage_and_kind_indexes() {
+        assert_eq!(stage_index(Stage::Planned), 0);
+        assert_eq!(stage_index(Stage::Started), 1);
+        assert_eq!(stage_index(Stage::Landed), 2);
+        assert_eq!(stage_index(Stage::LandedFromHistory), 3);
+        assert_eq!(stage_index(Stage::Abandoned), 4);
+        assert_eq!(kind_index(&Kind::Started), 0);
+        assert_eq!(kind_index(&Kind::Closed), 4);
+    }
 }
