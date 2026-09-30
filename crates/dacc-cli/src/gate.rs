@@ -292,30 +292,34 @@ pub struct Verdict {
 }
 
 impl Verdict {
-    /// Человекочитаемый вердикт: `GATE OK (<n> of <m>; …)`.
+    /// Человекочитаемый вердикт: `GATE OK (<n> of <m>; …)`. Когда шаги не
+    /// выполнялись, счёт не обещает полного числа шагов — он явно называет
+    /// «K not run», чтобы знаменатель не читался как «все шаги проверены».
     pub fn text(&self) -> String {
-        let mut verdict = if self.journal_only {
+        let count = if self.skipped.is_empty() {
+            format!("{} of {}", self.passed, self.total)
+        } else {
             format!(
-                "GATE OK ({} of {}; journal only — the tree without the journal is already checked",
-                self.passed, self.total
-            )
-        } else if let (Some(msrv), Some(msrv_attacks)) = (&self.msrv, self.msrv_attacks) {
-            format!(
-                "GATE OK ({} of {}; attacks {}, on {} — {}",
+                "{} of {}, {} not run",
                 self.passed,
                 self.total,
+                self.skipped.len()
+            )
+        };
+        let mut verdict = if self.journal_only {
+            format!(
+                "GATE OK ({count}; journal only — the tree without the journal is already checked"
+            )
+        } else if let (Some(msrv), Some(msrv_attacks)) = (&self.msrv, &self.msrv_attacks) {
+            format!(
+                "GATE OK ({count}; attacks {}, on {} — {}",
                 self.attacks.unwrap_or(0),
                 msrv,
                 msrv_attacks
             )
         } else {
             // Ярус коммита (решение 33): атаки есть, MSRV не проверялся.
-            format!(
-                "GATE OK ({} of {}; attacks {}",
-                self.passed,
-                self.total,
-                self.attacks.unwrap_or(0)
-            )
+            format!("GATE OK ({count}; attacks {}", self.attacks.unwrap_or(0))
         };
         if !self.skipped.is_empty() {
             verdict.push_str("; not run: ");
@@ -1380,7 +1384,7 @@ mod tests {
         };
         assert_eq!(
             verdict.text(),
-            "GATE OK (11 of 12; attacks 20, on 1.83.0 — 20; not run: external names, markdown links)"
+            "GATE OK (11 of 12, 2 not run; attacks 20, on 1.83.0 — 20; not run: external names, markdown links)"
         );
         assert_eq!(
             verdict.json(),
@@ -1403,7 +1407,7 @@ mod tests {
         };
         assert_eq!(
             verdict.text(),
-            "GATE OK (8 of 9; attacks 20; not run: external names)"
+            "GATE OK (8 of 9, 1 not run; attacks 20; not run: external names)"
         );
         assert_eq!(
             verdict.json(),
