@@ -310,3 +310,52 @@ fn help_declares_cost_and_refusals_are_legitimate() {
         error.output()
     );
 }
+
+/// Потолки и xml: map не превышает 8 КБ с явным усечением, map и where
+/// отвечают xml с версией контракта.
+#[test]
+fn map_is_capped_and_xml_carries_the_version() {
+    let repo = registry_repo("access-limits");
+    repo.write(
+        "src/lib.rs",
+        "#[doc_anchor(id = \"plan-ir\")]\npub struct PlanIr;\n",
+    );
+    for i in 0..200 {
+        repo.write(
+            &format!("doc/work/w-2{i:03}.rs"),
+            &format!(
+                "dacc_work::work!(\"w-2{i:03}\",\n    title: NonEmptyStr::new(\"Длинное имя работы номер {i} {}\"),\n    slice: crate::slice::s_001,\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+                "х".repeat(60)
+            ),
+        );
+    }
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): большой реестр"]);
+
+    let big = repo.tool(&["map"]);
+    assert_eq!(big.code, 0, "{}", big.output());
+    assert!(
+        big.stdout.len() <= 8192,
+        "ответ map длиной {}",
+        big.stdout.len()
+    );
+    assert!(big.stdout.contains("truncated"), "{}", big.output());
+
+    let xml = repo.tool(&["map", "--format", "xml"]);
+    assert_eq!(xml.code, 0, "{}", xml.output());
+    assert!(xml.stdout.contains("<map"), "{}", xml.output());
+    assert!(xml.stdout.contains("version=\"1\""), "{}", xml.output());
+
+    let where_xml = repo.tool(&["where", "--file", "src/lib.rs", "--format", "xml"]);
+    assert_eq!(where_xml.code, 0, "{}", where_xml.output());
+    assert!(
+        where_xml.stdout.contains("version=\"1\""),
+        "{}",
+        where_xml.output()
+    );
+    assert!(
+        where_xml.stdout.contains("plan-ir"),
+        "{}",
+        where_xml.output()
+    );
+}

@@ -141,7 +141,9 @@ fn parse_args(args: &[OsString]) -> Result<Mode, String> {
 fn run_file(file: &OsString, form_only: bool, format: Format) -> u8 {
     let Ok(text) = std::fs::read_to_string(file) else {
         match format {
-            Format::Text => eprintln!("msg-check: a readable message file is required"),
+            Format::Text | Format::Xml => {
+                eprintln!("msg-check: a readable message file is required")
+            }
             Format::Json => println!(
                 "{{\"ok\":false,\"code\":{},\"error\":\"a readable message file is required\"}}",
                 format::string(code::MESSAGE_FILE_REQUIRED)
@@ -168,7 +170,7 @@ fn run_file(file: &OsString, form_only: bool, format: Format) -> u8 {
         }
         Err(problem) => {
             match format {
-                Format::Text => eprintln!("msg-check: {problem}"),
+                Format::Text | Format::Xml => eprintln!("msg-check: {problem}"),
                 Format::Json => println!("{{\"ok\":false,\"error\":{}}}", format::string(&problem)),
             }
             2
@@ -208,13 +210,15 @@ fn run_range(range: &OsString, format: Format) -> u8 {
     }
     if refused == 0 {
         match format {
-            Format::Text => println!("MSG-CHECK OK ({})", commits.len()),
+            Format::Text | Format::Xml => println!("MSG-CHECK OK ({})", commits.len()),
             Format::Json => println!("{{\"ok\":true,\"checked\":{}}}", commits.len()),
         }
         0
     } else {
         match format {
-            Format::Text => println!("MSG-CHECK REFUSED: {refused} of {}", commits.len()),
+            Format::Text | Format::Xml => {
+                println!("MSG-CHECK REFUSED: {refused} of {}", commits.len())
+            }
             Format::Json => println!(
                 "{{\"ok\":false,\"code\":{},\"checked\":{},\"refused\":{refused}}}",
                 format::string(code::MESSAGE_REFUSED),
@@ -680,7 +684,7 @@ mod tests {
             other => panic!("expected File, got {other:?}"),
         }
         assert!(parse_args(&args(&[])).is_err());
-        assert!(parse_args(&args(&["--format", "xml", "msg.txt"])).is_err());
+        assert!(parse_args(&args(&["--format", "yaml", "msg.txt"])).is_err());
     }
 
     #[test]

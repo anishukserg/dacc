@@ -587,7 +587,7 @@ fn state(id: Option<&str>, format: Format) -> Result<u8, Refusal> {
         .filter(|(n, _)| selected.as_ref().is_none_or(|selected| selected == n))
         .collect();
     match format {
-        Format::Text => {
+        Format::Text | Format::Xml => {
             for (number, work) in filtered {
                 let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
                 println!(

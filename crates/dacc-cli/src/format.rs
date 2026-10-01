@@ -14,6 +14,9 @@ pub enum Format {
     Text,
     /// Машинный вывод: JSON полями.
     Json,
+    /// Версионированный машинный контракт: XML (RFC-0003). Поддержан
+    /// командами map и where.
+    Xml,
 }
 
 /// Разбор значения `--format`. Ошибка называет допустимые значения.
@@ -21,7 +24,10 @@ pub fn parse(value: &str) -> Result<Format, String> {
     match value {
         "json" => Ok(Format::Json),
         "text" => Ok(Format::Text),
-        other => Err(format!("--format needs `json` or `text`, not `{other}`")),
+        "xml" => Ok(Format::Xml),
+        other => Err(format!(
+            "--format needs `json`, `text` or `xml`, not `{other}`"
+        )),
     }
 }
 
@@ -70,10 +76,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_accepts_json_and_text() {
+    fn parse_accepts_json_text_and_xml() {
         assert_eq!(parse("json"), Ok(Format::Json));
         assert_eq!(parse("text"), Ok(Format::Text));
-        assert!(parse("xml").is_err());
+        assert_eq!(parse("xml"), Ok(Format::Xml));
+        assert!(parse("yaml").is_err());
     }
 
     #[test]
@@ -84,7 +91,8 @@ mod tests {
         assert_eq!(scan(&args(&["--format", "json", "state"])), Format::Json);
         assert_eq!(scan(&args(&["state"])), Format::Text);
         // Негодное значение флага — Text: ошибку печатает разборщик команды.
-        assert_eq!(scan(&args(&["--format", "xml"])), Format::Text);
+        assert_eq!(scan(&args(&["--format", "yaml"])), Format::Text);
+        assert_eq!(scan(&args(&["--format", "xml"])), Format::Xml);
     }
 
     #[test]

@@ -91,6 +91,12 @@ fn help(args: &[OsString]) -> Result<u8, Refusal> {
         return Err(usage(code::USAGE, "help [--format json]"));
     }
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let mut out = String::from("{\"schema\": \"dacc-help\", \"commands\": [");
             for (i, (command, accepted, cost, mutates)) in CONTRACT.iter().enumerate() {
@@ -226,6 +232,12 @@ fn brief(args: &[OsString]) -> Result<u8, Refusal> {
         .collect();
 
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let mut out = String::from("{\"schema\": \"dacc-brief\", \"thrusts\": [");
             for (i, (id, title)) in thrusts.iter().enumerate() {
@@ -341,6 +353,12 @@ fn state(args: &[OsString]) -> Result<u8, Refusal> {
     lines.extend(open.iter().cloned());
 
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let total = lines.len();
             let mut out = format!(
@@ -464,6 +482,12 @@ fn refs(args: &[OsString]) -> Result<u8, Refusal> {
     }
 
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let mut out = String::from("{\"schema\": \"dacc-refs\", \"id\": ");
             out.push_str(&json_string(&id));
@@ -526,6 +550,12 @@ fn find(args: &[OsString]) -> Result<u8, Refusal> {
         }
     }
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let mut out = String::from("{\"schema\": \"dacc-find\", \"matches\": [");
             for (i, (kind, id, title)) in matches.iter().enumerate() {
@@ -641,6 +671,12 @@ fn ls(args: &[OsString]) -> Result<u8, Refusal> {
         }
     }
     match scan.format {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
         Format::Json => {
             let mut out = String::from("{\"schema\": \"dacc-ls\", \"kind\": ");
             out.push_str(&json_string(kind_name));
@@ -695,6 +731,12 @@ fn show(args: &[OsString]) -> Result<u8, Refusal> {
             };
             let title = quoted_after(&text, "title: NonEmptyStr::new(").unwrap_or_default();
             match scan.format {
+                Format::Xml => {
+                    return Err(usage(
+                        code::FORMAT_CHOICE,
+                        "xml is supported by map and where",
+                    ))
+                }
                 Format::Json => println!(
                     "{{\"schema\": \"dacc-show\", \"kind\": {}, \"id\": {}, \"status\": {}, \"title\": {}, \"text\": {}}}",
                     json_string(kind_name),
@@ -876,6 +918,7 @@ fn where_file(args: &[OsString]) -> Result<u8, Refusal> {
     match format {
         Format::Json => println!("{}", where_json(&file, &anchors, &documents, &works)),
         Format::Text => print!("{}", where_text(&file, &anchors, &documents, &works)),
+        Format::Xml => println!("{}", where_xml(&file, &anchors, &documents, &works)),
     }
     Ok(0)
 }
@@ -1063,13 +1106,25 @@ fn map(args: &[OsString]) -> Result<u8, Refusal> {
         Format::Json => {
             println!(
                 "{}",
-                render_json(&thrusts, &slices, &works, decisions, specifications)
+                cap_json_map(
+                    render_json(&thrusts, &slices, &works, decisions, specifications),
+                    MAP_LIMIT
+                )
             );
         }
         Format::Text => {
             print!(
                 "{}",
-                render_text(&thrusts, &slices, &works, decisions, specifications)
+                cap_text(
+                    &render_text(&thrusts, &slices, &works, decisions, specifications),
+                    MAP_LIMIT
+                )
+            );
+        }
+        Format::Xml => {
+            println!(
+                "{}",
+                render_xml(&thrusts, &slices, &works, decisions, specifications)
             );
         }
     }
@@ -1263,5 +1318,147 @@ fn json_string(text: &str) -> String {
         }
     }
     out.push('"');
+    out
+}
+
+/// Строка XML с экранированием разметки в атрибутах.
+fn xml_string(text: &str) -> String {
+    let mut out = String::new();
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str(concat!("&", "amp;")),
+            '<' => out.push_str(concat!("&", "lt;")),
+            '>' => out.push_str(concat!("&", "gt;")),
+            '"' => out.push_str(concat!("&", "quot;")),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Потолок ответа map (RFC-0003): 8 КБ независимо от размера проекта.
+const MAP_LIMIT: usize = 8192;
+
+/// Явное усечение текста до потолка: ответ не превышает limit, и усечение
+/// названо строкой, а не молчанием.
+fn cap_text(text: &str, limit: usize) -> String {
+    if text.len() <= limit {
+        return text.to_owned();
+    }
+    let total = text.lines().count();
+    let mut out = String::new();
+    for (index, line) in text.lines().enumerate() {
+        if out.len() + line.len() + 64 > limit {
+            out.push_str(&format!("truncated: {index} of {total} lines\n"));
+            return out;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
+/// Явное усечение JSON карты: массив работ вырезается целиком и поле truncated
+/// названо явно; крайний случай — минимальный ответ со счётчиками.
+fn cap_json_map(text: String, limit: usize) -> String {
+    if text.len() <= limit {
+        return text;
+    }
+    if let (Some(start), Some(end)) = (text.find("\"works\": ["), text.find("], \"decisions\"")) {
+        let mut out = String::with_capacity(limit);
+        out.push_str(&text[..start]);
+        out.push_str("\"works\": []");
+        out.push_str(&text[end + 1..]);
+        if let Some(close) = out.rfind("}\n") {
+            out.insert_str(close, ", \"truncated\": true");
+        }
+        if out.len() <= limit {
+            return out;
+        }
+    }
+    "{\"schema\": \"dacc-map\", \"truncated\": true}\n".to_owned()
+}
+
+/// Карта версионированным контрактом XML (RFC-0003): тот же потолок и явное
+/// усечение в элементе counts.
+fn render_xml(
+    thrusts: &[Thrust],
+    slices: &[Slice],
+    works: &[Work],
+    decisions: usize,
+    specifications: usize,
+) -> String {
+    let mut entries: Vec<String> = Vec::new();
+    for thrust in thrusts {
+        entries.push(format!(
+            "  <thrust id=\"{}\" title=\"{}\"/>\n",
+            xml_string(&thrust.id),
+            xml_string(&thrust.title)
+        ));
+    }
+    for slice in slices {
+        entries.push(format!(
+            "  <slice id=\"{}\" title=\"{}\" thrust=\"{}\" closed=\"{}\"/>\n",
+            xml_string(&slice.id),
+            xml_string(&slice.title),
+            xml_string(&slice.thrust),
+            slice.closed
+        ));
+    }
+    for work in works {
+        entries.push(format!(
+            "  <work id=\"{}\" title=\"{}\" state=\"{}\"/>\n",
+            xml_string(&work.id),
+            xml_string(&work.title),
+            xml_string(&work.state)
+        ));
+    }
+    let total = entries.len();
+    let head = String::from("<map schema=\"dacc-map\" version=\"1\">\n");
+    let mut body = String::new();
+    let mut shown = 0;
+    for (index, entry) in entries.iter().enumerate() {
+        if head.len() + body.len() + entry.len() + 128 > MAP_LIMIT {
+            break;
+        }
+        body.push_str(entry);
+        shown = index + 1;
+    }
+    format!(
+        "{head}{body}  <counts decisions=\"{decisions}\" specifications=\"{specifications}\" shown=\"{shown}\" total=\"{total}\" truncated=\"{}\"/>\n</map>\n",
+        shown < total
+    )
+}
+
+/// Ответ where версионированным контрактом XML.
+fn where_xml(file: &str, anchors: &[String], documents: &[Document], works: &[Work]) -> String {
+    let mut out = format!(
+        "<where schema=\"dacc-where\" version=\"1\" file=\"{}\">\n",
+        xml_string(file)
+    );
+    if anchors.is_empty() {
+        out.push_str("  <no_markup/>\n</where>\n");
+        return out;
+    }
+    for anchor in anchors {
+        out.push_str(&format!("  <anchor id=\"{}\"/>\n", xml_string(anchor)));
+    }
+    for document in documents {
+        out.push_str(&format!(
+            "  <document kind=\"{}\" id=\"{}\" title=\"{}\"/>\n",
+            xml_string(&document.kind),
+            xml_string(&document.id),
+            xml_string(&document.title)
+        ));
+    }
+    for work in works {
+        out.push_str(&format!(
+            "  <work id=\"{}\" state=\"{}\" title=\"{}\"/>\n",
+            xml_string(&work.id),
+            xml_string(&work.state),
+            xml_string(&work.title)
+        ));
+    }
+    out.push_str("</where>\n");
     out
 }

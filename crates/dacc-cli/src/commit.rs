@@ -42,7 +42,7 @@ pub fn run(args: &[OsString]) -> u8 {
     match commit(&args) {
         Ok(sha) => {
             match format {
-                Format::Text => println!("COMMIT OK {sha}"),
+                Format::Text | Format::Xml => println!("COMMIT OK {sha}"),
                 Format::Json => println!("{{\"ok\":true,\"sha\":{}}}", format::string(&sha)),
             }
             0
@@ -170,7 +170,7 @@ impl Refusal {
     /// формате строки отказа уходят в stderr, а на stdout — один JSON-объект.
     fn print(self, log: Option<&Path>, format: Format) -> u8 {
         match format {
-            Format::Text => {
+            Format::Text | Format::Xml => {
                 if let Some(text) = log.and_then(|log| fs::read(log).ok()) {
                     let text = String::from_utf8_lossy(&text);
                     let lines: Vec<&str> =

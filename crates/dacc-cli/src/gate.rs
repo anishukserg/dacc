@@ -129,11 +129,11 @@ pub fn run_with_verdict(args: &[OsString]) -> (u8, String) {
         .and_then(Gate::check);
     let (code, verdict) = match outcome {
         Ok(verdict) => match format {
-            Format::Text => (0, verdict.text()),
+            Format::Text | Format::Xml => (0, verdict.text()),
             Format::Json => (0, verdict.json()),
         },
         Err(fail) => match format {
-            Format::Text => (fail.exit_code, fail.text()),
+            Format::Text | Format::Xml => (fail.exit_code, fail.text()),
             Format::Json => (fail.exit_code, fail.json()),
         },
     };
