@@ -117,6 +117,10 @@ pub struct DomainSpecification {
 #[derive(Debug)]
 pub struct Invariant {
     pub id: &'static str,
+    /// Спецификация, чей контракт держит инвариант (работа
+    /// w-invariant-spec-link): запись обязана назвать свою спецификацию, и
+    /// запись без неё не компилируется.
+    pub specification: RfcRef,
     /// Как далеко инвариант доведён.
     pub status: InvariantStatus,
     /// Что обязано держаться.

@@ -48,3 +48,31 @@
 //! static AUTHORS: dacc_core::NonEmpty<dacc_core::NonEmptyStr> =
 //!     dacc_core::nonempty_str!["  "];
 //! ```
+
+//!
+//! Инвариант обязан знать свою спецификацию (работа w-invariant-spec-link):
+//! запись без `specification` не собирается — поле обязательное по типу.
+//!
+//! ```compile_fail,E0063
+//! dacc_knowledge::invariant!("i-attack",
+//!     status: dacc_knowledge::InvariantStatus::Planned,
+//!     statement: dacc_core::NonEmptyStr::new("атака"),
+//!     rationale: "без спецификации",
+//!     enforced_by: &[],
+//!     tests: &[],
+//! );
+//! ```
+//!
+//! Позитивный контроль: запись со спецификацией собирается и несёт её.
+//!
+//! ```
+//! static SPEC: dacc_core::RfcRef = dacc_core::RfcRef::__from_scan("rfc-attack");
+//! dacc_knowledge::invariant!("i-control",
+//!     status: dacc_knowledge::InvariantStatus::Planned,
+//!     statement: dacc_core::NonEmptyStr::new("контроль"),
+//!     rationale: "спецификация названа",
+//!     specification: SPEC,
+//!     enforced_by: &[],
+//!     tests: &[],
+//! );
+//! ```
