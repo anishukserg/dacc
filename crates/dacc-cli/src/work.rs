@@ -712,17 +712,32 @@ fn check_contract(context: &Context, id: &str, slice: &Record) -> Result<(), Ref
         .join(format!("{}/invariant", context.repo.config.doc));
     let mut found = 0;
     for (record_id, text) in crate::access::records(&dir) {
-        if !text.contains(&format!("specification: crate::rfc::{spec}")) {
+        let fields = record_fields(&text);
+        // Спецификация сравнивается идентификатором: форма пути и переносы не
+        // участвуют в сравнении.
+        let linked = field_value(&fields, "specification")
+            .and_then(last_ident)
+            .is_some_and(|linked| linked.replace('_', "-") == spec.replace('_', "-"));
+        if !linked {
             continue;
         }
         found += 1;
-        if !text.contains("InvariantStatus::Enforced") {
+        let status = field_value(&fields, "status").unwrap_or_default();
+        if !flat(status).starts_with("InvariantStatus::Enforced") {
             return Err(refused(
                 code::CONTRACT_UNENFORCED,
                 format!("invariant {record_id} of {spec} is not Enforced"),
             ));
         }
-        if text.contains("enforced_by: &[]") {
+        // Пустой якорь ловится в любой форме записи: комментарии сняты, пробелы
+        // схлопнуты, значение прочитано сбалансированной группой.
+        let anchors = flat(field_value(&fields, "enforced_by").unwrap_or_default());
+        let list = anchors.trim_start_matches('&');
+        let inner = list
+            .strip_prefix('[')
+            .and_then(|rest| rest.strip_suffix(']'))
+            .unwrap_or(list);
+        if inner.is_empty() {
             return Err(refused(
                 code::CONTRACT_UNENFORCED,
                 format!("invariant {record_id} of {spec} has no live anchor"),
@@ -831,6 +846,154 @@ impl Context {
     }
 }
 
+/// Мини-разбор записей реестра значениями полей (работа w-record-parse):
+/// комментарии снимаются по лексике строк, значение читается сбалансированной
+/// группой до запятой верхнего уровня. Форма записи не даёт спрятать значение
+/// в комментарий, перенос строки или мультилайн.
+pub(crate) fn record_fields(text: &str) -> Vec<(String, String)> {
+    let chars: Vec<char> = strip_comments(text).chars().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    let mut depth = 0i32;
+    while i < chars.len() {
+        match chars[i] {
+            '"' => i = skip_string(&chars, i),
+            '(' | '[' | '{' => {
+                depth += 1;
+                i += 1;
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                i += 1;
+            }
+            c if depth == 1 && (c.is_ascii_alphabetic() || c == '_') => {
+                let start = i;
+                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+                    i += 1;
+                }
+                let name: String = chars[start..i].iter().collect();
+                let mut j = i;
+                while j < chars.len() && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if chars.get(j) != Some(&':') {
+                    continue;
+                }
+                i = j + 1;
+                while i < chars.len() && chars[i].is_whitespace() {
+                    i += 1;
+                }
+                let vstart = i;
+                let mut level = 0i32;
+                while i < chars.len() {
+                    match chars[i] {
+                        '"' => i = skip_string(&chars, i),
+                        '(' | '[' | '{' => {
+                            level += 1;
+                            i += 1;
+                        }
+                        ')' | ']' | '}' if level == 0 => break,
+                        ')' | ']' | '}' => {
+                            level -= 1;
+                            i += 1;
+                        }
+                        ',' if level == 0 => break,
+                        _ => i += 1,
+                    }
+                }
+                let value: String = chars[vstart..i].iter().collect();
+                out.push((name, value.trim().to_owned()));
+            }
+            _ => i += 1,
+        }
+    }
+    out
+}
+
+/// Текст записи без комментариев: снятие идёт по лексике, строковые литералы
+/// не трогаются — значение не спрятать в комментарий.
+fn strip_comments(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '"' {
+            let end = skip_string(&chars, i);
+            out.extend(&chars[i..end]);
+            i = end;
+        } else if c == '/' && chars.get(i + 1) == Some(&'/') {
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+        } else if c == '/' && chars.get(i + 1) == Some(&'*') {
+            i += 2;
+            while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                i += 1;
+            }
+            i = (i + 2).min(chars.len());
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Индекс за закрывающей кавычкой строкового литерала.
+fn skip_string(chars: &[char], start: usize) -> usize {
+    let mut i = start + 1;
+    while i < chars.len() {
+        if chars[i] == '\\' {
+            i += 2;
+        } else if chars[i] == '"' {
+            return i + 1;
+        } else {
+            i += 1;
+        }
+    }
+    i
+}
+
+/// Значение поля записи.
+fn field_value<'a>(fields: &'a [(String, String)], key: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value.as_str())
+}
+
+/// Текст без пробелов: сравнение путей и идентификаторов без формы.
+fn flat(text: &str) -> String {
+    text.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+/// Первый строковый литерал значения — заголовок записи.
+fn string_literal(value: &str) -> Option<String> {
+    let start = value.find('"')?;
+    let mut out = String::new();
+    let mut chars = value[start + 1..].chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => out.push(chars.next()?),
+            '"' => return Some(out),
+            c => out.push(c),
+        }
+    }
+    None
+}
+
+/// Последний сегмент пути `a::b::c` — идентификатор записи.
+fn last_ident(value: &str) -> Option<String> {
+    let ident = value
+        .rsplit("::")
+        .next()?
+        .trim()
+        .trim_end_matches(')')
+        .trim();
+    (!ident.is_empty()).then(|| ident.to_owned())
+}
+
 /// То, что команды читают из текста файла работы или среза.
 pub(crate) struct Record {
     pub(crate) title: String,
@@ -847,33 +1010,29 @@ pub(crate) struct Record {
 
 impl Record {
     pub(crate) fn parse(text: &str) -> Record {
-        const SLICE: &str = "slice: crate::slice::s";
-        const TAXON: &str = "taxon!(Subsystem, ";
-        const RADIUS: &str = "radius: BlastRadius::";
+        let fields = record_fields(text);
         Record {
-            title: quoted_after(text, "title: NonEmptyStr::new(").unwrap_or_default(),
-            slice: text
-                .find(SLICE)
-                .and_then(|at| text.get(at + SLICE.len()..))
-                .and_then(|rest| rest.split([',', ')']).next())
-                .filter(|slug| !slug.is_empty())
-                .map(|slug| format!("s{}", slug.replace('_', "-"))),
-            area: text
-                .find(TAXON)
-                .and_then(|at| text[at + TAXON.len()..].split_once(')'))
-                .map(|(name, _)| name.trim().to_lowercase()),
-            radius: text
-                .find(RADIUS)
-                .and_then(|at| text.get(at + RADIUS.len()..))
-                .and_then(|rest| rest.split([',', ')']).next())
-                .map(|radius| radius.trim().to_lowercase()),
-            divergence: text.contains("WorkOrigin::Divergence"),
-            specification: text
-                .find("specification: crate::rfc::")
-                .and_then(|at| text.get(at + "specification: crate::rfc::".len()..))
-                .and_then(|rest| rest.split([',', ')', '\n']).next())
-                .map(|ident| ident.trim().to_owned())
-                .filter(|ident| !ident.is_empty()),
+            title: field_value(&fields, "title")
+                .and_then(string_literal)
+                .unwrap_or_default(),
+            slice: field_value(&fields, "slice")
+                .and_then(last_ident)
+                .map(|slug| slug.replace('_', "-")),
+            area: field_value(&fields, "taxon").map(|value| {
+                value
+                    .rsplit_once(',')
+                    .map_or(value, |(_, name)| name)
+                    .trim()
+                    .trim_end_matches(')')
+                    .trim()
+                    .to_lowercase()
+            }),
+            radius: field_value(&fields, "radius")
+                .and_then(last_ident)
+                .map(|radius| radius.to_lowercase()),
+            divergence: field_value(&fields, "origin")
+                .is_some_and(|value| flat(value).contains("Divergence")),
+            specification: field_value(&fields, "specification").and_then(last_ident),
         }
     }
 

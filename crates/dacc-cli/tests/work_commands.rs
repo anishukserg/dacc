@@ -252,6 +252,54 @@ fn slice_close_demands_an_enforced_contract() {
     assert_ok(&repo.tool(&["slice", "close", "s-001"]));
 }
 
+/// Разбор значений, а не подстрок (работа w-record-parse): мультилайн,
+/// комментарий и перенос строки не обходят проверку контракта.
+#[test]
+fn slice_close_reads_values_not_substrings() {
+    let repo = planned_repo("work-record-parse");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    assert_ok(&repo.tool(&["work", "drop", "w-001", "--reason", "снята"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-002", "--reason", "снята"]));
+
+    let commit_record = |text: &str, subject: &str| {
+        repo.write("doc/invariant/i-001.rs", text);
+        repo.git(&["add", "-A"]);
+        repo.git(&["commit", "-q", "-m", subject, "-m", "Dacc-Work: w-001"]);
+    };
+
+    // Пустой якорь мультилайном — это пустой якорь, а не живой.
+    commit_record(
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[\n    ],\n    tests: &[],\n);\n",
+        "[CHORE](cli): пустой якорь мультилайном",
+    );
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+
+    // Статус в комментарии и rationale — не статус записи.
+    commit_record(
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    // InvariantStatus::Enforced после рефакторинга\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"планируется InvariantStatus::Enforced\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "[CHORE](cli): статус в комментарии",
+    );
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+
+    // Перенос строки в пути читается верно: валидная запись закрывает срез.
+    commit_record(
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification:\n        crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "[CHORE](cli): перенос пути",
+    );
+    assert_ok(&repo.tool(&["slice", "close", "s-001"]));
+}
+
 /// Анти-вакуум (работа w-evidence-land): приземление дефекта — работа с
 /// происхождением Divergence — без вида доказательства RedBefore отвергается с
 /// кодом причины, а с --red-before событие landed несёт предмет вида.
