@@ -42,6 +42,7 @@ pub const PROOF_RED_BEFORE: Code = "red-before-required";
 pub const FILE_NOT_READ: Code = "file-not-read";
 pub const DIRECTIVES_STALE: Code = "directives-stale";
 pub const KIND_UNKNOWN: Code = "kind-unknown";
+pub const CONTRACT_UNENFORCED: Code = "contract-unenforced";
 pub const RECORD_NOT_FOUND: Code = "record-not-found";
 pub const PROOF_SUBJECT_REQUIRED: Code = "proof-subject-required";
 pub const PROOF_REPEATED: Code = "proof-kind-repeated";
@@ -136,6 +137,10 @@ pub const ALL: &[(&str, &str)] = &[
     (FILE_NOT_READ, "where: the file cannot be read"),
     (DIRECTIVES_STALE, "emit: the agent directives are stale"),
     (KIND_UNKNOWN, "ls: the registry kind is unknown"),
+    (
+        CONTRACT_UNENFORCED,
+        "slice close: the contract of the specification has no executor",
+    ),
     (RECORD_NOT_FOUND, "show: the record is not in the registry"),
     (
         PROOF_RED_BEFORE,

@@ -1153,7 +1153,7 @@ fn scan_format(args: &[OsString]) -> Result<Format, Refusal> {
 }
 
 /// Файлы записей каталога: имя файла без расширения — slug, текст — запись.
-fn records(dir: &std::path::Path) -> Vec<(String, String)> {
+pub(crate) fn records(dir: &std::path::Path) -> Vec<(String, String)> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
     };

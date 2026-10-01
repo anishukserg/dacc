@@ -31,6 +31,7 @@ pub mod taxonomy;
 // константные проверки классификации, выводимые номера и статусы и свёртка
 // журнала.
 include!(concat!(env!("OUT_DIR"), "/adr.rs"));
+include!(concat!(env!("OUT_DIR"), "/anchors.rs"));
 include!(concat!(env!("OUT_DIR"), "/rfc.rs"));
 include!(concat!(env!("OUT_DIR"), "/derived.rs"));
 include!(concat!(env!("OUT_DIR"), "/plan.rs"));

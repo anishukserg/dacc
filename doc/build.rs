@@ -7,7 +7,12 @@ use std::{env, path::PathBuf};
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
-    if let Err(error) = dacc_scan::emit_registry(&manifest, &[], &out) {
+    let sources = manifest.parent().unwrap().join("crates/dacc-work/src");
+    if let Err(error) = dacc_scan::emit_registry(&manifest, &[sources.as_path()], &out) {
+        println!("cargo::error=dacc: {error}");
+        std::process::exit(1);
+    }
+    if let Err(error) = dacc_scan::emit_anchors(&[sources.as_path()], &out) {
         println!("cargo::error=dacc: {error}");
         std::process::exit(1);
     }

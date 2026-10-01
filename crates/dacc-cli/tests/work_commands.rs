@@ -16,7 +16,11 @@ fn planned_repo(name: &str) -> TempRepo {
     );
     repo.write(
         "doc/slice/s-001.rs",
-        "dacc_work::slice!(1,\n    title: NonEmptyStr::new(\"Первый срез\"),\n);\n",
+        "dacc_work::slice!(1,\n    title: NonEmptyStr::new(\"Первый срез\"),\n    specification: crate::rfc::rfc_001,\n);\n",
+    );
+    repo.write(
+        "doc/invariant/i-001.rs",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
     );
     for (id, title) in [("w-001", "Первая работа"), ("w-002", "Вторая работа")]
     {
@@ -178,6 +182,74 @@ fn illegal_requests_are_refused_before_any_event() {
         "",
         "отказ оставил файлы журнала"
     );
+}
+
+/// Контракт спецификации имеет исполнителя (работа w-contract-close-gate):
+/// закрытие среза требует записи инварианта своей спецификации со статусом
+/// Enforced и живым якорем enforced_by.
+#[test]
+fn slice_close_demands_an_enforced_contract() {
+    let repo = planned_repo("work-contract-close");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    assert_ok(&repo.tool(&["work", "drop", "w-001", "--reason", "снята"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-002", "--reason", "снята"]));
+
+    // Спецификация без записи инварианта — контракт без исполнителя.
+    std::fs::remove_file(repo.path("doc/invariant/i-001.rs")).unwrap();
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(
+        refused.verdict().contains("contract"),
+        "{}",
+        refused.output()
+    );
+
+    // Запись без Enforced — тоже отказ.
+    repo.write(
+        "doc/invariant/i-001.rs",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[],\n    tests: &[],\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): черновик инварианта",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(
+        refused.verdict().contains("Enforced"),
+        "{}",
+        refused.output()
+    );
+
+    // Enforced с живым якорем закрывает срез.
+    repo.write(
+        "doc/invariant/i-001.rs",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): инвариант исполнен",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    assert_ok(&repo.tool(&["slice", "close", "s-001"]));
 }
 
 /// Анти-вакуум (работа w-evidence-land): приземление дефекта — работа с

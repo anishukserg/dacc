@@ -682,6 +682,7 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
             ),
         ));
     }
+    check_contract(&context, id, &slice)?;
     let area = first_work.area(first)?;
     let event = Event::new(Subject::Slice(number), time::now(), Kind::Closed);
     let message = message(
@@ -691,6 +692,50 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
         trailers,
     );
     record_and_commit(&context.repo, vec![event], &message)
+}
+
+/// Контракт спецификации имеет исполнителя (работа w-contract-close-gate):
+/// закрытие среза требует записи инварианта своей спецификации со статусом
+/// Enforced и живым якорем enforced_by. Живость якоря — путь к константе,
+/// порождённой сканом: неживой якорь не компилируется, а пустой список здесь
+/// отвергается как контракт без исполнителя.
+fn check_contract(context: &Context, id: &str, slice: &Record) -> Result<(), Refusal> {
+    let spec = slice.specification.as_deref().ok_or_else(|| {
+        refused(
+            code::CONTRACT_UNENFORCED,
+            format!("slice {id} has no specification: the contract has no executor"),
+        )
+    })?;
+    let dir = context
+        .repo
+        .root
+        .join(format!("{}/invariant", context.repo.config.doc));
+    let mut found = 0;
+    for (record_id, text) in crate::access::records(&dir) {
+        if !text.contains(&format!("specification: crate::rfc::{spec}")) {
+            continue;
+        }
+        found += 1;
+        if !text.contains("InvariantStatus::Enforced") {
+            return Err(refused(
+                code::CONTRACT_UNENFORCED,
+                format!("invariant {record_id} of {spec} is not Enforced"),
+            ));
+        }
+        if text.contains("enforced_by: &[]") {
+            return Err(refused(
+                code::CONTRACT_UNENFORCED,
+                format!("invariant {record_id} of {spec} has no live anchor"),
+            ));
+        }
+    }
+    if found == 0 {
+        return Err(refused(
+            code::CONTRACT_UNENFORCED,
+            format!("specification {spec} has no invariant record: the contract has no executor"),
+        ));
+    }
+    Ok(())
 }
 
 /// Репозиторий и свёртка журнала рабочего дерева.
@@ -795,6 +840,9 @@ pub(crate) struct Record {
     /// Происхождение Divergence — расхождение есть дефект: его починка без
     /// RedBefore не приземляется.
     pub(crate) divergence: bool,
+    /// Спецификация записи: `specification: crate::rfc::X`. У среза — это
+    /// спецификация, чей контракт проверяется на закрытии.
+    pub(crate) specification: Option<String>,
 }
 
 impl Record {
@@ -820,6 +868,12 @@ impl Record {
                 .and_then(|rest| rest.split([',', ')']).next())
                 .map(|radius| radius.trim().to_lowercase()),
             divergence: text.contains("WorkOrigin::Divergence"),
+            specification: text
+                .find("specification: crate::rfc::")
+                .and_then(|at| text.get(at + "specification: crate::rfc::".len()..))
+                .and_then(|rest| rest.split([',', ')', '\n']).next())
+                .map(|ident| ident.trim().to_owned())
+                .filter(|ident| !ident.is_empty()),
         }
     }
 
