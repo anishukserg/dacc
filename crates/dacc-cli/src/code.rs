@@ -45,6 +45,7 @@ pub const KIND_UNKNOWN: Code = "kind-unknown";
 pub const CONTRACT_UNENFORCED: Code = "contract-unenforced";
 pub const RECORD_NOT_FOUND: Code = "record-not-found";
 pub const PROOF_SUBJECT_REQUIRED: Code = "proof-subject-required";
+pub const RED_BEFORE_UNKNOWN: Code = "red-before-unknown";
 pub const PROOF_REPEATED: Code = "proof-kind-repeated";
 pub const SLICE_ID: Code = "not-slice-id";
 pub const SLICE_NO_WORKS: Code = "slice-has-no-works";
@@ -151,6 +152,10 @@ pub const ALL: &[(&str, &str)] = &[
         "work: a proof kind needs a non-empty subject",
     ),
     (PROOF_REPEATED, "work: a proof kind is stated once"),
+    (
+        RED_BEFORE_UNKNOWN,
+        "work: RedBefore names no test of the commit tree",
+    ),
     (SLICE_ID, "slice: the id is not of the form s-slug"),
     (SLICE_NO_WORKS, "slice: the slice has no works"),
     (SLICE_ALREADY_CLOSED, "slice: the slice is already closed"),

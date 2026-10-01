@@ -310,6 +310,10 @@ fn land_demands_red_before_for_a_defect_fix() {
         "doc/work/w-003.rs",
         "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Починка расхождения\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Divergence { specification: crate::rfc::rfc-001, limitation: crate::limitation::l-001 },\n    taxon: taxon!(Subsystem, Cli),\n);\n",
     );
+    repo.write(
+        "tests/probe.rs",
+        "#[test]\nfn refused_before_the_fix() {}\n",
+    );
     minimal_crate(&repo);
     repo.git(&["add", "-A"]);
     repo.git(&[
@@ -332,12 +336,12 @@ fn land_demands_red_before_for_a_defect_fix() {
         "land",
         "w-003",
         "--red-before",
-        "tests::refused_before_the_fix",
+        "refused_before_the_fix",
     ]);
     assert_ok(&run);
     let journal = repo.git(&["show", "HEAD:doc/journal.toml"]);
     assert!(
-        journal.contains("red_before = \"tests::refused_before_the_fix\""),
+        journal.contains("red_before = \"refused_before_the_fix\""),
         "{journal}"
     );
 }
@@ -404,4 +408,40 @@ fn journal_write_is_locked_across_processes() {
 
     std::fs::remove_file(&lock).unwrap();
     assert_ok(&repo.tool(&["work", "drop", "w-001", "--reason", "свободно"]));
+}
+
+/// RedBefore называет существующий тест дерева (работа w-red-before-exists):
+/// вымышленное имя отвергается, настоящее приземляет работу.
+#[test]
+fn red_before_names_a_test_that_exists() {
+    let repo = planned_repo("work-red-before-exists");
+    repo.write(
+        "doc/work/w-003.rs",
+        "dacc_work::work!(\"w-003\",\n    title: NonEmptyStr::new(\"Починка расхождения\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Divergence { specification: crate::rfc::rfc_001, limitation: crate::limitation::l_001 },\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход починки.\"),\n);\n",
+    );
+    repo.write("tests/probe.rs", "#[test]\nfn probe_was_red() {}\n");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[FIX](cli): починка с тестом",
+        "-m",
+        "Dacc-Work: w-003",
+    ]);
+
+    // Вымышленное имя — отказ: доказательство называет тест дерева.
+    let refused = repo.tool(&[
+        "work",
+        "land",
+        "w-003",
+        "--red-before",
+        "net_takogo_testa_vovse",
+    ]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(refused.verdict().contains("test"), "{}", refused.output());
+
+    // Настоящее имя теста дерева приземляет работу.
+    assert_ok(&repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_red"]));
 }
