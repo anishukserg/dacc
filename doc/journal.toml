@@ -333,3 +333,7 @@ work = "w-derived-prose"
 at = "2026-10-01T08:27:11Z"
 commit = "fb8bdee00e8155c3a5da945c20c1e026b1d468d8"
 tree = "ff5e41bbd2578508ae04d3a90844dd2aaef875db"
+[[events]]
+event = "closed"
+slice = "s-typed-prose"
+at = "2026-10-01T08:29:40Z"
