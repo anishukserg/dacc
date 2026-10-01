@@ -12,7 +12,7 @@
 
 pub use dacc_access::{export_graph, export_slice, publish_channel, render_site, Site};
 pub use dacc_core::{
-    axis, date, declare_channels, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef,
+    assure, axis, date, declare_channels, declare_taxonomy, nonempty, nonempty_str, taxon, AdrRef,
     AnchorId, BlastRadius, BreakingRef, Channel, GateRef, InvariantRef, NonEmpty, NonEmptyStr,
     ObligationRef, ReviewRef, RfcRef, Severity, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };

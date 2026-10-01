@@ -10,6 +10,7 @@
 
 pub mod anchor_rules;
 pub mod channel;
+pub mod contract;
 pub mod date;
 pub mod nonempty;
 pub mod radius;
