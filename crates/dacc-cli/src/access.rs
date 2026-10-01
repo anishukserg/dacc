@@ -1106,10 +1106,7 @@ fn map(args: &[OsString]) -> Result<u8, Refusal> {
         Format::Json => {
             println!(
                 "{}",
-                cap_json_map(
-                    render_json(&thrusts, &slices, &works, decisions, specifications),
-                    MAP_LIMIT
-                )
+                render_json(&thrusts, &slices, &works, decisions, specifications)
             );
         }
         Format::Text => {
@@ -1243,7 +1240,10 @@ fn render_text(
     out
 }
 
-/// Карта машинным форматом: те же данные полями.
+/// Карта машинным форматом: те же данные полями. Усечение — до сериализации:
+/// записи добавляются до потолка MAP_LIMIT, хвост со счётчиками всегда
+/// влезает, и поле truncated названо явно (RFC-0003). Готовый текст не
+/// разбирается и не переписывается — форма ответа не зависит от порядка ключей.
 fn render_json(
     thrusts: &[Thrust],
     slices: &[Slice],
@@ -1251,24 +1251,18 @@ fn render_json(
     decisions: usize,
     specifications: usize,
 ) -> String {
-    let mut out = String::from("{\"schema\": \"dacc-map\", \"thrusts\": [");
-    for (i, thrust) in thrusts.iter().enumerate() {
-        if i > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(&format!(
+    let mut thrust_entries: Vec<String> = Vec::new();
+    for thrust in thrusts {
+        thrust_entries.push(format!(
             "{{\"id\": {}, \"title\": {}, \"outcome\": {}}}",
             json_string(&thrust.id),
             json_string(&thrust.title),
             json_string(&thrust.outcome)
         ));
     }
-    out.push_str("], \"slices\": [");
-    for (i, slice) in slices.iter().enumerate() {
-        if i > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(&format!(
+    let mut slice_entries: Vec<String> = Vec::new();
+    for slice in slices {
+        slice_entries.push(format!(
             "{{\"id\": {}, \"title\": {}, \"thrust\": {}, \"closed\": {}, \"outcome\": {}}}",
             json_string(&slice.id),
             json_string(&slice.title),
@@ -1277,12 +1271,9 @@ fn render_json(
             json_string(&slice.outcome)
         ));
     }
-    out.push_str("], \"works\": [");
-    for (i, work) in works.iter().enumerate() {
-        if i > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(&format!(
+    let mut work_entries: Vec<String> = Vec::new();
+    for work in works {
+        work_entries.push(format!(
             "{{\"id\": {}, \"title\": {}, \"slice\": {}, \"taxon\": {}, \"radius\": {}, \"state\": {}}}",
             json_string(&work.id),
             json_string(&work.title),
@@ -1298,8 +1289,43 @@ fn render_json(
             json_string(&work.state)
         ));
     }
+
+    let mut out = String::from("{\"schema\": \"dacc-map\", \"thrusts\": [");
+    let mut truncated = false;
+    for (index, entry) in thrust_entries.iter().enumerate() {
+        if out.len() + entry.len() + 256 > MAP_LIMIT {
+            truncated = true;
+            break;
+        }
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(entry);
+    }
+    out.push_str("], \"slices\": [");
+    for (index, entry) in slice_entries.iter().enumerate() {
+        if truncated || out.len() + entry.len() + 256 > MAP_LIMIT {
+            truncated = true;
+            break;
+        }
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(entry);
+    }
+    out.push_str("], \"works\": [");
+    for (index, entry) in work_entries.iter().enumerate() {
+        if truncated || out.len() + entry.len() + 256 > MAP_LIMIT {
+            truncated = true;
+            break;
+        }
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(entry);
+    }
     out.push_str(&format!(
-        "], \"decisions\": {decisions}, \"specifications\": {specifications}}}\n"
+        "], \"decisions\": {decisions}, \"specifications\": {specifications}, \"truncated\": {truncated}}}\n"
     ));
     out
 }
@@ -1356,27 +1382,6 @@ fn cap_text(text: &str, limit: usize) -> String {
         out.push('\n');
     }
     out
-}
-
-/// Явное усечение JSON карты: массив работ вырезается целиком и поле truncated
-/// названо явно; крайний случай — минимальный ответ со счётчиками.
-fn cap_json_map(text: String, limit: usize) -> String {
-    if text.len() <= limit {
-        return text;
-    }
-    if let (Some(start), Some(end)) = (text.find("\"works\": ["), text.find("], \"decisions\"")) {
-        let mut out = String::with_capacity(limit);
-        out.push_str(&text[..start]);
-        out.push_str("\"works\": []");
-        out.push_str(&text[end + 1..]);
-        if let Some(close) = out.rfind("}\n") {
-            out.insert_str(close, ", \"truncated\": true");
-        }
-        if out.len() <= limit {
-            return out;
-        }
-    }
-    "{\"schema\": \"dacc-map\", \"truncated\": true}\n".to_owned()
 }
 
 /// Карта версионированным контрактом XML (RFC-0003): тот же потолок и явное

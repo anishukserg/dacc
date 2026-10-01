@@ -359,3 +359,74 @@ fn map_is_capped_and_xml_carries_the_version() {
         where_xml.output()
     );
 }
+
+/// Минимальный проверщик JSON: скобки и литералы сбалансированы — без
+/// зависимостей, как и сам инструмент.
+fn json_is_well_formed(text: &str) -> bool {
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        if in_string {
+            match c {
+                '\\' => {
+                    chars.next();
+                }
+                '"' => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
+        match c {
+            '"' => in_string = true,
+            '{' | '[' => depth += 1,
+            '}' | ']' => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0 && !in_string
+}
+
+/// Усечение карты происходит до сериализации (работа w-cap-before-render):
+/// ответ валиден, укладывается в потолок и сохраняет часть записей, а не
+/// вырезает массив целиком.
+#[test]
+fn map_json_truncation_keeps_context_and_validity() {
+    let repo = registry_repo("access-cap");
+    for i in 0..200 {
+        repo.write(
+            &format!("doc/work/w-3{i:03}.rs"),
+            &format!(
+                "dacc_work::work!(\"w-3{i:03}\",\n    title: NonEmptyStr::new(\"Имя с фигурными }} и кавычками \\\" и переводом\nстроки номер {i} {}\"),\n    slice: crate::slice::s_001,\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+                "х".repeat(40)
+            ),
+        );
+    }
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): большой реестр"]);
+
+    let json = repo.tool(&["map", "--format", "json"]);
+    assert_eq!(json.code, 0, "{}", json.output());
+    assert!(
+        json.stdout.len() <= 8192,
+        "ответ map длиной {}",
+        json.stdout.len()
+    );
+    assert!(
+        json.stdout.contains("\"truncated\": true"),
+        "{}",
+        json.output()
+    );
+    assert!(
+        json_is_well_formed(&json.stdout),
+        "json повреждён: {}",
+        json.output()
+    );
+    // Часть записей сохраняется — усечение не вырезает массив целиком.
+    assert!(json.stdout.contains("\"id\": \"w-"), "{}", json.output());
+}
