@@ -26,6 +26,179 @@ pub fn run_emit(args: &[OsString]) -> u8 {
     work::finish(emit(args))
 }
 
+/// `cargo dacc ls <kind> [--status <status>] [--format json]` — перечень
+/// записей реестра одного вида с их статусом или состоянием.
+pub fn run_ls(args: &[OsString]) -> u8 {
+    work::finish(ls(args))
+}
+
+/// `cargo dacc show <id> [--format json]` — запись реестра целиком.
+pub fn run_show(args: &[OsString]) -> u8 {
+    work::finish(show(args))
+}
+
+/// Позиционный аргумент и флаги команды слоя доступа.
+struct Scan {
+    position: Option<String>,
+    format: Format,
+    status: Option<String>,
+}
+
+fn scan_args(args: &[OsString], accepted: &str) -> Result<Scan, Refusal> {
+    let mut scan = Scan {
+        position: None,
+        format: Format::Text,
+        status: None,
+    };
+    let mut words = args.iter();
+    while let Some(flag) = words.next() {
+        let flag = flag.to_string_lossy().into_owned();
+        if flag == "--format" || flag == "--status" {
+            let value = words
+                .next()
+                .map(|value| value.to_string_lossy().into_owned())
+                .ok_or_else(|| usage(code::FLAG_NEEDS_VALUE, format!("{flag} needs a value")))?;
+            if flag == "--format" {
+                scan.format =
+                    format::parse(&value).map_err(|problem| usage(code::FORMAT_CHOICE, problem))?;
+            } else {
+                scan.status = Some(value);
+            }
+        } else if flag.starts_with("--") {
+            return Err(usage(
+                code::USAGE,
+                format!("{accepted} — unknown argument {flag}"),
+            ));
+        } else if scan.position.replace(flag).is_some() {
+            return Err(usage(code::USAGE, accepted.to_owned()));
+        }
+    }
+    Ok(scan)
+}
+
+/// Статус записи: `status: DocStatus::X` текста записи.
+fn record_status(text: &str) -> Option<String> {
+    let marker = "status: DocStatus::";
+    let at = text.find(marker)?;
+    let rest = &text[at + marker.len()..];
+    let end = rest.find([',', ')', '\n']).unwrap_or(rest.len());
+    Some(rest[..end].trim().to_owned())
+}
+
+fn ls(args: &[OsString]) -> Result<u8, Refusal> {
+    let scan = scan_args(args, "ls <kind> [--status <status>] [--format json]")?;
+    let kind = scan
+        .position
+        .ok_or_else(|| usage(code::USAGE, "ls <kind> [--status <status>] is required"))?;
+    let Some((kind_name, dir)) = KINDS.iter().find(|(_, dir)| **dir == kind).copied() else {
+        return Err(refused(
+            code::KIND_UNKNOWN,
+            format!("unknown kind {kind}: expected one of the registry directories"),
+        ));
+    };
+    let context = Context::open()?;
+    let root = &context
+        .repo
+        .root
+        .join(format!("{}/{}", context.repo.config.doc, dir));
+    let mut records: Vec<(String, String, String)> = Vec::new();
+    for (id, text) in records_named(root) {
+        let status = if dir == "work" {
+            stage_text(context.journal.stage(&id)).to_owned()
+        } else {
+            record_status(&text).unwrap_or_else(|| "-".to_owned())
+        };
+        let keep = scan
+            .status
+            .as_deref()
+            .is_none_or(|wanted| status.eq_ignore_ascii_case(wanted));
+        if keep {
+            let title = quoted_after(&text, "title: NonEmptyStr::new(").unwrap_or_default();
+            records.push((id, status, title));
+        }
+    }
+    match scan.format {
+        Format::Json => {
+            let mut out = String::from("{\"schema\": \"dacc-ls\", \"kind\": ");
+            out.push_str(&json_string(kind_name));
+            out.push_str(", \"records\": [");
+            for (i, (id, status, title)) in records.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"id\": {}, \"status\": {}, \"title\": {}}}",
+                    json_string(id),
+                    json_string(status),
+                    json_string(title)
+                ));
+            }
+            out.push_str("], \"truncated\": false}\n");
+            println!("{out}");
+        }
+        Format::Text => {
+            if records.is_empty() {
+                println!("no records of kind {kind_name}");
+            } else {
+                for (id, status, title) in &records {
+                    println!("{id}  {status}  {title}");
+                }
+            }
+        }
+    }
+    Ok(0)
+}
+
+fn show(args: &[OsString]) -> Result<u8, Refusal> {
+    let scan = scan_args(args, "show <id> [--format json]")?;
+    let id = scan
+        .position
+        .ok_or_else(|| usage(code::USAGE, "show <id> [--format json] is required"))?;
+    let context = Context::open()?;
+    for (kind_name, dir) in KINDS {
+        for (record_id, text) in records_named(
+            &context
+                .repo
+                .root
+                .join(format!("{}/{}", context.repo.config.doc, dir)),
+        ) {
+            if record_id != id {
+                continue;
+            }
+            let status = if *dir == "work" {
+                stage_text(context.journal.stage(&id)).to_owned()
+            } else {
+                record_status(&text).unwrap_or_else(|| "-".to_owned())
+            };
+            let title = quoted_after(&text, "title: NonEmptyStr::new(").unwrap_or_default();
+            match scan.format {
+                Format::Json => println!(
+                    "{{\"schema\": \"dacc-show\", \"kind\": {}, \"id\": {}, \"status\": {}, \"title\": {}, \"text\": {}}}",
+                    json_string(kind_name),
+                    json_string(&id),
+                    json_string(&status),
+                    json_string(&title),
+                    json_string(&text)
+                ),
+                Format::Text => {
+                    println!("{kind_name} {id} [{status}] {title}");
+                    print!("{text}");
+                }
+            }
+            return Ok(0);
+        }
+    }
+    Err(refused(
+        code::RECORD_NOT_FOUND,
+        format!("record {id} is not found in the registry"),
+    ))
+}
+
+/// Записи каталога: то же, что [`records`], для общих обращений.
+fn records_named(dir: &std::path::Path) -> Vec<(String, String)> {
+    records(dir)
+}
+
 fn emit(args: &[OsString]) -> Result<u8, Refusal> {
     let mut check = false;
     let mut choice: Option<String> = None;

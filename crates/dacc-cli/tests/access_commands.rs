@@ -24,7 +24,7 @@ fn registry_repo(name: &str) -> TempRepo {
         "doc/work/w-001.rs",
         "dacc_work::work!(\"w-001\",\n    title: NonEmptyStr::new(\"Первая работа\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Specification(crate::rfc::rfc-001),\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход первой работы.\"),\n);\n",
     );
-    repo.write("doc/adr/adr-001.rs", "adr!();\n");
+    repo.write("doc/adr/adr-001.rs", "adr!(status: DocStatus::Active,);\n");
     repo.git(&["add", "-A"]);
     repo.git(&["commit", "-q", "-m", "[CHORE](cli): реестр"]);
     repo
@@ -148,4 +148,48 @@ fn emit_all_is_idempotent_and_checks_freshness() {
     let stale = repo.tool(&["emit", "all", "--check"]);
     assert_eq!(stale.code, 1, "{}", stale.output());
     assert!(stale.verdict().contains("stale"), "{}", stale.output());
+}
+
+/// Перечень и запись: ls перечисляет записи со статусом и фильтрует по нему,
+/// show отдаёт запись; незнакомое имя — законный отказ с кодом.
+#[test]
+fn ls_and_show_answer_from_the_registry() {
+    let repo = registry_repo("access-ls-show");
+
+    let ls = repo.tool(&["ls", "work"]);
+    assert_eq!(ls.code, 0, "{}", ls.output());
+    assert!(ls.stdout.contains("w-001"), "{}", ls.output());
+    assert!(ls.stdout.contains("planned"), "{}", ls.output());
+
+    let filtered = repo.tool(&["ls", "adr", "--status", "Active"]);
+    assert_eq!(filtered.code, 0, "{}", filtered.output());
+    assert!(filtered.stdout.contains("adr-001"), "{}", filtered.output());
+    let empty = repo.tool(&["ls", "adr", "--status", "Superseded"]);
+    assert_eq!(empty.code, 0, "{}", empty.output());
+    assert!(empty.stdout.contains("no records"), "{}", empty.output());
+
+    let show = repo.tool(&["show", "w-001"]);
+    assert_eq!(show.code, 0, "{}", show.output());
+    assert!(show.stdout.contains("Первая работа"), "{}", show.output());
+
+    let json = repo.tool(&["show", "adr-001", "--format", "json"]);
+    assert_eq!(json.code, 0, "{}", json.output());
+    assert!(
+        json.stdout.contains("\"schema\": \"dacc-show\""),
+        "{}",
+        json.output()
+    );
+    assert!(json.stdout.contains("adr-001"), "{}", json.output());
+
+    let missing = repo.tool(&["show", "w-999"]);
+    assert_eq!(missing.code, 1, "{}", missing.output());
+    assert!(
+        missing.verdict().contains("not found"),
+        "{}",
+        missing.output()
+    );
+
+    let kind = repo.tool(&["ls", "нет-такого"]);
+    assert_eq!(kind.code, 1, "{}", kind.output());
+    assert!(kind.verdict().contains("unknown kind"), "{}", kind.output());
 }
