@@ -372,3 +372,36 @@ fn proof_flags_refuse_an_empty_subject_and_repeats() {
         assert_eq!(run.code, 2, "{args:?}: {}", run.output());
     }
 }
+
+/// Запись журнала под межпроцессным локом (работа w-journal-lock):
+/// параллельный процесс получает отказ с кодом причины, а не теряет событие.
+#[test]
+fn journal_write_is_locked_across_processes() {
+    let repo = planned_repo("work-journal-lock");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+
+    // Лок держит живой процесс — наш собственный pid.
+    let lock = repo.path(".git/dacc-journal.lock");
+    std::fs::write(&lock, format!("{}", std::process::id())).unwrap();
+    let refused = repo.tool(&["work", "drop", "w-001", "--reason", "занято"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(refused.verdict().contains("lock"), "{}", refused.output());
+    // Событие не потеряно и не записано: работа не тронута.
+    assert!(
+        state_of(&repo, "w-001").contains("planned"),
+        "{}",
+        state_of(&repo, "w-001")
+    );
+
+    std::fs::remove_file(&lock).unwrap();
+    assert_ok(&repo.tool(&["work", "drop", "w-001", "--reason", "свободно"]));
+}

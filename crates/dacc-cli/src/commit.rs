@@ -393,12 +393,12 @@ fn has_error_marker(line: &str) -> bool {
 /// Блокировка коммита: файл, созданный атомарно, с номером процесса внутри.
 /// Снимается при завершении команды; блокировку умершего процесса снимает
 /// ожидающий.
-struct Lock {
+pub(crate) struct Lock {
     path: PathBuf,
 }
 
 impl Lock {
-    fn acquire(path: &Path, timeout: Duration) -> Result<Lock, String> {
+    pub(crate) fn acquire(path: &Path, timeout: Duration) -> Result<Lock, String> {
         let started = Instant::now();
         loop {
             match OpenOptions::new().write(true).create_new(true).open(path) {

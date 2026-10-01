@@ -14,6 +14,10 @@ pub const CONFIG: &str = "dacc.toml";
 /// каждой копии свой.
 pub const COMMIT_LOCK: &str = "dacc-commit.lock";
 
+/// Блокировка записи журнала (работа w-journal-lock): один процесс пишет
+/// события и коммитит их, параллельный получает отказ, а не теряет событие.
+pub const JOURNAL_LOCK: &str = "dacc-journal.lock";
+
 /// Сообщение коммита события журнала, в каталоге git.
 pub const JOURNAL_MESSAGE: &str = "dacc-journal-message";
 

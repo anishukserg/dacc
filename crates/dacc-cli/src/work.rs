@@ -1276,6 +1276,18 @@ fn message(subject: &str, body: &str, basis: &str, trailers: &[String]) -> Strin
 /// (решение 43). Если коммит не создан, дописанное откатывается: событие без
 /// коммита — не история.
 fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Result<u8, Refusal> {
+    // Межпроцессный лок записи (работа w-journal-lock): параллельный процесс
+    // получает отказ с кодом причины, а не теряет событие в гонке за журнал.
+    let _lock = crate::commit::Lock::acquire(
+        &repo.git_dir.join(layout::JOURNAL_LOCK),
+        std::time::Duration::ZERO,
+    )
+    .map_err(|problem| {
+        refused(
+            code::LOCK_NOT_ACQUIRED,
+            format!("journal write is locked: {problem}"),
+        )
+    })?;
     let file = repo.root.join(repo.config.journal_file());
     // Append-only: прежняя версия записи — префикс новой, поэтому читаем текущую
     // и дописываем события таблицами [[events]].
