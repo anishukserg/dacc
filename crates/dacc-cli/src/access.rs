@@ -1347,7 +1347,9 @@ fn json_string(text: &str) -> String {
     out
 }
 
-/// Строка XML с экранированием разметки в атрибутах.
+/// Строка XML с экранированием разметки в атрибутах (работа
+/// w-xml-wellformed): запрещённые управляющие символы XML 1.0 заменяются
+/// пробелом — как вывод журнала, — чтобы ответ оставался пригодным парсеру.
 fn xml_string(text: &str) -> String {
     let mut out = String::new();
     for c in text.chars() {
@@ -1356,6 +1358,8 @@ fn xml_string(text: &str) -> String {
             '<' => out.push_str(concat!("&", "lt;")),
             '>' => out.push_str(concat!("&", "gt;")),
             '"' => out.push_str(concat!("&", "quot;")),
+            '\'' => out.push_str(concat!("&", "apos;")),
+            c if (c as u32) < 0x20 && c != '\t' && c != '\n' && c != '\r' => out.push(' '),
             c => out.push(c),
         }
     }

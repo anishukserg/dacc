@@ -430,3 +430,27 @@ fn map_json_truncation_keeps_context_and_validity() {
     // Часть записей сохраняется — усечение не вырезает массив целиком.
     assert!(json.stdout.contains("\"id\": \"w-"), "{}", json.output());
 }
+
+/// XML well-formed (работа w-xml-wellformed): запрещённые управляющие символы
+/// XML 1.0 не попадают в ответ — они заменяются, как в выводе журнала.
+#[test]
+fn xml_output_cannot_carry_forbidden_control_characters() {
+    let repo = registry_repo("access-xml-control");
+    repo.write(
+        "doc/work/w-4001.rs",
+        "dacc_work::work!(\"w-4001\",\n    title: NonEmptyStr::new(\"Имя с управляющим\u{1}символом и апострофом '\"),\n    slice: crate::slice::s_001,\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): управляющий символ"]);
+
+    let xml = repo.tool(&["map", "--format", "xml"]);
+    assert_eq!(xml.code, 0, "{}", xml.output());
+    assert!(
+        !xml.stdout
+            .chars()
+            .any(|c| (c as u32) < 0x20 && c != '\n' && c != '\t'),
+        "запрещённый управляющий символ в xml: {:?}",
+        xml.stdout
+    );
+    assert!(xml.stdout.contains("w-4001"), "{}", xml.output());
+}
