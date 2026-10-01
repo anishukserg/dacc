@@ -52,6 +52,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc find <text> [--format json]
   cargo dacc brief [--format json]
   cargo dacc state [--format json]
+  cargo dacc help [--format json]
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
@@ -96,7 +97,8 @@ fn main() -> ExitCode {
         "journal" => journal::run(rest),
         "metrics" => work::run_metrics(rest),
         "upgrade" => work::run_upgrade(rest),
-        "help" | "--help" | "-h" => {
+        "help" => access::run_help(rest),
+        "--help" | "-h" => {
             println!("{USAGE}");
             0
         }

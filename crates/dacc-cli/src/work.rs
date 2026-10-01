@@ -281,6 +281,23 @@ pub struct Refusal {
     reason: String,
 }
 
+impl Refusal {
+    /// Код причины отказа — машинный контракт (решение 22).
+    pub(crate) fn code(&self) -> &str {
+        self.refusal
+    }
+
+    /// Причина отказа человеческим текстом.
+    pub(crate) fn reason(&self) -> &str {
+        &self.reason
+    }
+
+    /// Код возврата процесса.
+    pub(crate) fn exit_code(&self) -> u8 {
+        self.exit_code
+    }
+}
+
 pub fn refused(refusal: Code, reason: impl Into<String>) -> Refusal {
     Refusal {
         exit_code: 1,

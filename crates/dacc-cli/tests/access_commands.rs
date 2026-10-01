@@ -272,3 +272,41 @@ fn brief_and_state_answer_within_their_budget() {
     );
     assert!(big.stdout.contains("truncated"), "{}", big.output());
 }
+
+/// Машинный контракт: help --format json объявляет стоимость и мутирование
+/// каждой команды, и законный отказ в json несёт поле legitimate.
+#[test]
+fn help_declares_cost_and_refusals_are_legitimate() {
+    let repo = registry_repo("access-help");
+    let help = repo.tool(&["help", "--format", "json"]);
+    assert_eq!(help.code, 0, "{}", help.output());
+    for command in [
+        "map", "where", "ls", "show", "refs", "find", "brief", "state", "emit", "help",
+    ] {
+        assert!(
+            help.stdout.contains(&format!("\"command\": \"{command}\"")),
+            "{}",
+            help.output()
+        );
+    }
+    assert!(
+        help.stdout.contains("\"mutates\": true"),
+        "{}",
+        help.output()
+    );
+    assert!(help.stdout.contains("\"cost\""), "{}", help.output());
+
+    // Законный отказ отличается от сбоя полем legitimate.
+    let error = repo.tool(&["show", "w-999", "--format", "json"]);
+    assert_eq!(error.code, 1, "{}", error.output());
+    assert!(
+        error.stdout.contains("\"legitimate\": true"),
+        "{}",
+        error.output()
+    );
+    assert!(
+        error.stdout.contains("record-not-found"),
+        "{}",
+        error.output()
+    );
+}

@@ -11,43 +11,180 @@ use std::fs;
 
 /// `cargo dacc map [--format json]` — карта реестра одной командой.
 pub fn run_map(args: &[OsString]) -> u8 {
-    work::finish(map(args))
+    finish_json(peek_format(args), map(args))
+}
+
+/// `cargo dacc help [--format json]` — машинный контракт слоя доступа:
+/// каждая команда объявляет стоимость и мутирование (RFC-0003).
+pub fn run_help(args: &[OsString]) -> u8 {
+    finish_json(peek_format(args), help(args))
+}
+
+/// Контракт команд слоя доступа: (команда, использование, стоимость,
+/// мутирует).
+const CONTRACT: &[(&str, &str, &str, bool)] = &[
+    (
+        "map",
+        "map [--format json]",
+        "read-only: the registry tree and the journal fold",
+        false,
+    ),
+    (
+        "where",
+        "where --file <path> [--format json]",
+        "read-only: one file and the registry",
+        false,
+    ),
+    (
+        "emit",
+        "emit all [--check]",
+        "writes AGENTS.md; --check is read-only",
+        true,
+    ),
+    (
+        "ls",
+        "ls <kind> [--status <status>] [--format json]",
+        "read-only: one registry directory",
+        false,
+    ),
+    (
+        "show",
+        "show <id> [--format json]",
+        "read-only: one record",
+        false,
+    ),
+    (
+        "refs",
+        "refs <id> [--format json]",
+        "read-only: the whole registry",
+        false,
+    ),
+    (
+        "find",
+        "find <text> [--format json]",
+        "read-only: the whole registry",
+        false,
+    ),
+    (
+        "brief",
+        "brief [--format json]",
+        "read-only: the plan and the journal fold",
+        false,
+    ),
+    (
+        "state",
+        "state [--format json]",
+        "read-only: the journal, capped at 2 KB",
+        false,
+    ),
+    (
+        "help",
+        "help [--format json]",
+        "read-only: this contract",
+        false,
+    ),
+];
+
+fn help(args: &[OsString]) -> Result<u8, Refusal> {
+    let scan = scan_args(args, "help [--format json]")?;
+    if scan.position.is_some() || scan.status.is_some() {
+        return Err(usage(code::USAGE, "help [--format json]"));
+    }
+    match scan.format {
+        Format::Json => {
+            let mut out = String::from("{\"schema\": \"dacc-help\", \"commands\": [");
+            for (i, (command, accepted, cost, mutates)) in CONTRACT.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"command\": {}, \"usage\": {}, \"cost\": {}, \"mutates\": {}}}",
+                    json_string(command),
+                    json_string(accepted),
+                    json_string(cost),
+                    mutates
+                ));
+            }
+            out.push_str("]}\n");
+            println!("{out}");
+        }
+        Format::Text => {
+            for (command, accepted, cost, mutates) in CONTRACT {
+                let mutates = if *mutates { " [mutates]" } else { "" };
+                println!("{command} {accepted} — {cost}{mutates}");
+            }
+        }
+    }
+    Ok(0)
+}
+
+/// Формат из аргументов — для выбора формы отказа до разбора команды.
+fn peek_format(args: &[OsString]) -> Format {
+    let mut format = Format::Text;
+    let mut words = args.iter();
+    while let Some(flag) = words.next() {
+        if flag.to_string_lossy() == "--format" {
+            if let Some(value) = words.next() {
+                if let Ok(parsed) = format::parse(&value.to_string_lossy()) {
+                    format = parsed;
+                }
+            }
+        }
+    }
+    format
+}
+
+/// Завершение команды слоя доступа: в json законный отказ несёт поле
+/// legitimate и отличается от сбоя (RFC-0003).
+fn finish_json(format: Format, outcome: Result<u8, Refusal>) -> u8 {
+    match outcome {
+        Ok(code) => code,
+        Err(refusal) if format == Format::Json => {
+            println!(
+                "{{\"schema\": \"dacc-error\", \"legitimate\": true, \"code\": {}, \"reason\": {}}}",
+                json_string(refusal.code()),
+                json_string(refusal.reason())
+            );
+            refusal.exit_code()
+        }
+        Err(refusal) => work::finish(Err(refusal)),
+    }
 }
 
 /// `cargo dacc where --file <path> [--format json]` — что известно о месте
 /// в коде: его разметка, документы, ссылающиеся на неё, и связанные работы.
 pub fn run_where(args: &[OsString]) -> u8 {
-    work::finish(where_file(args))
+    finish_json(peek_format(args), where_file(args))
 }
 
 /// `cargo dacc emit all [--check]` — файлы-директивы агентов. Записанный файл
 /// коммитится обычным ритуалом; `--check` сверяет свежесть без записи.
 pub fn run_emit(args: &[OsString]) -> u8 {
-    work::finish(emit(args))
+    finish_json(peek_format(args), emit(args))
 }
 
 /// `cargo dacc ls <kind> [--status <status>] [--format json]` — перечень
 /// записей реестра одного вида с их статусом или состоянием.
 pub fn run_ls(args: &[OsString]) -> u8 {
-    work::finish(ls(args))
+    finish_json(peek_format(args), ls(args))
 }
 
 /// `cargo dacc refs <id> [--format json]` — граф записи: её ссылки и записи,
 /// ссылающиеся на неё.
 pub fn run_refs(args: &[OsString]) -> u8 {
-    work::finish(refs(args))
+    finish_json(peek_format(args), refs(args))
 }
 
 /// `cargo dacc brief [--format json]` — постоянная сводка: направления,
 /// открытые срезы и открытые работы.
 pub fn run_brief(args: &[OsString]) -> u8 {
-    work::finish(brief(args))
+    finish_json(peek_format(args), brief(args))
 }
 
 /// `cargo dacc state [--format json]` — изменяющееся за день: события дня и
 /// открытая работа. Потолок 2 КБ, усечение явное (RFC-0003).
 pub fn run_state(args: &[OsString]) -> u8 {
-    work::finish(state(args))
+    finish_json(peek_format(args), state(args))
 }
 
 /// Потолок ответа state (RFC-0003): 2 КБ.
@@ -252,7 +389,7 @@ fn state(args: &[OsString]) -> Result<u8, Refusal> {
 /// `cargo dacc find <text> [--format json]` — поиск по идентификаторам,
 /// заголовкам и текстам записей реестра.
 pub fn run_find(args: &[OsString]) -> u8 {
-    work::finish(find(args))
+    finish_json(peek_format(args), find(args))
 }
 
 /// Все записи реестра с их видом: (kind, id, text).
@@ -420,7 +557,7 @@ fn find(args: &[OsString]) -> Result<u8, Refusal> {
 
 /// `cargo dacc show <id> [--format json]` — запись реестра целиком.
 pub fn run_show(args: &[OsString]) -> u8 {
-    work::finish(show(args))
+    finish_json(peek_format(args), show(args))
 }
 
 /// Позиционный аргумент и флаги команды слоя доступа.
