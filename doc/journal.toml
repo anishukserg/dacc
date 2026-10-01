@@ -847,3 +847,7 @@ at = "2026-10-01T17:23:08Z"
 commit = "bc3f2dae21aaf4fd0528fd6093d6e772e83d9a7c"
 tree = "2ded8d278197d500ed8085e0ecae6ea9e4d6ad21"
 red_before = "slice_close_demands_a_test_anchor_for_enforced"
+[[events]]
+event = "closed"
+slice = "s-proof-honesty"
+at = "2026-10-01T17:23:14Z"
