@@ -799,3 +799,7 @@ at = "2026-10-01T17:08:23Z"
 commit = "bf8143104ecd4f119895eeb3df35e58d9bfae881"
 tree = "2225fca036605dfb83e296a4ee9d07b3d0c8b1b9"
 red_before = "work_commands::journal_write_is_locked_across_processes"
+[[events]]
+event = "closed"
+slice = "s-gate-integrity"
+at = "2026-10-01T17:08:36Z"
