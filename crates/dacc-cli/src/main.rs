@@ -44,6 +44,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc commit -F <message> [--log <file>] [--timeout <seconds>] -- <paths…>
   cargo dacc msg-check [--form-only] <message> | --range <range>
   cargo dacc map [--format json]
+  cargo dacc where --file <path> [--format json]
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
@@ -71,6 +72,7 @@ fn main() -> ExitCode {
     let code = match command.as_str() {
         "commit" => commit::run(rest),
         "map" => access::run_map(rest),
+        "where" => access::run_where(rest),
         "msg-check" => message::run(rest),
         "gate" => gate::run(rest),
         "hook" => hooks::run(rest),

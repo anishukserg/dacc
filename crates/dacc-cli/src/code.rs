@@ -39,6 +39,7 @@ pub const NO_PROOF: Code = "no-proof";
 pub const FULL_TIER_FAILED: Code = "full-tier-failed";
 pub const REASON_REQUIRED: Code = "reason-required";
 pub const PROOF_RED_BEFORE: Code = "red-before-required";
+pub const FILE_NOT_READ: Code = "file-not-read";
 pub const PROOF_SUBJECT_REQUIRED: Code = "proof-subject-required";
 pub const PROOF_REPEATED: Code = "proof-kind-repeated";
 pub const SLICE_ID: Code = "not-slice-id";
@@ -129,6 +130,7 @@ pub const ALL: &[(&str, &str)] = &[
         "work: the full gate tier did not pass on the tree",
     ),
     (REASON_REQUIRED, "work: --reason <reason> is required"),
+    (FILE_NOT_READ, "where: the file cannot be read"),
     (
         PROOF_RED_BEFORE,
         "work: a defect fix or an irreversible change lands only with a RedBefore proof",

@@ -4,7 +4,7 @@
 //! и ls.
 
 use crate::format::{self, Format};
-use crate::work::{quoted_after, stage_text, usage, Context, Record, Refusal};
+use crate::work::{quoted_after, refused, stage_text, usage, Context, Record, Refusal};
 use crate::{code, work};
 use std::ffi::OsString;
 use std::fs;
@@ -12,6 +12,204 @@ use std::fs;
 /// `cargo dacc map [--format json]` — карта реестра одной командой.
 pub fn run_map(args: &[OsString]) -> u8 {
     work::finish(map(args))
+}
+
+/// `cargo dacc where --file <path> [--format json]` — что известно о месте
+/// в коде: его разметка, документы, ссылающиеся на неё, и связанные работы.
+pub fn run_where(args: &[OsString]) -> u8 {
+    work::finish(where_file(args))
+}
+
+fn where_file(args: &[OsString]) -> Result<u8, Refusal> {
+    let mut format = Format::Text;
+    let mut file: Option<String> = None;
+    let mut words = args.iter();
+    while let Some(flag) = words.next() {
+        let flag = flag.to_string_lossy().into_owned();
+        let value = words
+            .next()
+            .map(|value| value.to_string_lossy().into_owned())
+            .ok_or_else(|| usage(code::FLAG_NEEDS_VALUE, format!("{flag} needs a value")))?;
+        match flag.as_str() {
+            "--file" => file = Some(value),
+            "--format" => {
+                format =
+                    format::parse(&value).map_err(|problem| usage(code::FORMAT_CHOICE, problem))?
+            }
+            other => {
+                return Err(usage(
+                    code::USAGE,
+                    format!("where --file <path> [--format json] — unknown argument {other}"),
+                ))
+            }
+        }
+    }
+    let file = file.ok_or_else(|| usage(code::USAGE, "where --file <path> is required"))?;
+    let context = Context::open()?;
+    let text = fs::read_to_string(context.repo.root.join(&file))
+        .map_err(|_| refused(code::FILE_NOT_READ, format!("file {file} cannot be read")))?;
+
+    // Разметка места — сама по себе ответ; без неё отдельная строка, а не
+    // пустой успех (анти-вакуум).
+    let anchors = anchors_in(&text);
+    let mut documents = Vec::new();
+    for (kind, dir) in KINDS {
+        for (id, record) in records(
+            &context
+                .repo
+                .root
+                .join(format!("{}/{}", context.repo.config.doc, dir)),
+        ) {
+            let referenced = anchors.iter().any(|anchor| {
+                record.contains(&format!("[{anchor}]")) || record.contains(&anchor_ident(anchor))
+            });
+            if referenced {
+                documents.push(Document {
+                    title: quoted_after(&record, "title: NonEmptyStr::new(").unwrap_or_default(),
+                    kind: (*kind).to_owned(),
+                    id,
+                });
+            }
+        }
+    }
+    let mut works = Vec::new();
+    for (id, record) in records(&context.repo.root.join(context.repo.config.work_dir())) {
+        let referenced = documents
+            .iter()
+            .any(|document| record.contains(&document.id.replace('-', "_")))
+            || anchors
+                .iter()
+                .any(|anchor| record.contains(&anchor_ident(anchor)));
+        if referenced {
+            works.push(Work {
+                state: stage_text(context.journal.stage(&id)).to_owned(),
+                slice: ref_after(&record, "slice: crate::slice::"),
+                taxon: ref_after(&record, "taxon: taxon!(Subsystem, ")
+                    .map(|name| name.to_lowercase()),
+                radius: ref_after(&record, "radius: BlastRadius::").map(|r| r.to_lowercase()),
+                title: quoted_after(&record, "title: NonEmptyStr::new(").unwrap_or_default(),
+                id,
+            });
+        }
+    }
+
+    match format {
+        Format::Json => println!("{}", where_json(&file, &anchors, &documents, &works)),
+        Format::Text => print!("{}", where_text(&file, &anchors, &documents, &works)),
+    }
+    Ok(0)
+}
+
+/// Идентификатор якоря в ссылках Rust: `plan-ir` → `anchor::plan_ir`.
+fn anchor_ident(anchor: &str) -> String {
+    format!("anchor::{}", anchor.replace('-', "_"))
+}
+
+/// Имена видов записей реестра и их каталоги.
+const KINDS: &[(&str, &str)] = &[
+    ("thrust", "thrust"),
+    ("slice", "slice"),
+    ("work", "work"),
+    ("obligation", "obligation"),
+    ("limitation", "limitation"),
+    ("upgrade", "upgrade"),
+    ("invariant", "invariant"),
+    ("review", "review"),
+    ("decision", "adr"),
+    ("specification", "rfc"),
+];
+
+/// Документ, ссылающийся на якорь места.
+struct Document {
+    id: String,
+    kind: String,
+    title: String,
+}
+
+/// Идентификаторы `doc_anchor(id = "…")` файла.
+fn anchors_in(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(at) = rest.find("doc_anchor(") {
+        let end = rest[at..]
+            .find(")]")
+            .map(|close| at + close)
+            .unwrap_or(rest.len());
+        let segment = &rest[at..end];
+        if let Some(id_at) = segment.find("id = \"") {
+            let after = &segment[id_at + 6..];
+            if let Some(close) = after.find('"') {
+                out.push(after[..close].to_owned());
+            }
+        }
+        rest = &rest[end..];
+    }
+    out
+}
+
+fn where_text(file: &str, anchors: &[String], documents: &[Document], works: &[Work]) -> String {
+    if anchors.is_empty() {
+        return format!("no doc_anchor markup in {file}\n");
+    }
+    let mut out = format!("file {file}\nanchors: {}\n", anchors.join(", "));
+    if !documents.is_empty() {
+        out.push_str("documents:\n");
+        for document in documents {
+            out.push_str(&format!(
+                "  {} {} — {}\n",
+                document.kind, document.id, document.title
+            ));
+        }
+    }
+    if !works.is_empty() {
+        out.push_str("works:\n");
+        for work in works {
+            out.push_str(&format!(
+                "  {} [{}] — {}\n",
+                work.id, work.state, work.title
+            ));
+        }
+    }
+    out
+}
+
+fn where_json(file: &str, anchors: &[String], documents: &[Document], works: &[Work]) -> String {
+    let mut out = format!(
+        "{{\"schema\": \"dacc-where\", \"file\": {}, \"anchors\": [",
+        json_string(file)
+    );
+    for (i, anchor) in anchors.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&json_string(anchor));
+    }
+    out.push_str("], \"documents\": [");
+    for (i, document) in documents.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format!(
+            "{{\"kind\": {}, \"id\": {}, \"title\": {}}}",
+            json_string(&document.kind),
+            json_string(&document.id),
+            json_string(&document.title)
+        ));
+    }
+    out.push_str("], \"works\": [");
+    for (i, work) in works.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format!(
+            "{{\"id\": {}, \"state\": {}, \"title\": {}}}",
+            json_string(&work.id),
+            json_string(&work.state),
+            json_string(&work.title)
+        ));
+    }
+    out.push_str("]}\n");
+    out
 }
 
 /// Направление карты.

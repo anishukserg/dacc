@@ -71,3 +71,49 @@ fn map_reports_the_registry_without_searching() {
         json.output()
     );
 }
+
+/// Место в коде одной командой: where называет разметку файла, документы,
+/// ссылающиеся на её якоря, и связанные работы; файл без разметки — отдельный
+/// ответ, а не пустой успех.
+#[test]
+fn where_reports_the_place_and_its_documents() {
+    let repo = registry_repo("access-where");
+    repo.write(
+        "src/lib.rs",
+        "#[doc_anchor(id = \"plan-ir\")]\npub struct PlanIr;\n",
+    );
+    repo.write("doc/adr/adr-002.rs", "adr!(); // проза [plan-ir]\n");
+    repo.write(
+        "doc/work/w-002.rs",
+        "dacc_work::work!(\"w-002\",\n    title: NonEmptyStr::new(\"Вторая работа\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Decision(crate::adr::adr_002),\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход второй работы.\"),\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): якорь и документ"]);
+
+    let run = repo.tool(&["where", "--file", "src/lib.rs"]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    assert!(run.stdout.contains("plan-ir"), "{}", run.output());
+    assert!(run.stdout.contains("adr-002"), "{}", run.output());
+    assert!(run.stdout.contains("w-002"), "{}", run.output());
+    assert!(run.stdout.contains("planned"), "{}", run.output());
+
+    let json = repo.tool(&["where", "--file", "src/lib.rs", "--format", "json"]);
+    assert_eq!(json.code, 0, "{}", json.output());
+    assert!(
+        json.stdout.contains("\"schema\": \"dacc-where\""),
+        "{}",
+        json.output()
+    );
+    assert!(json.stdout.contains("plan-ir"), "{}", json.output());
+    assert!(
+        json.stdout.contains("\"id\": \"adr-002\""),
+        "{}",
+        json.output()
+    );
+
+    // Файл без разметки — отдельный ответ, а не пустой успех.
+    repo.write("src/other.rs", "pub struct Other;\n");
+    let bare = repo.tool(&["where", "--file", "src/other.rs"]);
+    assert_eq!(bare.code, 0, "{}", bare.output());
+    assert!(bare.stdout.contains("no doc_anchor"), "{}", bare.output());
+}
