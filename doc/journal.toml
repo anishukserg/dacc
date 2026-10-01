@@ -455,3 +455,7 @@ at = "2026-10-01T10:37:51Z"
 commit = "1ec57b9bad681f52f054679c7c311d2dcd5daab3"
 tree = "e7b1b524992492ddded1f016cd90a3749e833d25"
 red_before = "access_commands::emit_all_writes_agent_directives"
+[[events]]
+event = "closed"
+slice = "s-access-first-touch"
+at = "2026-10-01T10:37:58Z"
