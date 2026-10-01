@@ -117,3 +117,35 @@ fn where_reports_the_place_and_its_documents() {
     assert_eq!(bare.code, 0, "{}", bare.output());
     assert!(bare.stdout.contains("no doc_anchor"), "{}", bare.output());
 }
+
+/// Директивы агентов пишутся командой, а не руками: emit all пишет AGENTS.md
+/// с правилами навигации и ритуалами.
+#[test]
+fn emit_all_writes_agent_directives() {
+    let repo = registry_repo("access-emit");
+    let run = repo.tool(&["emit", "all"]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    let agents = std::fs::read_to_string(repo.path("AGENTS.md")).unwrap();
+    assert!(agents.contains("cargo dacc map"), "{agents}");
+    assert!(agents.contains("cargo dacc where"), "{agents}");
+    assert!(agents.contains("Dacc-Work"), "{agents}");
+    assert!(agents.contains("--red-before"), "{agents}");
+}
+
+/// Повторный запуск идентичен закоммиченному файлу, и свежесть проверяема:
+/// emit all --check отвергает устаревшую директиву.
+#[test]
+fn emit_all_is_idempotent_and_checks_freshness() {
+    let repo = registry_repo("access-emit-check");
+    assert_eq!(repo.tool(&["emit", "all"]).code, 0);
+    let first = std::fs::read_to_string(repo.path("AGENTS.md")).unwrap();
+    assert_eq!(repo.tool(&["emit", "all"]).code, 0);
+    let second = std::fs::read_to_string(repo.path("AGENTS.md")).unwrap();
+    assert_eq!(first, second, "повторный emit переписал директиву");
+
+    assert_eq!(repo.tool(&["emit", "all", "--check"]).code, 0);
+    std::fs::write(repo.path("AGENTS.md"), "устарело\n").unwrap();
+    let stale = repo.tool(&["emit", "all", "--check"]);
+    assert_eq!(stale.code, 1, "{}", stale.output());
+    assert!(stale.verdict().contains("stale"), "{}", stale.output());
+}
