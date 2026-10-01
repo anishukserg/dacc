@@ -23,12 +23,14 @@
 use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::{commit, config, gate, git, hooks, layout, proof};
-use dacc_journal::{fold, time, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject};
+use dacc_journal::{
+    fold, time, Event, Evidence, GateVerdict, Journal, Kind, Proof, Stage, Subject,
+};
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 
-const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
+const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | land <w-slug> [--commit <revision>] [--red-before <subject>] [--mutation-proof <subject>] [--anti-vacuum <subject>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
 
 const SLICE_USAGE: &str = "slice close <s-slug>";
 
@@ -57,8 +59,7 @@ pub fn run_work(args: &[OsString]) -> u8 {
             .as_slice()
         {
             ["start", id] => start(id, &trailers),
-            ["land", id] => land(id, "HEAD", &trailers),
-            ["land", id, "--commit", revision] => land(id, revision, &trailers),
+            ["land", id, rest @ ..] => land(id, rest, &trailers),
             ["drop", id, "--reason", reason] => abandon(id, reason, &trailers),
             ["state"] => state(None, format),
             ["state", id] => state(Some(id), format),
@@ -356,7 +357,47 @@ fn start(id: &str, _trailers: &[String]) -> Result<u8, Refusal> {
     Ok(0)
 }
 
-fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
+fn land(id: &str, flags: &[&str], trailers: &[String]) -> Result<u8, Refusal> {
+    let mut revision = "HEAD".to_owned();
+    let mut proofs: Vec<Proof> = Vec::new();
+    let mut words = flags.iter();
+    while let Some(&flag) = words.next() {
+        let value = words
+            .next()
+            .copied()
+            .ok_or_else(|| usage(code::FLAG_NEEDS_VALUE, format!("{flag} needs a value")))?;
+        match flag {
+            "--commit" => revision = value.to_owned(),
+            "--red-before" | "--mutation-proof" | "--anti-vacuum" => {
+                let build: fn(String) -> Proof = match flag {
+                    "--red-before" => Proof::RedBefore,
+                    "--mutation-proof" => Proof::MutationProof,
+                    _ => Proof::AntiVacuum,
+                };
+                let subject = value.trim().to_owned();
+                if subject.is_empty() {
+                    return Err(usage(
+                        code::PROOF_SUBJECT_REQUIRED,
+                        format!("{flag} needs a non-empty subject"),
+                    ));
+                }
+                let kind = build(subject.clone()).key();
+                if proofs.iter().any(|proof| proof.key() == kind) {
+                    return Err(usage(
+                        code::PROOF_REPEATED,
+                        format!("{flag} is stated once"),
+                    ));
+                }
+                proofs.push(build(subject));
+            }
+            other => {
+                return Err(usage(
+                    code::UNKNOWN_ARGUMENT,
+                    format!("unknown argument {other}"),
+                ))
+            }
+        }
+    }
     let context = Context::open()?;
     let number = work_number(id)?;
     let work = context.work(id)?;
@@ -398,6 +439,23 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             format!(
                 "commit {} is not based on work {id}: it has no `{trailer}` trailer",
                 short(&commit)
+            ),
+        ));
+    }
+    // Гарантия «тест падал до починки» получает исполнителя (работа
+    // w-evidence-land): дефект — происхождение Divergence — или необратимое
+    // изменение не приземляются без вида доказательства RedBefore.
+    let needs_red_before =
+        work.divergence || matches!(work.radius.as_deref(), Some("persistent" | "irreversible"));
+    if needs_red_before
+        && !proofs
+            .iter()
+            .any(|proof| matches!(proof, Proof::RedBefore(_)))
+    {
+        return Err(refused(
+            code::PROOF_RED_BEFORE,
+            format!(
+                "work {id} is a defect fix or an irreversible change and lands without a RedBefore proof: name the test that was red before the fix with --red-before <subject>"
             ),
         ));
     }
@@ -446,6 +504,7 @@ fn land(id: &str, revision: &str, trailers: &[String]) -> Result<u8, Refusal> {
             commit: commit.clone(),
             tree,
             evidence: Evidence::Gate,
+            proofs,
         },
     ));
     let message = message(
@@ -716,6 +775,9 @@ struct Record {
     slice: Option<String>,
     area: Option<String>,
     radius: Option<String>,
+    /// Происхождение Divergence — расхождение есть дефект: его починка без
+    /// RedBefore не приземляется.
+    divergence: bool,
 }
 
 impl Record {
@@ -740,6 +802,7 @@ impl Record {
                 .and_then(|at| text.get(at + RADIUS.len()..))
                 .and_then(|rest| rest.split([',', ')']).next())
                 .map(|radius| radius.trim().to_lowercase()),
+            divergence: text.contains("WorkOrigin::Divergence"),
         }
     }
 
@@ -838,6 +901,7 @@ fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Re
                 commit: commit.clone(),
                 tree,
                 evidence: Evidence::History,
+                proofs: Vec::new(),
             },
         ));
         imported.insert(number.clone());
@@ -1034,6 +1098,18 @@ mod tests {
         assert_eq!(crate_radius.radius.as_deref(), Some("crate"));
         let local = Record::parse("dacc_work::work!(\"w-x\",\n    radius: BlastRadius::Local,\n);");
         assert_eq!(local.radius.as_deref(), Some("local"));
+    }
+
+    /// Происхождение Divergence читается из текста работы: по нему приземление
+    /// требует RedBefore — вида доказательства «тест падал до починки».
+    #[test]
+    fn record_parses_divergence() {
+        let defect = Record::parse(
+            "dacc_work::work!(\"w-x\",\n    origin: WorkOrigin::Divergence { specification: crate::rfc::rfc_2026_002, limitation: crate::limitation::l_x },\n);",
+        );
+        assert!(defect.divergence);
+        let plain = Record::parse("dacc_work::work!(\"w-x\",\n    radius: BlastRadius::Local,\n);");
+        assert!(!plain.divergence);
     }
 
     /// Индексы стадий и видов ложатся на счётчики `metrics`.

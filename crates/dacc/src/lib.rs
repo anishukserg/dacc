@@ -17,8 +17,8 @@ pub use dacc_core::{
     ObligationRef, ReviewRef, RfcRef, Severity, SliceRef, SupersededRef, Taxon, ThrustRef, WorkRef,
 };
 pub use dacc_journal::{
-    fold, parse_event, read_dir, Event, Evidence, GateVerdict, Journal, Kind, Stage, Subject,
-    Violation,
+    fold, parse_event, read_dir, Event, Evidence, GateVerdict, Journal, Kind, Proof, Stage,
+    Subject, Violation,
 };
 pub use dacc_knowledge::{
     adr, invariant, review, rfc, ArchitectureDecision, Breaking, DocStatus, DomainSpecification,

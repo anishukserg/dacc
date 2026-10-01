@@ -38,6 +38,9 @@ pub const TREE_NOT_READ: Code = "tree-not-read";
 pub const NO_PROOF: Code = "no-proof";
 pub const FULL_TIER_FAILED: Code = "full-tier-failed";
 pub const REASON_REQUIRED: Code = "reason-required";
+pub const PROOF_RED_BEFORE: Code = "red-before-required";
+pub const PROOF_SUBJECT_REQUIRED: Code = "proof-subject-required";
+pub const PROOF_REPEATED: Code = "proof-kind-repeated";
 pub const SLICE_ID: Code = "not-slice-id";
 pub const SLICE_NO_WORKS: Code = "slice-has-no-works";
 pub const SLICE_ALREADY_CLOSED: Code = "slice-already-closed";
@@ -126,6 +129,15 @@ pub const ALL: &[(&str, &str)] = &[
         "work: the full gate tier did not pass on the tree",
     ),
     (REASON_REQUIRED, "work: --reason <reason> is required"),
+    (
+        PROOF_RED_BEFORE,
+        "work: a defect fix or an irreversible change lands only with a RedBefore proof",
+    ),
+    (
+        PROOF_SUBJECT_REQUIRED,
+        "work: a proof kind needs a non-empty subject",
+    ),
+    (PROOF_REPEATED, "work: a proof kind is stated once"),
     (SLICE_ID, "slice: the id is not of the form s-slug"),
     (SLICE_NO_WORKS, "slice: the slice has no works"),
     (SLICE_ALREADY_CLOSED, "slice: the slice is already closed"),

@@ -14,7 +14,7 @@ pub mod fold;
 pub mod format;
 pub mod time;
 
-pub use event::{Event, Evidence, GateVerdict, Kind, Subject};
+pub use event::{Event, Evidence, GateVerdict, Kind, Proof, Subject};
 pub use fold::{fold, Journal, Stage, Violation};
 
 use std::fs;
@@ -148,6 +148,7 @@ mod tests {
                     commit: TREE.into(),
                     tree: TREE.into(),
                     evidence: Evidence::Gate,
+                    proofs: Vec::new(),
                 },
             ),
             Event::new(

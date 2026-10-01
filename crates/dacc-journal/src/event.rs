@@ -41,6 +41,41 @@ pub enum Evidence {
     History,
 }
 
+/// Анти-вакуумный вид доказательства готовности (работа w-evidence-kinds).
+///
+/// Вид несёт предмет — имя теста, проверки или находки. Вид без предмета
+/// невыразим: в событии он не записывается и не разбирается, пустое значение
+/// отвергается с именем поля.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Proof {
+    /// Тест или сценарий падал до починки — предмет именует его.
+    RedBefore(String),
+    /// Проверка ловит внесённые поломки — предмет именует проверку.
+    MutationProof(String),
+    /// Проверка нашла предмет: «ничего не найдено» не засчитывается успехом.
+    AntiVacuum(String),
+}
+
+impl Proof {
+    /// Ключ поля вида в событии.
+    pub fn key(&self) -> &'static str {
+        match self {
+            Self::RedBefore(_) => "red_before",
+            Self::MutationProof(_) => "mutation_proof",
+            Self::AntiVacuum(_) => "anti_vacuum",
+        }
+    }
+
+    /// Предмет вида.
+    pub fn subject(&self) -> &str {
+        match self {
+            Self::RedBefore(subject) | Self::MutationProof(subject) | Self::AntiVacuum(subject) => {
+                subject
+            }
+        }
+    }
+}
+
 /// Вердикт калитки в событии gate (решение 22).
 ///
 /// Журнал двуформатный: прежние события несут прозу, новые — структуру. Прозу
@@ -75,6 +110,8 @@ pub enum Kind {
         commit: String,
         tree: String,
         evidence: Evidence,
+        /// Анти-вакуумные виды доказательства в порядке ключей события.
+        proofs: Vec<Proof>,
     },
     Abandoned {
         reason: String,
@@ -197,11 +234,17 @@ impl Event {
                 commit,
                 tree,
                 evidence,
+                proofs,
             } => {
                 fields.push(("commit".to_owned(), commit.clone()));
                 fields.push(("tree".to_owned(), tree.clone()));
                 if *evidence == Evidence::History {
                     fields.push(("evidence".to_owned(), "history".to_owned()));
+                }
+                for key in ["red_before", "mutation_proof", "anti_vacuum"] {
+                    if let Some(proof) = proofs.iter().find(|proof| proof.key() == key) {
+                        fields.push((key.to_owned(), proof.subject().to_owned()));
+                    }
                 }
             }
             Kind::Abandoned { reason } => fields.push(("reason".to_owned(), reason.clone())),
@@ -243,7 +286,17 @@ fn parse_fields(record: &Record) -> Result<(Subject, String, Kind), String> {
                 "gate", "tree", "verdict", "passed", "total", "skipped", "attacks", "msrv",
             ],
         ),
-        "landed" => ("work", &["commit", "tree", "evidence"]),
+        "landed" => (
+            "work",
+            &[
+                "commit",
+                "tree",
+                "evidence",
+                "red_before",
+                "mutation_proof",
+                "anti_vacuum",
+            ],
+        ),
         "abandoned" => ("work", &["reason"]),
         "closed" => ("slice", &[]),
         other => {
@@ -331,17 +384,32 @@ fn parse_fields(record: &Record) -> Result<(Subject, String, Kind), String> {
                 },
             },
         },
-        "landed" => Kind::Landed {
-            commit: hash("commit")?,
-            tree: hash("tree")?,
-            evidence: match record.get("evidence") {
-                None => Evidence::Gate,
-                Some("history") => Evidence::History,
-                Some(other) => {
-                    return Err(format!("field evidence is only history, not {other:?}"))
+        "landed" => {
+            let mut proofs = Vec::new();
+            for (key, build) in [
+                ("red_before", Proof::RedBefore as fn(String) -> Proof),
+                ("mutation_proof", Proof::MutationProof),
+                ("anti_vacuum", Proof::AntiVacuum),
+            ] {
+                // Вид без предмета невыразим: присутствующий ключ обязан нести
+                // непустой предмет, иначе отказ с именем поля.
+                if record.get(key).is_some() {
+                    proofs.push(build(required(key)?));
                 }
-            },
-        },
+            }
+            Kind::Landed {
+                commit: hash("commit")?,
+                tree: hash("tree")?,
+                evidence: match record.get("evidence") {
+                    None => Evidence::Gate,
+                    Some("history") => Evidence::History,
+                    Some(other) => {
+                        return Err(format!("field evidence is only history, not {other:?}"))
+                    }
+                },
+                proofs,
+            }
+        }
         "abandoned" => Kind::Abandoned {
             reason: required("reason")?,
         },
@@ -415,6 +483,7 @@ mod tests {
                     commit: TREE.into(),
                     tree: TREE.into(),
                     evidence: Evidence::History,
+                    proofs: Vec::new(),
                 },
             ),
             (
@@ -538,6 +607,7 @@ mod tests {
             commit: TREE.into(),
             tree: TREE.into(),
             evidence: Evidence::Gate,
+            proofs: Vec::new(),
         };
         let events = [
             Event::new(
@@ -562,5 +632,69 @@ mod tests {
         assert_eq!(read[1].kind, landed);
         assert_eq!(read[0].file, "journal.toml#0");
         assert_eq!(read[1].file, "journal.toml#1");
+    }
+
+    /// Анти-вакуумные виды доказательства (работа w-evidence-kinds): каждый вид
+    /// несёт предмет, событие landed хранит их плоскими полями и читает прежние
+    /// события без правки.
+    #[test]
+    fn landed_carries_anti_vacuous_proofs() {
+        let landed = Kind::Landed {
+            commit: TREE.into(),
+            tree: TREE.into(),
+            evidence: Evidence::Gate,
+            proofs: vec![
+                Proof::RedBefore("tests::refused_before_the_fix".to_owned()),
+                Proof::MutationProof("gate step tests".to_owned()),
+                Proof::AntiVacuum("27 attacks found a subject".to_owned()),
+            ],
+        };
+        let written = Event::new(
+            Subject::Work("w-022".to_owned()),
+            "2026-09-11T03:15:00Z".to_owned(),
+            landed.clone(),
+        );
+        let text = written.to_text();
+        assert!(
+            text.contains("red_before = \"tests::refused_before_the_fix\""),
+            "{text}"
+        );
+        assert!(
+            text.contains("mutation_proof = \"gate step tests\""),
+            "{text}"
+        );
+        assert!(
+            text.contains("anti_vacuum = \"27 attacks found a subject\""),
+            "{text}"
+        );
+        let read = event(&written.file, &text).unwrap();
+        assert_eq!(read, written);
+    }
+
+    /// Вид доказательства без предмета невыразим: пустое значение отвергается
+    /// с именем поля, а не превращается молча в отсутствие вида.
+    #[test]
+    fn proof_without_a_subject_is_refused() {
+        let text = "event = \"landed\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ncommit = \"0123456789abcdef0123456789abcdef01234567\"\ntree = \"0123456789abcdef0123456789abcdef01234567\"\nred_before = \"\"\n";
+        let error = event("w-022/20260911T031500Z-landed.toml", text).unwrap_err();
+        assert!(error.contains("red_before"), "{error}");
+    }
+
+    /// Прежние события без видов доказательства читаются без правки: поля
+    /// доказательства отсутствуют, и это не ошибка.
+    #[test]
+    fn previous_landed_without_proofs_reads_unchanged() {
+        let text = "event = \"landed\"\nwork = \"w-022\"\nat = \"2026-09-11T03:15:00Z\"\ncommit = \"0123456789abcdef0123456789abcdef01234567\"\ntree = \"0123456789abcdef0123456789abcdef01234567\"\nevidence = \"history\"\n";
+        let read = event("w-022/20260911T031500Z-landed.toml", text).unwrap();
+        assert_eq!(
+            read.kind,
+            Kind::Landed {
+                commit: TREE.into(),
+                tree: TREE.into(),
+                evidence: Evidence::History,
+                proofs: Vec::new(),
+            }
+        );
+        assert_eq!(read.to_text(), text);
     }
 }

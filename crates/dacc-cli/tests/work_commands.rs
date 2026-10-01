@@ -179,3 +179,76 @@ fn illegal_requests_are_refused_before_any_event() {
         "отказ оставил файлы журнала"
     );
 }
+
+/// Анти-вакуум (работа w-evidence-land): приземление дефекта — работа с
+/// происхождением Divergence — без вида доказательства RedBefore отвергается с
+/// кодом причины, а с --red-before событие landed несёт предмет вида.
+#[test]
+fn land_demands_red_before_for_a_defect_fix() {
+    let repo = planned_repo("work-red-before");
+    repo.write(
+        "doc/work/w-003.rs",
+        "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Починка расхождения\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Divergence { specification: crate::rfc::rfc-001, limitation: crate::limitation::l-001 },\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+    );
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[FIX](cli): расхождение закрыто",
+        "-m",
+        "Dacc-Work: w-003",
+    ]);
+
+    // Без RedBefore приземление дефекта отвергается до калитки.
+    let run = repo.tool(&["work", "land", "w-003"]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(run.verdict().contains("--red-before"), "{}", run.output());
+
+    // Вид с предметом приземляется, и событие landed несёт предмет.
+    let run = repo.tool(&[
+        "work",
+        "land",
+        "w-003",
+        "--red-before",
+        "tests::refused_before_the_fix",
+    ]);
+    assert_ok(&run);
+    let journal = repo.git(&["show", "HEAD:doc/journal.toml"]);
+    assert!(
+        journal.contains("red_before = \"tests::refused_before_the_fix\""),
+        "{journal}"
+    );
+}
+
+/// Пустой предмет вида доказательства — отказ, а не тихо отсутствие вида.
+#[test]
+fn proof_flags_refuse_an_empty_subject_and_repeats() {
+    let repo = planned_repo("work-proof-flags");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    for args in [
+        vec!["work", "land", "w-001", "--red-before", " "],
+        vec![
+            "work",
+            "land",
+            "w-001",
+            "--anti-vacuum",
+            "x",
+            "--anti-vacuum",
+            "y",
+        ],
+    ] {
+        let run = repo.tool(&args);
+        assert_eq!(run.code, 2, "{args:?}: {}", run.output());
+    }
+}

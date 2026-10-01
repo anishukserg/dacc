@@ -254,6 +254,7 @@ mod tests {
             commit: TREE_A.into(),
             tree: tree.into(),
             evidence,
+            proofs: Vec::new(),
         }
     }
 

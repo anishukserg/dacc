@@ -165,6 +165,7 @@ mod tests {
                 commit: TREE.into(),
                 tree: TREE.into(),
                 evidence: Evidence::History,
+                proofs: Vec::new(),
             },
         )];
         let code = emit_journal(&events, &[], &plan(&["w-001", "w-002"]));
