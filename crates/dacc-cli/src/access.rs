@@ -32,6 +32,181 @@ pub fn run_ls(args: &[OsString]) -> u8 {
     work::finish(ls(args))
 }
 
+/// `cargo dacc refs <id> [--format json]` — граф записи: её ссылки и записи,
+/// ссылающиеся на неё.
+pub fn run_refs(args: &[OsString]) -> u8 {
+    work::finish(refs(args))
+}
+
+/// `cargo dacc find <text> [--format json]` — поиск по идентификаторам,
+/// заголовкам и текстам записей реестра.
+pub fn run_find(args: &[OsString]) -> u8 {
+    work::finish(find(args))
+}
+
+/// Все записи реестра с их видом: (kind, id, text).
+fn all_records(context: &Context) -> Vec<(String, String, String)> {
+    let mut out = Vec::new();
+    for (kind, dir) in KINDS {
+        for (id, text) in records_named(
+            &context
+                .repo
+                .root
+                .join(format!("{}/{}", context.repo.config.doc, dir)),
+        ) {
+            out.push(((*kind).to_owned(), id, text));
+        }
+    }
+    out
+}
+
+/// Ссылки вида `crate::модуль::идентификатор` в тексте записи.
+fn crate_refs(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for segment in text.split("crate::").skip(1) {
+        let end = segment
+            .find([',', ')', '\n', '"', ' '])
+            .unwrap_or(segment.len());
+        let mut parts = segment[..end].split("::");
+        if let (Some(module), Some(ident), None) = (parts.next(), parts.next(), parts.next()) {
+            if !module.is_empty() && !ident.is_empty() {
+                out.push((module.to_owned(), ident.to_owned()));
+            }
+        }
+    }
+    out
+}
+
+fn refs(args: &[OsString]) -> Result<u8, Refusal> {
+    let scan = scan_args(args, "refs <id> [--format json]")?;
+    let id = scan
+        .position
+        .ok_or_else(|| usage(code::USAGE, "refs <id> [--format json] is required"))?;
+    let context = Context::open()?;
+    let records = all_records(&context);
+    let Some((_, _, text)) = records.iter().find(|(_, record_id, _)| *record_id == id) else {
+        return Err(refused(
+            code::RECORD_NOT_FOUND,
+            format!("record {id} is not found in the registry"),
+        ));
+    };
+    let ident = id.replace('-', "_");
+
+    let mut outgoing: Vec<(String, String)> = Vec::new();
+    for (module, target) in crate_refs(text) {
+        if module == "anchor" {
+            continue;
+        }
+        let slug = target.replace('_', "-");
+        if slug != id
+            && records.iter().any(|(_, record_id, _)| *record_id == slug)
+            && !outgoing.iter().any(|(_, hit)| *hit == slug)
+        {
+            outgoing.push((module.clone(), slug));
+        }
+    }
+    let mut incoming: Vec<(String, String)> = Vec::new();
+    for (kind, record_id, record_text) in &records {
+        if *record_id != id
+            && record_text.contains(&format!("::{ident}"))
+            && !incoming.iter().any(|(_, hit)| hit == record_id)
+        {
+            incoming.push((kind.clone(), record_id.clone()));
+        }
+    }
+
+    match scan.format {
+        Format::Json => {
+            let mut out = String::from("{\"schema\": \"dacc-refs\", \"id\": ");
+            out.push_str(&json_string(&id));
+            out.push_str(", \"outgoing\": [");
+            for (i, (kind, target)) in outgoing.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"kind\": {}, \"id\": {}}}",
+                    json_string(kind),
+                    json_string(target)
+                ));
+            }
+            out.push_str("], \"incoming\": [");
+            for (i, (kind, source)) in incoming.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"kind\": {}, \"id\": {}}}",
+                    json_string(kind),
+                    json_string(source)
+                ));
+            }
+            out.push_str("]}\n");
+            println!("{out}");
+        }
+        Format::Text => {
+            println!("record {id}");
+            if outgoing.is_empty() && incoming.is_empty() {
+                println!("no references");
+            }
+            for (kind, target) in &outgoing {
+                println!("  -> {kind} {target}");
+            }
+            for (kind, source) in &incoming {
+                println!("  <- {kind} {source}");
+            }
+        }
+    }
+    Ok(0)
+}
+
+fn find(args: &[OsString]) -> Result<u8, Refusal> {
+    let scan = scan_args(args, "find <text> [--format json]")?;
+    let query = scan
+        .position
+        .ok_or_else(|| usage(code::USAGE, "find <text> [--format json] is required"))?
+        .to_lowercase();
+    let context = Context::open()?;
+    let mut matches: Vec<(String, String, String)> = Vec::new();
+    for (kind, id, text) in all_records(&context) {
+        let title = quoted_after(&text, "title: NonEmptyStr::new(").unwrap_or_default();
+        if id.to_lowercase().contains(&query)
+            || title.to_lowercase().contains(&query)
+            || text.to_lowercase().contains(&query)
+        {
+            matches.push((kind, id, title));
+        }
+    }
+    match scan.format {
+        Format::Json => {
+            let mut out = String::from("{\"schema\": \"dacc-find\", \"matches\": [");
+            for (i, (kind, id, title)) in matches.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"kind\": {}, \"id\": {}, \"title\": {}}}",
+                    json_string(kind),
+                    json_string(id),
+                    json_string(title)
+                ));
+            }
+            out.push_str("]}\n");
+            println!("{out}");
+        }
+        Format::Text => {
+            if matches.is_empty() {
+                println!("no matches for {query:?}");
+            } else {
+                for (kind, id, title) in &matches {
+                    println!("{kind} {id} — {title}");
+                }
+            }
+        }
+    }
+    Ok(0)
+}
+
 /// `cargo dacc show <id> [--format json]` — запись реестра целиком.
 pub fn run_show(args: &[OsString]) -> u8 {
     work::finish(show(args))

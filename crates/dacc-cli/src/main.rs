@@ -48,6 +48,8 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc emit all [--check]
   cargo dacc ls <kind> [--status <status>] [--format json]
   cargo dacc show <id> [--format json]
+  cargo dacc refs <id> [--format json]
+  cargo dacc find <text> [--format json]
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
@@ -79,6 +81,8 @@ fn main() -> ExitCode {
         "emit" => access::run_emit(rest),
         "ls" => access::run_ls(rest),
         "show" => access::run_show(rest),
+        "refs" => access::run_refs(rest),
+        "find" => access::run_find(rest),
         "msg-check" => message::run(rest),
         "gate" => gate::run(rest),
         "hook" => hooks::run(rest),

@@ -193,3 +193,40 @@ fn ls_and_show_answer_from_the_registry() {
     assert_eq!(kind.code, 1, "{}", kind.output());
     assert!(kind.verdict().contains("unknown kind"), "{}", kind.output());
 }
+
+/// Граф и поиск: refs называет ссылки записи и ссылающиеся на неё записи,
+/// find ищет по реестру; отсутствие совпадений — отдельный ответ.
+#[test]
+fn refs_and_find_answer_from_the_registry() {
+    let repo = registry_repo("access-refs-find");
+    repo.write("doc/adr/adr-002.rs", "adr!(); // проза [plan-ir]\n");
+    repo.write(
+        "doc/work/w-002.rs",
+        "dacc_work::work!(\"w-002\",\n    title: NonEmptyStr::new(\"Вторая работа\"),\n    slice: crate::slice::s_001,\n    origin: WorkOrigin::Decision(crate::adr::adr_002),\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход второй работы.\"),\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): работа со ссылкой"]);
+
+    // Исходящие ссылки w-002 — adr-002; входящие adr-002 — w-002.
+    let outgoing = repo.tool(&["refs", "w-002"]);
+    assert_eq!(outgoing.code, 0, "{}", outgoing.output());
+    assert!(outgoing.stdout.contains("adr-002"), "{}", outgoing.output());
+    let incoming = repo.tool(&["refs", "adr-002"]);
+    assert_eq!(incoming.code, 0, "{}", incoming.output());
+    assert!(incoming.stdout.contains("w-002"), "{}", incoming.output());
+
+    let json = repo.tool(&["refs", "w-002", "--format", "json"]);
+    assert_eq!(json.code, 0, "{}", json.output());
+    assert!(
+        json.stdout.contains("\"schema\": \"dacc-refs\""),
+        "{}",
+        json.output()
+    );
+
+    let find = repo.tool(&["find", "Первая"]);
+    assert_eq!(find.code, 0, "{}", find.output());
+    assert!(find.stdout.contains("w-001"), "{}", find.output());
+    let none = repo.tool(&["find", "нет-такого-текста"]);
+    assert_eq!(none.code, 0, "{}", none.output());
+    assert!(none.stdout.contains("no matches"), "{}", none.output());
+}
