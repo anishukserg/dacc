@@ -297,7 +297,7 @@ pub fn usage(refusal: Code, reason: impl Into<String>) -> Refusal {
     }
 }
 
-fn finish(outcome: Result<u8, Refusal>) -> u8 {
+pub(crate) fn finish(outcome: Result<u8, Refusal>) -> u8 {
     match outcome {
         Ok(code) => code,
         Err(refusal) => {
@@ -308,7 +308,7 @@ fn finish(outcome: Result<u8, Refusal>) -> u8 {
 }
 
 /// Аргументы словами и строки `--trailer`, извлечённые из любого места.
-fn words(args: &[OsString]) -> Result<(Vec<String>, Vec<String>), Refusal> {
+pub(crate) fn words(args: &[OsString]) -> Result<(Vec<String>, Vec<String>), Refusal> {
     let mut words = Vec::new();
     let mut trailers = Vec::new();
     let mut rest = args.iter().map(|arg| arg.to_string_lossy().into_owned());
@@ -679,7 +679,7 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
 /// Репозиторий и свёртка журнала рабочего дерева.
 pub struct Context {
     pub repo: git::Repo,
-    journal: Journal,
+    pub(crate) journal: Journal,
 }
 
 impl Context {
@@ -746,7 +746,7 @@ impl Context {
     }
 
     /// Все работы плана по порядку номеров.
-    fn works(&self) -> Result<Vec<(String, Record)>, Refusal> {
+    pub(crate) fn works(&self) -> Result<Vec<(String, Record)>, Refusal> {
         let dir = self.repo.root.join(self.repo.config.work_dir());
         let entries = fs::read_dir(&dir).map_err(|error| {
             usage(
@@ -770,18 +770,18 @@ impl Context {
 }
 
 /// То, что команды читают из текста файла работы или среза.
-struct Record {
-    title: String,
-    slice: Option<String>,
-    area: Option<String>,
-    radius: Option<String>,
+pub(crate) struct Record {
+    pub(crate) title: String,
+    pub(crate) slice: Option<String>,
+    pub(crate) area: Option<String>,
+    pub(crate) radius: Option<String>,
     /// Происхождение Divergence — расхождение есть дефект: его починка без
     /// RedBefore не приземляется.
-    divergence: bool,
+    pub(crate) divergence: bool,
 }
 
 impl Record {
-    fn parse(text: &str) -> Record {
+    pub(crate) fn parse(text: &str) -> Record {
         const SLICE: &str = "slice: crate::slice::s";
         const TAXON: &str = "taxon!(Subsystem, ";
         const RADIUS: &str = "radius: BlastRadius::";
@@ -957,7 +957,7 @@ fn listed(items: &[String]) -> String {
 
 /// Строка в кавычках после `marker`; между маркером и кавычкой допустимы
 /// пробелы и переводы строк.
-fn quoted_after(text: &str, marker: &str) -> Option<String> {
+pub(crate) fn quoted_after(text: &str, marker: &str) -> Option<String> {
     let rest = text[text.find(marker)? + marker.len()..]
         .trim_start()
         .strip_prefix('"')?;
@@ -974,7 +974,7 @@ fn quoted_after(text: &str, marker: &str) -> Option<String> {
 }
 
 /// Номер работы из `w-slug`.
-fn work_number(id: &str) -> Result<String, Refusal> {
+pub(crate) fn work_number(id: &str) -> Result<String, Refusal> {
     match Subject::parse(id) {
         Some(Subject::Work(number)) => Ok(number),
         _ => Err(usage(
@@ -984,7 +984,7 @@ fn work_number(id: &str) -> Result<String, Refusal> {
     }
 }
 
-fn stage_text(stage: Stage) -> &'static str {
+pub(crate) fn stage_text(stage: Stage) -> &'static str {
     match stage {
         Stage::Planned => "planned",
         Stage::Started => "started",

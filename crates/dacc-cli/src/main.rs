@@ -21,6 +21,7 @@
 // распространяются, а атаки выполняются под RUSTC_BOOTSTRAP (решение 12).
 #![doc(test(attr(forbid(unstable_features))))]
 
+mod access;
 mod code;
 mod commit;
 mod config;
@@ -42,6 +43,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
 
   cargo dacc commit -F <message> [--log <file>] [--timeout <seconds>] -- <paths…>
   cargo dacc msg-check [--form-only] <message> | --range <range>
+  cargo dacc map [--format json]
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
@@ -68,6 +70,7 @@ fn main() -> ExitCode {
     let rest = &args[1..];
     let code = match command.as_str() {
         "commit" => commit::run(rest),
+        "map" => access::run_map(rest),
         "msg-check" => message::run(rest),
         "gate" => gate::run(rest),
         "hook" => hooks::run(rest),
