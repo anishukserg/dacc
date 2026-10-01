@@ -25,8 +25,9 @@ pub use dacc_knowledge::{
     Enforced, Invariant, InvariantStatus, Review,
 };
 pub use dacc_scan::{
-    check_inline_links, emit_anchor_refs, emit_anchors, emit_refs, extract_inline_links,
-    scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError, ScannedAnchor, ScannedSlug,
+    check_inline_links, emit_anchor_refs, emit_anchors, emit_derived, emit_refs,
+    extract_inline_links, scan_anchors, scan_decisions, scan_specs, AnchorMode, ScanError,
+    ScannedAnchor, ScannedSlug,
 };
 pub use dacc_work::{
     obligation, obligations_redeemed, radius_within_slice, slice, thrust, toil_within_local_radius,
