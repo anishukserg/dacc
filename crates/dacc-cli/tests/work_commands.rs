@@ -20,7 +20,7 @@ fn planned_repo(name: &str) -> TempRepo {
     );
     repo.write(
         "doc/invariant/i-001.rs",
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[crate::anchor::plan_ir],\n);\n",
     );
     for (id, title) in [("w-001", "Первая работа"), ("w-002", "Вторая работа")]
     {
@@ -216,7 +216,7 @@ fn slice_close_demands_an_enforced_contract() {
     // Запись без Enforced — тоже отказ.
     repo.write(
         "doc/invariant/i-001.rs",
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[],\n    tests: &[crate::anchor::plan_ir],\n);\n",
     );
     repo.git(&["add", "-A"]);
     repo.git(&[
@@ -238,7 +238,7 @@ fn slice_close_demands_an_enforced_contract() {
     // Enforced с живым якорем закрывает срез.
     repo.write(
         "doc/invariant/i-001.rs",
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[crate::anchor::plan_ir],\n);\n",
     );
     repo.git(&["add", "-A"]);
     repo.git(&[
@@ -278,7 +278,7 @@ fn slice_close_reads_values_not_substrings() {
 
     // Пустой якорь мультилайном — это пустой якорь, а не живой.
     commit_record(
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[\n    ],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[\n    ],\n    tests: &[crate::anchor::plan_ir],\n);\n",
         "[CHORE](cli): пустой якорь мультилайном",
     );
     let refused = repo.tool(&["slice", "close", "s-001"]);
@@ -286,7 +286,7 @@ fn slice_close_reads_values_not_substrings() {
 
     // Статус в комментарии и rationale — не статус записи.
     commit_record(
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    // InvariantStatus::Enforced после рефакторинга\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"планируется InvariantStatus::Enforced\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    // InvariantStatus::Enforced после рефакторинга\n    status: InvariantStatus::Planned,\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"планируется InvariantStatus::Enforced\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[crate::anchor::plan_ir],\n);\n",
         "[CHORE](cli): статус в комментарии",
     );
     let refused = repo.tool(&["slice", "close", "s-001"]);
@@ -294,7 +294,7 @@ fn slice_close_reads_values_not_substrings() {
 
     // Перенос строки в пути читается верно: валидная запись закрывает срез.
     commit_record(
-        "dacc_knowledge::invariant!(\"i-001\",\n    specification:\n        crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification:\n        crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[crate::anchor::plan_ir],\n);\n",
         "[CHORE](cli): перенос пути",
     );
     assert_ok(&repo.tool(&["slice", "close", "s-001"]));
@@ -444,4 +444,49 @@ fn red_before_names_a_test_that_exists() {
 
     // Настоящее имя теста дерева приземляет работу.
     assert_ok(&repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_red"]));
+}
+
+/// Enforced требует якоря на исполняемый тест (работа w-enforced-needs-tests):
+/// статус без тестового якоря — заявление, а не доказательство.
+#[test]
+fn slice_close_demands_a_test_anchor_for_enforced() {
+    let repo = planned_repo("work-test-anchor");
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): минимальный крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    assert_ok(&repo.tool(&["work", "drop", "w-001", "--reason", "снята"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-002", "--reason", "снята"]));
+
+    let commit_record = |text: &str, subject: &str| {
+        repo.write("doc/invariant/i-001.rs", text);
+        repo.git(&["add", "-A"]);
+        repo.git(&["commit", "-q", "-m", subject, "-m", "Dacc-Work: w-001"]);
+    };
+
+    // Enforced с живым якорем кода, но без тестового якоря — отказ.
+    commit_record(
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[],\n);\n",
+        "[CHORE](cli): без тестового якоря",
+    );
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(
+        refused.verdict().contains("test anchor"),
+        "{}",
+        refused.output()
+    );
+
+    // Тестовый якорь закрывает срез.
+    commit_record(
+        "dacc_knowledge::invariant!(\"i-001\",\n    specification: crate::rfc::rfc_001,\n    status: InvariantStatus::Enforced(Enforced::Unrepresentable),\n    statement: NonEmptyStr::new(\"инвариант\"),\n    rationale: \"обоснование\",\n    enforced_by: &[crate::anchor::plan_ir],\n    tests: &[crate::anchor::probe],\n);\n",
+        "[CHORE](cli): тестовый якорь",
+    );
+    assert_ok(&repo.tool(&["slice", "close", "s-001"]));
 }

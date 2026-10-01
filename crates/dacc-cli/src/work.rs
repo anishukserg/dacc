@@ -757,16 +757,19 @@ fn check_contract(context: &Context, id: &str, slice: &Record) -> Result<(), Ref
         }
         // Пустой якорь ловится в любой форме записи: комментарии сняты, пробелы
         // схлопнуты, значение прочитано сбалансированной группой.
-        let anchors = flat(field_value(&fields, "enforced_by").unwrap_or_default());
-        let list = anchors.trim_start_matches('&');
-        let inner = list
-            .strip_prefix('[')
-            .and_then(|rest| rest.strip_suffix(']'))
-            .unwrap_or(list);
-        if inner.is_empty() {
+        if anchor_list_is_empty(field_value(&fields, "enforced_by").unwrap_or_default()) {
             return Err(refused(
                 code::CONTRACT_UNENFORCED,
                 format!("invariant {record_id} of {spec} has no live anchor"),
+            ));
+        }
+        // Enforced без тестового якоря — заявление, а не доказательство
+        // (работа w-enforced-needs-tests): статус требует якоря на исполняемый
+        // тест, который калитка гоняет на каждом дереве.
+        if anchor_list_is_empty(field_value(&fields, "tests").unwrap_or_default()) {
+            return Err(refused(
+                code::CONTRACT_UNENFORCED,
+                format!("invariant {record_id} of {spec} has no test anchor"),
             ));
         }
     }
@@ -979,6 +982,17 @@ fn skip_string(chars: &[char], start: usize) -> usize {
         }
     }
     i
+}
+
+/// Пустой список якорей `&[]` в любой форме записи.
+fn anchor_list_is_empty(value: &str) -> bool {
+    let flat = flat(value);
+    let list = flat.trim_start_matches('&');
+    let inner = list
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+        .unwrap_or(list);
+    inner.is_empty()
 }
 
 /// Значение поля записи.

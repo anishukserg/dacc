@@ -9,5 +9,5 @@ dacc_knowledge::invariant!("i-work-origin",
     ),
     rationale: "WorkOrigin::Decision несёт AdrRef — путь к константе решения: сослаться на несуществующее решение нечем. Разметка work-origin указывает на тип, в котором это невыразимо.",
     enforced_by: &[crate::anchor::work_origin],
-    tests: &[],
+    tests: &[crate::anchor::work_origin_enforced],
 );

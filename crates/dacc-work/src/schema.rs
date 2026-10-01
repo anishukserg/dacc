@@ -416,3 +416,18 @@ mod tests {
         assert!(toil_within_local_radius(&decision));
     }
 }
+
+#[cfg(test)]
+mod contract_anchors {
+    use super::*;
+
+    /// Тестовый якорь контракта «работа имеет основание» (работа
+    /// w-enforced-needs-tests): статус Enforced требует якоря на исполняемый
+    /// тест, и этот тест калитка гоняет на каждом дереве.
+    #[dacc_derive::doc_anchor(id = "work-origin-enforced")]
+    #[test]
+    fn work_origin_carries_a_reference_to_an_existing_decision() {
+        let origin = WorkOrigin::Decision(dacc_core::AdrRef::__from_scan("adr-2026-001"));
+        assert!(matches!(origin, WorkOrigin::Decision(_)));
+    }
+}
