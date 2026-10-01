@@ -67,6 +67,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   extra trailer lines of the commit message.";
 
 fn main() -> ExitCode {
+    install_failure_report();
     let mut args: Vec<OsString> = std::env::args_os().skip(1).collect();
     // `cargo dacc …` запускает `cargo-dacc dacc …`.
     if args.first().and_then(|a| a.to_str()) == Some("dacc") {
@@ -108,4 +109,23 @@ fn main() -> ExitCode {
         }
     };
     ExitCode::from(code)
+}
+
+/// Сбой отвечает машинно, а не падает молча (работа w-legitimate-failure):
+/// в режиме `--format json` паника внутреннего нарушения печатает dacc-error
+/// с полем legitimate: false — контракт отличает сбой от законного отказа. В
+/// обычном режиме остаётся стандартный вывод паники.
+fn install_failure_report() {
+    let args: Vec<OsString> = std::env::args_os().collect();
+    let json = args
+        .windows(2)
+        .any(|pair| pair[0] == "--format" && pair[1] == "json");
+    if !json {
+        return;
+    }
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        println!("{}", access::error_json(&info.to_string()));
+        default(info);
+    }));
 }

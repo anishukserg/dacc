@@ -1471,3 +1471,31 @@ fn where_xml(file: &str, anchors: &[String], documents: &[Document], works: &[Wo
     out.push_str("</where>\n");
     out
 }
+
+/// Ответ сбоя машинному контракту (работа w-legitimate-failure): законный
+/// отказ отличается от сбоя полем legitimate — сбой отвечает, а не падает
+/// молча.
+pub(crate) fn error_json(reason: &str) -> String {
+    format!(
+        "{{\"schema\": \"dacc-error\", \"legitimate\": false, \"reason\": {}}}",
+        json_string(reason)
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Сбой отличается от законного отказа полем legitimate (RFC-0003): форма
+    /// ответа доказана тестом, а не договорённостью.
+    #[test]
+    fn error_json_marks_the_failure_not_legitimate() {
+        let answer = error_json("dacc: internal postcondition violated: x");
+        assert!(answer.contains("\"schema\": \"dacc-error\""), "{answer}");
+        assert!(answer.contains("\"legitimate\": false"), "{answer}");
+        assert!(
+            answer.contains("internal postcondition violated"),
+            "{answer}"
+        );
+    }
+}
