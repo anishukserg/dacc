@@ -230,3 +230,45 @@ fn refs_and_find_answer_from_the_registry() {
     assert_eq!(none.code, 0, "{}", none.output());
     assert!(none.stdout.contains("no matches"), "{}", none.output());
 }
+
+/// Сводка и изменения дня: brief — открытые срезы и работы, state — события
+/// дня и открытая работа в потолке 2 КБ с явным усечением.
+#[test]
+fn brief_and_state_answer_within_their_budget() {
+    let repo = registry_repo("access-brief-state");
+    let brief = repo.tool(&["brief"]);
+    assert_eq!(brief.code, 0, "{}", brief.output());
+    assert!(brief.stdout.contains("w-001"), "{}", brief.output());
+    assert!(brief.stdout.contains("s-001"), "{}", brief.output());
+    let json = repo.tool(&["brief", "--format", "json"]);
+    assert_eq!(json.code, 0, "{}", json.output());
+    assert!(
+        json.stdout.contains("\"schema\": \"dacc-brief\""),
+        "{}",
+        json.output()
+    );
+
+    let state = repo.tool(&["state"]);
+    assert_eq!(state.code, 0, "{}", state.output());
+
+    // Потолок 2 КБ и явное усечение на большом реестре.
+    for i in 0..80 {
+        repo.write(
+            &format!("doc/work/w-1{i:02}.rs"),
+            &format!(
+                "dacc_work::work!(\"w-1{i:02}\",\n    title: NonEmptyStr::new(\"Длинное имя открытой работы номер {i} {}\"),\n    slice: crate::slice::s_001,\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+                "х".repeat(40)
+            ),
+        );
+    }
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-q", "-m", "[CHORE](cli): много работ"]);
+    let big = repo.tool(&["state"]);
+    assert_eq!(big.code, 0, "{}", big.output());
+    assert!(
+        big.stdout.len() <= 2048,
+        "ответ state длиной {}",
+        big.stdout.len()
+    );
+    assert!(big.stdout.contains("truncated"), "{}", big.output());
+}
