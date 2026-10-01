@@ -569,3 +569,7 @@ at = "2026-10-01T12:05:50Z"
 commit = "02fb6f85325059bb831fc785818dc0b86576f72c"
 tree = "59e6ca9d8c69e78ef7270a1ca97a54cc5e7fb60b"
 red_before = "access_commands::map_is_capped_and_xml_carries_the_version"
+[[events]]
+event = "closed"
+slice = "s-access-contract"
+at = "2026-10-01T12:05:54Z"
