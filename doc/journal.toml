@@ -385,3 +385,7 @@ at = "2026-10-01T09:46:12Z"
 commit = "7e92c466a287f46adcfd3b2b3c71ee6a2757da75"
 tree = "44b427d823579a513331bd46e651b26f8a86fda7"
 red_before = "work_commands::land_demands_red_before_for_a_defect_fix"
+[[events]]
+event = "closed"
+slice = "s-anti-vacuous-evidence"
+at = "2026-10-01T09:46:19Z"
