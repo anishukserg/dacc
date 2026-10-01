@@ -337,3 +337,7 @@ tree = "ff5e41bbd2578508ae04d3a90844dd2aaef875db"
 event = "closed"
 slice = "s-typed-prose"
 at = "2026-10-01T08:29:40Z"
+[[events]]
+event = "closed"
+slice = "s-equivalents"
+at = "2026-10-01T08:29:43Z"
