@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "dacc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-access",
  "dacc-core",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "dacc-access"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dacc-core",
@@ -41,25 +41,25 @@ dependencies = [
 
 [[package]]
 name = "dacc-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-journal",
 ]
 
 [[package]]
 name = "dacc-core"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "dacc-derive"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-core",
 ]
 
 [[package]]
 name = "dacc-doc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dacc-access",
@@ -71,14 +71,14 @@ dependencies = [
 
 [[package]]
 name = "dacc-journal"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-core",
 ]
 
 [[package]]
 name = "dacc-knowledge"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dacc-core",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "dacc-scan"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-core",
  "dacc-journal",
@@ -97,7 +97,7 @@ dependencies = [
 
 [[package]]
 name = "dacc-work"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-core",
  "dacc-derive",
@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "demo-doc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dacc-core",
@@ -115,7 +115,7 @@ dependencies = [
 
 [[package]]
 name = "demo-product"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dacc-derive",
 ]
