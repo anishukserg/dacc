@@ -1118,3 +1118,7 @@ tree = "4216690fe83695f7507e0ca74897a65db12ba099"
 event = "closed"
 slice = "s-release-0-5-0"
 at = "2026-10-02T13:51:16Z"
+[[events]]
+event = "started"
+work = "w-close-obligation"
+at = "2026-10-02T15:12:16Z"
