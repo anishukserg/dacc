@@ -1114,3 +1114,7 @@ work = "w-release-0-5-0"
 at = "2026-10-02T13:41:48Z"
 commit = "9658a7cb5595ea3d751abfc577aa399411120677"
 tree = "4216690fe83695f7507e0ca74897a65db12ba099"
+[[events]]
+event = "closed"
+slice = "s-release-0-5-0"
+at = "2026-10-02T13:51:16Z"
