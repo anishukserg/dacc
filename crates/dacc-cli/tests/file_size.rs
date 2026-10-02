@@ -1,9 +1,11 @@
 //! Бюджет размера файла исходника (работа w-file-size-gate, решение 40).
 //!
-//! Ратчет миграции: известный долг назван и заморожен в [`BASELINE`],
-//! блокируется только его рост. Файл сверх бюджета без записи — отказ; файл из
-//! записи, вернувшийся в бюджет, требует убрать запись — baseline только
-//! уменьшается, и только отдельным решением, видным в этом списке.
+//! Ратчет миграции: известный долг назван и заморожен в [`BASELINE`] в точном
+//! размере (работа w-ratchet-tight). Файл сверх бюджета без записи — отказ;
+//! изменившийся размер долга — отказ с требованием обновить заморозку явным
+//! решением: уменьшение фиксируется явно, возврат к замороженному размеру
+//! невозможен, и запись файла, вернувшегося в бюджет, убирается отдельным
+//! решением.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,8 +64,54 @@ fn lines(path: &Path) -> usize {
         .unwrap_or(0)
 }
 
+/// Правило ратчета: файл из baseline держит точную заморозку — изменившийся
+/// размер требует явного обновления записи, и только файл вне записи обязан
+/// укладываться в бюджет.
+fn within_budget(relative: &str, size: usize) -> Result<(), String> {
+    match BASELINE.iter().find(|(name, _)| *name == relative) {
+        Some((_, frozen)) if size == *frozen => {
+            if size > BUDGET {
+                Ok(())
+            } else {
+                Err(format!(
+                    "запись baseline устарела: {relative} вернулся в бюджет — уберите запись отдельным решением"
+                ))
+            }
+        }
+        Some((_, frozen)) => Err(format!(
+            "размер долга изменился молча: {relative} {size} != {frozen} — обновите заморозку явным решением"
+        )),
+        None if size <= BUDGET => Ok(()),
+        None => Err(format!(
+            "файл сверх бюджета: {relative} {size} > {BUDGET} — разберите на модули или внесите в BASELINE отдельным решением"
+        )),
+    }
+}
+
+/// Люфт заморозки закрыт (работа w-ratchet-tight): уменьшение долга требует
+/// явного обновления записи, и возврат к замороженному размеру после
+/// уменьшения невозможен.
+#[test]
+fn baseline_slack_is_a_violation() {
+    let name = "crates/dacc-cli/src/work.rs";
+    let frozen = BASELINE
+        .iter()
+        .find(|(entry, _)| *entry == name)
+        .map(|(_, size)| *size)
+        .expect("work.rs назван в baseline");
+    assert!(within_budget(name, frozen).is_ok(), "заморозка держится");
+    assert!(
+        within_budget(name, frozen - 1).is_err(),
+        "уменьшение без обновления заморозки — отказ"
+    );
+    assert!(
+        within_budget(name, frozen + 1).is_err(),
+        "рост сверх заморозки — отказ"
+    );
+}
+
 /// Каждый файл исходника держит бюджет строки: сверх бюджета — только названный
-/// и замороженный долг, и он не растёт.
+/// и замороженный в точном размере долг.
 #[test]
 fn every_source_file_stays_within_the_size_budget() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -78,21 +126,8 @@ fn every_source_file_stays_within_the_size_budget() {
             .join("/");
         seen.push(relative.clone());
         let size = lines(&path);
-        match BASELINE.iter().find(|(name, _)| *name == relative) {
-            Some((_, frozen)) => {
-                assert!(
-                    size <= *frozen,
-                    "рост известного долга: {relative} {size} > {frozen} — разберите на модули"
-                );
-                assert!(
-                    size > BUDGET,
-                    "запись baseline устарела: {relative} вернулся в бюджет — уберите запись отдельным решением"
-                );
-            }
-            None => assert!(
-                size <= BUDGET,
-                "файл сверх бюджета: {relative} {size} > {BUDGET} — разберите на модули или внесите в BASELINE отдельным решением"
-            ),
+        if let Err(problem) = within_budget(&relative, size) {
+            panic!("{problem}");
         }
     }
     for (name, _) in BASELINE {
