@@ -946,3 +946,7 @@ anti_vacuum = "every_source_file_stays_within_the_size_budget"
 event = "closed"
 slice = "s-access-modules"
 at = "2026-10-02T09:34:25Z"
+[[events]]
+event = "closed"
+slice = "s-agent-task-model"
+at = "2026-10-02T09:34:27Z"
