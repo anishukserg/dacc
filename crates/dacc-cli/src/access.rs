@@ -677,35 +677,52 @@ fn ls(args: &[OsString]) -> Result<u8, Refusal> {
                 "xml is supported by map and where",
             ))
         }
-        Format::Json => {
-            let mut out = String::from("{\"schema\": \"dacc-ls\", \"kind\": ");
-            out.push_str(&json_string(kind_name));
-            out.push_str(", \"records\": [");
-            for (i, (id, status, title)) in records.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&format!(
-                    "{{\"id\": {}, \"status\": {}, \"title\": {}}}",
-                    json_string(id),
-                    json_string(status),
-                    json_string(title)
-                ));
-            }
-            out.push_str("], \"truncated\": false}\n");
-            println!("{out}");
-        }
-        Format::Text => {
-            if records.is_empty() {
-                println!("no records of kind {kind_name}");
-            } else {
-                for (id, status, title) in &records {
-                    println!("{id}  {status}  {title}");
-                }
-            }
-        }
+        Format::Json => println!("{}", ls_json(kind_name, &records)),
+        Format::Text => print!("{}", cap_text(&ls_text(kind_name, &records), MAP_LIMIT)),
     }
     Ok(0)
+}
+
+/// Перечень машинным форматом: усечение до сериализации — записи добавляются
+/// до потолка MAP_LIMIT, и поле truncated соответствует усечению, называя
+/// показанное и полное число (работа w-access-answers).
+fn ls_json(kind_name: &str, records: &[(String, String, String)]) -> String {
+    let mut out = String::from("{\"schema\": \"dacc-ls\", \"kind\": ");
+    out.push_str(&json_string(kind_name));
+    out.push_str(", \"records\": [");
+    let total = records.len();
+    let mut shown = 0;
+    for (index, (id, status, title)) in records.iter().enumerate() {
+        let entry = format!(
+            "{}{{\"id\": {}, \"status\": {}, \"title\": {}}}",
+            if index > 0 { ", " } else { "" },
+            json_string(id),
+            json_string(status),
+            json_string(title)
+        );
+        if out.len() + entry.len() + 64 > MAP_LIMIT {
+            break;
+        }
+        out.push_str(&entry);
+        shown += 1;
+    }
+    out.push_str(&format!(
+        "], \"shown\": {shown}, \"total\": {total}, \"truncated\": {}}}\n",
+        shown < total
+    ));
+    out
+}
+
+/// Перечень текстом в порядке записей; потолок ответа держит cap_text.
+fn ls_text(kind_name: &str, records: &[(String, String, String)]) -> String {
+    if records.is_empty() {
+        return format!("no records of kind {kind_name}\n");
+    }
+    let mut out = String::new();
+    for (id, status, title) in records {
+        out.push_str(&format!("{id}  {status}  {title}\n"));
+    }
+    out
 }
 
 fn show(args: &[OsString]) -> Result<u8, Refusal> {
@@ -949,10 +966,13 @@ struct Document {
     title: String,
 }
 
-/// Идентификаторы `doc_anchor(id = "…")` файла.
+/// Идентификаторы `doc_anchor(id = "…")` файла. Комментарий разметки не
+/// несёт: снятие идёт до поиска, и `doc_anchor` в тексте документа не
+/// выдаётся за якорь кода (работа w-access-answers).
 fn anchors_in(text: &str) -> Vec<String> {
+    let text = crate::work::strip_comments(text);
     let mut out = Vec::new();
-    let mut rest = text;
+    let mut rest = text.as_str();
     while let Some(at) = rest.find("doc_anchor(") {
         let end = rest[at..]
             .find(")]")
@@ -1137,7 +1157,7 @@ fn scan_format(args: &[OsString]) -> Result<Format, Refusal> {
         if flag != "--format" {
             return Err(usage(
                 code::USAGE,
-                "map [--format json] — unknown argument {flag}",
+                format!("map [--format json] — unknown argument {flag}"),
             ));
         }
         let value = words
@@ -1227,7 +1247,7 @@ fn render_text(
         works.len()
     ));
     let mut stages: Vec<String> = Vec::new();
-    for state in ["planned", "started", "landed", "abandoned"] {
+    for state in crate::work::STAGE_TEXTS {
         let count = works.iter().filter(|work| work.state == state).count();
         if count > 0 {
             stages.push(format!("{state} {count}"));
@@ -1497,5 +1517,73 @@ mod tests {
             answer.contains("internal postcondition violated"),
             "{answer}"
         );
+    }
+
+    fn work(id: &str, state: &str) -> Work {
+        Work {
+            id: id.to_owned(),
+            title: format!("Работа {id}"),
+            slice: None,
+            taxon: None,
+            radius: None,
+            state: state.to_owned(),
+        }
+    }
+
+    /// Счётчик карты ведёт каждую стадию свёртки, включая landed from
+    /// history: пропущенная стадия краснеет (работа w-access-answers).
+    #[test]
+    fn map_counters_name_every_stage() {
+        let works: Vec<Work> = crate::work::STAGE_TEXTS
+            .iter()
+            .enumerate()
+            .map(|(index, stage)| work(&format!("w-{index:03}"), stage))
+            .collect();
+        let text = render_text(&[], &[], &works, 0, 0);
+        for stage in crate::work::STAGE_TEXTS {
+            assert!(text.contains(&format!("{stage} 1")), "{text}");
+        }
+        assert!(text.contains("works: 5"), "{text}");
+    }
+
+    /// Ошибка разбора аргументов называет сам аргумент, а не литерал шаблона.
+    #[test]
+    fn map_error_names_the_argument() {
+        let args = vec![OsString::from("--bogus")];
+        let refusal = scan_format(&args).expect_err("отказ ожидается");
+        assert!(refusal.reason().contains("--bogus"), "{}", refusal.reason());
+    }
+
+    /// Поле truncated перечня соответствует усечению: показанное и полное
+    /// число названы явно, и потолок ответа держится.
+    #[test]
+    fn ls_truncation_is_truthful() {
+        let records: Vec<(String, String, String)> = (0..400)
+            .map(|index| {
+                (
+                    format!("w-{index:04}"),
+                    "planned".to_owned(),
+                    format!("Работа {index}"),
+                )
+            })
+            .collect();
+        let out = ls_json("work", &records);
+        assert!(out.len() <= MAP_LIMIT + 64, "{}", out.len());
+        assert!(out.contains("\"truncated\": true"), "{out}");
+        assert!(out.contains("\"total\": 400"), "{out}");
+        assert!(out.contains("w-0000"), "{out}");
+        assert!(!out.contains("w-0399"), "{out}");
+        let small = ls_json("work", &records[..1]);
+        assert!(
+            small.contains("\"shown\": 1, \"total\": 1, \"truncated\": false"),
+            "{small}"
+        );
+    }
+
+    /// Разметка читается из кода: doc_anchor в комментарии — не якорь.
+    #[test]
+    fn where_ignores_comments_in_markup() {
+        let text = "/// Пример: doc_anchor(id = \"fake-001\")\n#[doc_anchor(id = \"real-001\")]\npub struct S;\n";
+        assert_eq!(anchors_in(text), vec!["real-001".to_owned()]);
     }
 }

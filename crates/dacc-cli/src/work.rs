@@ -104,15 +104,13 @@ fn metrics() -> Result<u8, Refusal> {
     let root = &context.repo.root;
 
     // Коммиты с основанием: трейлер Dacc-Work / Dacc-Slice в тексте коммита.
+    // Считаются коммиты, а не строки трейлеров: коммит с двумя трейлерами
+    // несёт одно основание (работа w-access-answers).
     let total = git::read(root, &["rev-list", "--count", "HEAD"])
         .and_then(|out| out.trim().parse::<usize>().ok())
         .unwrap_or(0);
-    let with_basis = git::read(root, &["log", "--format=%s%n%b"])
-        .map(|log| {
-            log.lines()
-                .filter(|line| line.starts_with("Dacc-Work:") || line.starts_with("Dacc-Slice:"))
-                .count()
-        })
+    let with_basis = git::read(root, &["log", "--format=%x1e%H%n%B"])
+        .map(|log| basis_commits(&log))
         .unwrap_or(0);
 
     // Стадии работ и радиусы из плана.
@@ -161,6 +159,18 @@ fn metrics() -> Result<u8, Refusal> {
         kinds[0], kinds[1], kinds[2], kinds[3], kinds[4]
     );
     Ok(0)
+}
+
+/// Число коммитов, несущих основание: запись с трейлером Dacc-Work или
+/// Dacc-Slice. Коммит с двумя трейлерами считается один раз.
+fn basis_commits(log: &str) -> usize {
+    log.split('\x1e')
+        .filter(|record| {
+            record
+                .lines()
+                .any(|line| line.starts_with("Dacc-Work:") || line.starts_with("Dacc-Slice:"))
+        })
+        .count()
 }
 
 /// Индекс стадии в счётчике работ: planned, started, landed, from history,
@@ -941,7 +951,7 @@ pub(crate) fn record_fields(text: &str) -> Vec<(String, String)> {
 
 /// Текст записи без комментариев: снятие идёт по лексике, строковые литералы
 /// не трогаются — значение не спрятать в комментарий.
-fn strip_comments(text: &str) -> String {
+pub(crate) fn strip_comments(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::new();
     let mut i = 0;
@@ -1254,14 +1264,19 @@ pub(crate) fn work_number(id: &str) -> Result<String, Refusal> {
     }
 }
 
+/// Тексты стадий в порядке автомата — единственный источник текста стадии:
+/// ответы слоя доступа и счётчики перечисляют стадии отсюда, и пропущенная
+/// стадия видна тестом (работа w-access-answers).
+pub(crate) const STAGE_TEXTS: [&str; 5] = [
+    "planned",
+    "started",
+    "landed",
+    "landed from history",
+    "abandoned",
+];
+
 pub(crate) fn stage_text(stage: Stage) -> &'static str {
-    match stage {
-        Stage::Planned => "planned",
-        Stage::Started => "started",
-        Stage::Landed => "landed",
-        Stage::LandedFromHistory => "landed from history",
-        Stage::Abandoned => "abandoned",
-    }
+    STAGE_TEXTS[stage_index(stage)]
 }
 
 fn short(hash: &str) -> &str {
@@ -1404,6 +1419,32 @@ mod tests {
         assert_eq!(stage_index(Stage::Abandoned), 4);
         assert_eq!(kind_index(&Kind::Started), 0);
         assert_eq!(kind_index(&Kind::Closed), 4);
+    }
+
+    /// Метрика считает коммиты с основанием, а не строки трейлеров: коммит с
+    /// двумя трейлерами несёт одно основание (работа w-access-answers).
+    #[test]
+    fn metrics_counts_commits_not_trailers() {
+        let log = concat!(
+            "\u{1e}abc\n[FEAT](cli): x\n\nDacc-Work: w-001\nDacc-Slice: s-001\n",
+            "\u{1e}def\n[FEAT](cli): y\n\nDacc-Work: w-002\n",
+            "\u{1e}ghi\n[FEAT](cli): z\n"
+        );
+        assert_eq!(basis_commits(log), 2);
+    }
+
+    /// Тексты стадий — полный перечень автомата, и stage_text берёт их отсюда.
+    #[test]
+    fn stage_texts_cover_every_stage() {
+        for stage in [
+            Stage::Planned,
+            Stage::Started,
+            Stage::Landed,
+            Stage::LandedFromHistory,
+            Stage::Abandoned,
+        ] {
+            assert_eq!(stage_text(stage), STAGE_TEXTS[stage_index(stage)]);
+        }
     }
 
     /// Запись upgrade! читает from/to/subject/how из текста файла.

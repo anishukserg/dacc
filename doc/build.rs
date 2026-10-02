@@ -12,7 +12,10 @@ fn main() {
         println!("cargo::error=dacc: {error}");
         std::process::exit(1);
     }
-    if let Err(error) = dacc_scan::emit_anchors(&[sources.as_path()], &out) {
+    // Разметка живёт и в тестах инструмента: инвариант требует якорь на
+    // исполняемый тест, а тесты ответов гоняют бинарь из сценариев.
+    let tests = manifest.parent().unwrap().join("crates/dacc-cli/tests");
+    if let Err(error) = dacc_scan::emit_anchors(&[sources.as_path(), tests.as_path()], &out) {
         println!("cargo::error=dacc: {error}");
         std::process::exit(1);
     }

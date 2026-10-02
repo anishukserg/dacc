@@ -454,3 +454,44 @@ fn xml_output_cannot_carry_forbidden_control_characters() {
     );
     assert!(xml.stdout.contains("w-4001"), "{}", xml.output());
 }
+
+/// Инвариант i-access-answers исполняется, а не заявлен (работа
+/// w-access-answers): сумма счётчиков стадий карты равна числу работ, и
+/// пропущенная стадия не остаётся незамеченной.
+#[dacc_derive::doc_anchor(id = "access-answers-enforced")]
+#[test]
+fn access_answers_enforced() {
+    let repo = registry_repo("access-answers-enforced");
+
+    let run = repo.tool(&["map"]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    let counters = run
+        .stdout
+        .lines()
+        .find(|line| line.starts_with("works by state: "))
+        .expect("счётчики стадий в карте");
+    let sum: usize = counters
+        .trim_start_matches("works by state: ")
+        .split(", ")
+        .filter_map(|entry| entry.split_whitespace().nth(1))
+        .filter_map(|count| count.parse::<usize>().ok())
+        .sum();
+    let totals = run
+        .stdout
+        .lines()
+        .find(|line| line.starts_with("thrusts: "))
+        .expect("счётчики карты");
+    let works: usize = totals
+        .rsplit("works: ")
+        .next()
+        .expect("число работ названо")
+        .trim()
+        .parse()
+        .expect("число работ числом");
+    assert_eq!(
+        sum,
+        works,
+        "счётчики стадий ведут все работы карты: {}",
+        run.output()
+    );
+}

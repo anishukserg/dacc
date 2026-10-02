@@ -140,6 +140,7 @@ pub enum InquiryOutcome {
 
 /// Состояние единицы работы — свёртка журнала (инвариант 3, решение 15), а не
 /// поле записи: порождается при сборке реестра из событий.
+#[dacc_derive::doc_anchor(id = "work-state-from-fold")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkState {
     /// Событий нет.
