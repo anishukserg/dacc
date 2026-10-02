@@ -84,11 +84,22 @@ pub(crate) fn strip_comments(text: &str) -> String {
                 i += 1;
             }
         } else if c == '/' && chars.get(i + 1) == Some(&'*') {
+            // Блочные комментарии вкладываются: счёт глубины снимает весь
+            // комментарий, а не до первого `*/` (работа
+            // w-record-parsing-hardening).
             i += 2;
-            while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
-                i += 1;
+            let mut depth = 1;
+            while i < chars.len() && depth > 0 {
+                if chars[i] == '/' && chars.get(i + 1) == Some(&'*') {
+                    depth += 1;
+                    i += 2;
+                } else if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
+                    depth -= 1;
+                    i += 2;
+                } else {
+                    i += 1;
+                }
             }
-            i = (i + 2).min(chars.len());
         } else {
             out.push(c);
             i += 1;
@@ -121,13 +132,34 @@ pub(crate) fn field_value<'a>(fields: &'a [(String, String)], key: &str) -> Opti
 }
 
 /// Первый строковый литерал значения — заголовок и строки записи.
+/// Escape-последовательности читаются настоящими символами: `\n` — перевод
+/// строки, `\u{…}` — символ по коду (работа w-record-parsing-hardening).
 pub(crate) fn string_literal(value: &str) -> Option<String> {
     let start = value.find('"')?;
     let mut out = String::new();
     let mut chars = value[start + 1..].chars();
     while let Some(c) = chars.next() {
         match c {
-            '\\' => out.push(chars.next()?),
+            '\\' => match chars.next()? {
+                'n' => out.push('\n'),
+                't' => out.push('\t'),
+                'r' => out.push('\r'),
+                '0' => out.push('\0'),
+                'u' => {
+                    if chars.next()? == '{' {
+                        let mut hex = String::new();
+                        for c in chars.by_ref() {
+                            if c == '}' {
+                                break;
+                            }
+                            hex.push(c);
+                        }
+                        let code = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32);
+                        out.push(code?);
+                    }
+                }
+                other => out.push(other),
+            },
             '"' => return Some(out),
             c => out.push(c),
         }
@@ -169,9 +201,12 @@ pub(crate) fn anchor_list_is_empty(value: &str) -> bool {
     inner.is_empty()
 }
 
-/// Заголовок записи: `title: NonEmptyStr::new("…")` в любой форме записи.
+/// Заголовок записи: `title: NonEmptyStr::new("…")` в любой форме записи; у
+/// записей без поля title (инварианты) заголовком служит statement.
 pub(crate) fn title(text: &str) -> String {
-    field_string(text, "title").unwrap_or_default()
+    field_string(text, "title")
+        .or_else(|| field_string(text, "statement"))
+        .unwrap_or_default()
 }
 
 /// Строковое значение поля записи: `key: NonEmptyStr::new("…")` — значением.
@@ -235,5 +270,32 @@ mod tests {
             Some("Active".to_owned())
         );
         assert_eq!(doc_status("slice!(\"s-001\",),"), None);
+    }
+
+    /// Вложенный блочный комментарий снимается целиком: хвост после первого
+    /// `*/` не читается как код (работа w-record-parsing-hardening).
+    #[test]
+    fn nested_comments_are_stripped_whole() {
+        let text = "work!(\"w-001\",\n    /* /* хвост */ title: NonEmptyStr::new(\"Фальшь\"), */\n    title: NonEmptyStr::new(\"Настоящее\"),\n);";
+        assert_eq!(title(text), "Настоящее");
+    }
+
+    /// Escape-последовательности строки читаются символами, а не буквами
+    /// (работа w-record-parsing-hardening).
+    #[test]
+    fn string_literal_reads_escape_sequences() {
+        assert_eq!(
+            string_literal("NonEmptyStr::new(\"a\\nb\\u{410}\"),"),
+            Some("a\nb\u{410}".to_owned())
+        );
+    }
+
+    /// Запись без поля title показывает statement (работа
+    /// w-record-parsing-hardening).
+    #[test]
+    fn title_falls_back_to_the_statement() {
+        let text =
+            "invariant!(\"i-001\",\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n);";
+        assert_eq!(title(text), "инвариант держится");
     }
 }

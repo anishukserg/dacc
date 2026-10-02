@@ -33,8 +33,9 @@ pub(super) fn run(args: &[OsString]) -> Result<u8, Refusal> {
                 .root
                 .join(format!("{}/{}", context.repo.config.doc, dir)),
         ) {
+            let clean = record::strip_comments(&record);
             let referenced = anchors.iter().any(|anchor| {
-                record.contains(&format!("[{anchor}]")) || record.contains(&anchor_ident(anchor))
+                clean.contains(&format!("[{anchor}]")) || clean.contains(&anchor_ident(anchor))
             });
             if referenced {
                 documents.push(Document {
@@ -47,13 +48,7 @@ pub(super) fn run(args: &[OsString]) -> Result<u8, Refusal> {
     }
     let mut works = Vec::new();
     for (id, text) in records(&context.repo.root.join(context.repo.config.work_dir())) {
-        let referenced = documents
-            .iter()
-            .any(|document| text.contains(&document.id.replace('-', "_")))
-            || anchors
-                .iter()
-                .any(|anchor| text.contains(&anchor_ident(anchor)));
-        if referenced {
+        if references(&text, &documents, &anchors) {
             let parsed = Record::parse(&text);
             works.push(Work {
                 state: stage_text(context.journal.stage(&id)).to_owned(),
@@ -112,6 +107,19 @@ fn anchors_in(text: &str) -> Vec<String> {
 /// Идентификатор якоря в ссылках Rust: `plan-ir` → `anchor::plan_ir`.
 fn anchor_ident(anchor: &str) -> String {
     format!("anchor::{}", anchor.replace('-', "_"))
+}
+
+/// Связь записи работ с документами и якорями: ищется по тексту без
+/// комментариев — упоминание в комментарии не связывает записи (работа
+/// w-record-parsing-hardening).
+fn references(text: &str, documents: &[Document], anchors: &[String]) -> bool {
+    let clean = record::strip_comments(text);
+    documents
+        .iter()
+        .any(|document| clean.contains(&document.id.replace('-', "_")))
+        || anchors
+            .iter()
+            .any(|anchor| clean.contains(&anchor_ident(anchor)))
 }
 
 fn where_text(file: &str, anchors: &[String], documents: &[Document], works: &[Work]) -> String {
@@ -221,5 +229,20 @@ mod tests {
     fn where_ignores_comments_in_markup() {
         let text = "/// Пример: doc_anchor(id = \"fake-001\")\n#[doc_anchor(id = \"real-001\")]\npub struct S;\n";
         assert_eq!(anchors_in(text), vec!["real-001".to_owned()]);
+    }
+
+    /// Упоминание документа в комментарии работы — не связь (работа
+    /// w-record-parsing-hardening).
+    #[test]
+    fn where_ignores_comments_in_references() {
+        let documents = vec![Document {
+            id: "s-001".to_owned(),
+            kind: "slice".to_owned(),
+            title: "Срез".to_owned(),
+        }];
+        let commented = "work!(\"w-001\",\n    // ссылка на crate::slice::s_001 в комментарии\n    title: NonEmptyStr::new(\"Работа\"),\n);";
+        assert!(!references(commented, &documents, &[]));
+        let linked = "work!(\"w-001\",\n    slice: crate::slice::s_001,\n);";
+        assert!(references(linked, &documents, &[]));
     }
 }

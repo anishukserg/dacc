@@ -170,7 +170,7 @@ pub(super) fn refs(args: &[OsString]) -> Result<u8, Refusal> {
     let mut incoming: Vec<(String, String)> = Vec::new();
     for (kind, record_id, record_text) in &entries {
         if *record_id != id
-            && record_text.contains(&format!("::{ident}"))
+            && mentions(record_text, &format!("::{ident}"))
             && !incoming.iter().any(|(_, hit)| hit == record_id)
         {
             incoming.push((kind.clone(), record_id.clone()));
@@ -226,6 +226,12 @@ pub(super) fn refs(args: &[OsString]) -> Result<u8, Refusal> {
         }
     }
     Ok(0)
+}
+
+/// Вхождение в тексте записи без комментариев: упоминание в комментарии не
+/// связывает записи (работа w-record-parsing-hardening).
+fn mentions(text: &str, needle: &str) -> bool {
+    record::strip_comments(text).contains(needle)
 }
 
 /// Ссылки вида `crate::модуль::идентификатор` в тексте записи.

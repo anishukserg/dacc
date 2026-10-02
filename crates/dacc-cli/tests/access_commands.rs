@@ -82,7 +82,10 @@ fn where_reports_the_place_and_its_documents() {
         "src/lib.rs",
         "#[doc_anchor(id = \"plan-ir\")]\npub struct PlanIr;\n",
     );
-    repo.write("doc/adr/adr-002.rs", "adr!(); // проза [plan-ir]\n");
+    repo.write(
+        "doc/adr/adr-002.rs",
+        "adr!(context: r\"проза решения со ссылкой [plan-ir]\",\n);\n",
+    );
     repo.write(
         "doc/work/w-002.rs",
         "dacc_work::work!(\"w-002\",\n    title: NonEmptyStr::new(\"Вторая работа\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Decision(crate::adr::adr_002),\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход второй работы.\"),\n);\n",
