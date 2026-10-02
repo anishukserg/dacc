@@ -45,6 +45,7 @@ version = "0.4.0"
 dependencies = [
  "dacc-derive",
  "dacc-journal",
+ "dacc-scan",
 ]
 
 [[package]]
@@ -90,6 +91,7 @@ name = "dacc-scan"
 version = "0.4.0"
 dependencies = [
  "dacc-core",
+ "dacc-derive",
  "dacc-journal",
  "proc-macro2",
  "quote",

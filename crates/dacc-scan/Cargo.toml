@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 dacc-core = { workspace = true }
+dacc-derive = { workspace = true }
 dacc-journal = { workspace = true }
 syn = { workspace = true }
 proc-macro2 = { workspace = true }
