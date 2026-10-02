@@ -1206,3 +1206,7 @@ at = "2026-10-02T17:57:13Z"
 commit = "cf5a43a13186141e19a20d19849337c33c8d8107"
 tree = "b8f8c30baa1f745f84773939c45dea2b0e5d284c"
 red_before = "revert_subject_is_checked_as_the_subject_it_reverts"
+[[events]]
+event = "started"
+work = "w-tool-version-check"
+at = "2026-10-02T17:59:10Z"
