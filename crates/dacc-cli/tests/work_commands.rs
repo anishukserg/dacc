@@ -446,6 +446,67 @@ fn red_before_names_a_test_that_exists() {
     assert_ok(&repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_red"]));
 }
 
+/// RedBefore доказывает тест, а не имя функции (работа w-red-before-test):
+/// имя совпадает точно, и на функции стоит атрибут теста — обычная функция и
+/// префикс имени отказываются кодом red-before-unknown.
+#[test]
+fn red_before_proves_a_test_not_a_function_name() {
+    let repo = planned_repo("work-red-before-attribute");
+    repo.write(
+        "doc/work/w-003.rs",
+        "dacc_work::work!(\"w-003\",\n    title: NonEmptyStr::new(\"Починка расхождения\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Divergence { specification: crate::rfc::rfc_001, limitation: crate::limitation::l_001 },\n    taxon: taxon!(Subsystem, Cli),\n    radius: BlastRadius::Local,\n    outcome: NonEmptyStr::new(\"Исход починки.\"),\n);\n",
+    );
+    // Обычная функция без атрибута теста и тест с именем-продолжением.
+    repo.write(
+        "tests/probe.rs",
+        "#[allow(dead_code)]\nfn probe_was_red() {}\n\n#[test]\nfn probe_was_red_helper() {}\n",
+    );
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[FIX](cli): починка с функцией",
+        "-m",
+        "Dacc-Work: w-003",
+    ]);
+
+    // Обычная функция — не тест: имя есть, атрибута нет.
+    let refused = repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_red"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(
+        refused.verdict().contains("red-before-unknown"),
+        "{}",
+        refused.output()
+    );
+
+    // Префикс имени не принимается за имя теста.
+    let refused = repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_re"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(
+        refused.verdict().contains("red-before-unknown"),
+        "{}",
+        refused.output()
+    );
+
+    // Тест с атрибутом и точным именем приземляет работу.
+    repo.write(
+        "tests/probe.rs",
+        "#[test]\nfn probe_was_red() {}\n\n#[test]\nfn probe_was_red_helper() {}\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[FIX](cli): тест на месте",
+        "-m",
+        "Dacc-Work: w-003",
+    ]);
+    assert_ok(&repo.tool(&["work", "land", "w-003", "--red-before", "probe_was_red"]));
+}
+
 /// Enforced требует якоря на исполняемый тест (работа w-enforced-needs-tests):
 /// статус без тестового якоря — заявление, а не доказательство.
 #[test]

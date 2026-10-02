@@ -99,6 +99,66 @@ pub fn verdict(common_dir: &Path, hash: &str) -> Option<String> {
     text.lines().nth(1).map(str::to_owned)
 }
 
+/// RedBefore доказывает тест дерева (работа w-red-before-test): имя функции
+/// совпадает точно — `fn <name>(` — и над функцией стоит атрибут, в имени
+/// которого есть test (`#[test]`, `#[tokio::test]`, `#[rstest]`). Обычная
+/// функция и префикс имени доказательством не считаются.
+pub fn red_before_is_a_test(root: &Path, commit: &str, name: &str) -> bool {
+    let hits = git::read(
+        root,
+        &[
+            "grep",
+            "-l",
+            "-e",
+            &format!("fn {name}("),
+            commit,
+            "--",
+            "*.rs",
+        ],
+    )
+    .unwrap_or_default();
+    // git grep по ревизии префиксует каждый путь её именем — снимается оно.
+    let prefix = format!("{commit}:");
+    for hit in hits.lines().map(str::trim).filter(|hit| !hit.is_empty()) {
+        let file = hit.strip_prefix(&prefix).unwrap_or(hit);
+        let Some(text) = git::read(root, &["show", &format!("{commit}:{file}")]) else {
+            continue;
+        };
+        if fn_has_test_attribute(&text, name) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Функция `fn <name>(` в тексте несёт атрибут с test непосредственно над ней:
+/// блок атрибутов и doc-комментарии над функцией просматриваются сверху вниз,
+/// первый не-атрибут заканчивает просмотр.
+fn fn_has_test_attribute(text: &str, name: &str) -> bool {
+    let signature = format!("fn {name}(");
+    let lines: Vec<&str> = text.lines().collect();
+    for (index, line) in lines.iter().enumerate() {
+        if !line.trim_start().starts_with(&signature) {
+            continue;
+        }
+        let mut cursor = index;
+        while cursor > 0 {
+            cursor -= 1;
+            let trimmed = lines[cursor].trim();
+            if trimmed.is_empty() || trimmed.starts_with("///") {
+                continue;
+            }
+            if !trimmed.starts_with("#[") {
+                break;
+            }
+            if trimmed.contains("test") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn hash_stdin(root: &Path, text: &str) -> Option<String> {
     run_with_input(root, &["hash-object", "--stdin"], text).map(|out| out.trim().to_owned())
 }

@@ -495,25 +495,14 @@ fn land(id: &str, flags: &[&str], trailers: &[String]) -> Result<u8, Refusal> {
             ),
         ));
     }
-    // RedBefore называет существующий тест дерева (работа w-red-before-exists):
-    // вымышленное имя отвергается, а калитка исполняет названные тесты дерева.
+    // RedBefore доказывает тест дерева (работы w-red-before-exists и
+    // w-red-before-test): точное имя функции и атрибут теста; вымышленное имя,
+    // обычная функция и префикс имени отвергаются, калитка исполняет названные
+    // тесты дерева.
     for proof in &proofs {
         if let Proof::RedBefore(subject) = proof {
             let name = subject.rsplit("::").next().unwrap_or(subject);
-            let found = git::read(
-                &context.repo.root,
-                &[
-                    "grep",
-                    "-l",
-                    "-e",
-                    &format!("fn {name}"),
-                    &commit,
-                    "--",
-                    "*.rs",
-                ],
-            )
-            .is_some_and(|hits| !hits.trim().is_empty());
-            if !found {
+            if !proof::red_before_is_a_test(&context.repo.root, &commit, name) {
                 return Err(refused(
                     code::RED_BEFORE_UNKNOWN,
                     format!("RedBefore names no test of the commit tree: {subject}"),
