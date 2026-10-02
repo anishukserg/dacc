@@ -34,7 +34,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 
-const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | land <w-slug> [--commit <revision>] [--red-before <subject>] [--mutation-proof <subject>] [--anti-vacuum <subject>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
+const WORK_USAGE: &str = "work start <w-slug> | new <w-slug> --slice … --origin … | next [--format json] | land <w-slug> [--commit <revision>] [--red-before <subject>] [--mutation-proof <subject>] [--anti-vacuum <subject>] | drop <w-slug> --reason <reason> | state [<w-slug>]";
 
 const SLICE_USAGE: &str = "slice close <s-slug>";
 
@@ -63,6 +63,7 @@ pub fn run_work(args: &[OsString]) -> u8 {
             .as_slice()
         {
             ["start", id] => start(id, &trailers),
+            ["next"] => crate::work_next::next(format),
             ["land", id, rest @ ..] => land(id, rest, &trailers),
             ["drop", id, "--reason", reason] => abandon(id, reason, &trailers),
             ["state"] => state(None, format),
@@ -933,7 +934,7 @@ impl Record {
     }
 
     /// Область темы коммита — подсистема работы.
-    fn area(&self, id: &str) -> Result<&str, Refusal> {
+    pub(crate) fn area(&self, id: &str) -> Result<&str, Refusal> {
         self.area.as_deref().ok_or_else(|| {
             refused(
                 code::SUBSYSTEM_NOT_READ,
@@ -1146,7 +1147,7 @@ fn full_gate_verdict(repo: &git::Repo, commit: &str) -> Result<GateVerdict, Stri
 
 /// Сообщение коммита события: тема, тело, трейлер основания и добавленные
 /// трейлеры.
-fn message(subject: &str, body: &str, basis: &str, trailers: &[String]) -> String {
+pub(crate) fn message(subject: &str, body: &str, basis: &str, trailers: &[String]) -> String {
     let mut text = format!("{subject}\n\n{body}\n\n{basis}\n");
     for trailer in trailers {
         text.push_str(trailer);
@@ -1156,11 +1157,13 @@ fn message(subject: &str, body: &str, basis: &str, trailers: &[String]) -> Strin
 }
 
 /// Дописывает события в одну запись журнала `journal.toml` и коммитит ровно её
-/// (решение 43). Если коммит не создан, дописанное откатывается: событие без
-/// коммита — не история.
-fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Result<u8, Refusal> {
-    // Межпроцессный лок записи (работа w-journal-lock): параллельный процесс
-    // получает отказ с кодом причины, а не теряет событие в гонке за журнал.
+/// (решение 43). Решение о событиях принимается под межпроцессным локом по
+/// свежей свёртке: параллельный процесс получает отказ с кодом причины, а не
+/// теряет событие в гонке за журнал (работы w-journal-lock и w-work-next).
+pub(crate) fn record_and_commit_under_lock(
+    repo: &git::Repo,
+    decide: impl FnOnce() -> Result<(Vec<Event>, String), Refusal>,
+) -> Result<u8, Refusal> {
     let _lock = crate::commit::Lock::acquire(
         &repo.git_dir.join(layout::JOURNAL_LOCK),
         std::time::Duration::ZERO,
@@ -1171,12 +1174,28 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
             format!("journal write is locked: {problem}"),
         )
     })?;
+    let (events, message) = decide()?;
     let file = repo.root.join(repo.config.journal_file());
+    // Событие сверяется со свёрткой под локом: переход поверх нарушения или
+    // гонки двух процессов отвергается до записи.
+    let mut all = journal_events(repo);
+    let start = all.len();
+    all.extend(events);
+    let (_, violations) = fold(&all, &[], &[]);
+    if let Some(violation) = violations.into_iter().next() {
+        return Err(refused(
+            code::JOURNAL_NOT_FOLD,
+            format!(
+                "event does not fit the journal: {}: {}",
+                violation.file, violation.reason
+            ),
+        ));
+    }
     // Append-only: прежняя версия записи — префикс новой, поэтому читаем текущую
     // и дописываем события таблицами [[events]].
     let previous = fs::read_to_string(&file).unwrap_or_default();
     let mut text = previous.clone();
-    for event in &events {
+    for event in &all[start..] {
         text.push_str(&event.to_table());
     }
     if let Err(error) = fs::write(&file, &text) {
@@ -1186,7 +1205,7 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
         ));
     }
     let message_file = repo.git_dir.join(layout::JOURNAL_MESSAGE);
-    if let Err(error) = fs::write(&message_file, message) {
+    if let Err(error) = fs::write(&message_file, &message) {
         let _ = fs::write(&file, previous);
         return Err(usage(
             code::COMMIT_MESSAGE_NOT_WRITTEN,
@@ -1209,6 +1228,28 @@ fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Res
         let _ = fs::write(&file, previous);
     }
     Ok(code)
+}
+
+/// События журнала рабочего дерева: одна запись и прежний каталог вместе.
+fn journal_events(repo: &git::Repo) -> Vec<Event> {
+    let mut events = Vec::new();
+    let file = repo.root.join(repo.config.journal_file());
+    let dir = repo.root.join(repo.config.journal_dir());
+    if let Ok((file_events, _)) = dacc_journal::read_file(&file) {
+        events.extend(file_events);
+    }
+    if dir.is_dir() {
+        if let Ok((dir_events, _)) = dacc_journal::read_dir(&dir) {
+            events.extend(dir_events);
+        }
+    }
+    events
+}
+
+/// Дописывает готовые события и коммитит их под локом записи журнала.
+fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Result<u8, Refusal> {
+    let message = message.to_owned();
+    record_and_commit_under_lock(repo, move || Ok((events, message)))
 }
 
 #[cfg(test)]

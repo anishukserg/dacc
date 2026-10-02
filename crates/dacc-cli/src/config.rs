@@ -55,6 +55,9 @@ pub struct Config {
     pub subject_imported: String,
     /// Пол числа прошедших атакующих doctest: ниже него калитка отказывает.
     pub doctest_floor: usize,
+    /// WIP-лимит задачной модели (работа w-work-next): сколько работ может
+    /// быть взято в работу одновременно.
+    pub wip_limit: usize,
     /// Команда проекта, выполняемая шагом калитки; `None` — шага нет.
     pub gate_command: Option<Vec<String>>,
     /// Команда проекта, проверяющая форму темы; `None` — форму проверяет сам
@@ -80,6 +83,7 @@ impl Default for Config {
             subject_slice_closed: "[PLAN]({scope}): slice {id} closed".to_owned(),
             subject_imported: "[PLAN]({scope}): journal restored from history".to_owned(),
             doctest_floor: 20,
+            wip_limit: 1,
             gate_command: None,
             message_command: None,
         }
@@ -176,6 +180,16 @@ impl Config {
                     config.doctest_floor = value.parse().map_err(|_| {
                         format!("key `{key}` takes a number of passed doctests, not `{value}`; a valid entry is `20`")
                     })?;
+                }
+                "wip_limit" => {
+                    config.wip_limit = value.parse().map_err(|_| {
+                        format!("key `{key}` takes a number of works in flight, not `{value}`; a valid entry is `1`")
+                    })?;
+                    if config.wip_limit == 0 {
+                        return Err(format!(
+                            "key `{key}` takes a number above zero, not `{value}`; a valid entry is `1`"
+                        ));
+                    }
                 }
                 "gate_command" => config.gate_command = Some(command(key, value)?),
                 "message_command" => config.message_command = Some(command(key, value)?),
@@ -293,11 +307,13 @@ mod tests {
             "commit_rules = \"docs/COMMITS.md\"\n",
             "subject_started = \"[CHANGE]({scope}): started {id}\"\n",
             "doctest_floor = \"5\"\n",
+            "wip_limit = \"3\"\n",
             "gate_command = \"make  check --all\"\n",
             "message_command = \"scripts/commit-msg\"\n",
         ))
         .expect("настройка разобрана");
         assert_eq!(config.doctest_floor, 5);
+        assert_eq!(config.wip_limit, 3);
         // Команда разбивается по пробелам: первое слово — программа, остальные —
         // аргументы; оболочки нет.
         assert_eq!(
@@ -359,6 +375,14 @@ mod tests {
                 "`{` without `}`",
             ),
             ("[table]\n", "line 1: the flat TOML subset"),
+            (
+                "wip_limit = \"много\"\n",
+                "key `wip_limit` takes a number of works in flight",
+            ),
+            (
+                "wip_limit = \"0\"\n",
+                "key `wip_limit` takes a number above zero",
+            ),
         ] {
             let problem = Config::parse(text).expect_err(text);
             assert!(problem.contains(expected), "{text}: {problem}");
@@ -372,6 +396,7 @@ mod tests {
         for (text, valid) in [
             ("subject_limit = \"много\"\n", "a valid entry is `72`"),
             ("doctest_floor = \"половина\"\n", "a valid entry is `20`"),
+            ("wip_limit = \"много\"\n", "a valid entry is `1`"),
         ] {
             let problem = Config::parse(text).expect_err(text);
             assert!(problem.contains(valid), "{text}: {problem}");

@@ -57,6 +57,9 @@ fn directives(config: &crate::config::Config) -> String {
          \x20 for sources only.\n\n\
          ## Rituals\n\n\
          - Every change has a basis in the plan: a work item with an origin.\n\
+         - `cargo dacc work next [--format json]` admits the next task under the\n\
+         \x20 journal lock and writes its `started` event; the `wip_limit` setting\n\
+         \x20 refuses overflow with the `wip-limit` code.\n\
          - Commits go through `cargo dacc commit -F <message-file> -- <paths>`: the\n\
          \x20 subject is `[TYPE](scope): summary`, and the trailer is\n\
          \x20 `Dacc-Work: w-slug`.\n\

@@ -7,7 +7,7 @@
 //! cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
 //! cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
 //! cargo dacc hooks install [--force]
-//! cargo dacc work start | land | drop | state …
+//! cargo dacc work start | next | land | drop | state …
 //! cargo dacc slice close <s-slug>
 //! cargo dacc journal hash [<revision>] | import --work <w-slug> [--close-finished-slices]
 //! ```
@@ -36,6 +36,7 @@ mod proof;
 mod record;
 mod work;
 mod work_new;
+mod work_next;
 
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -57,7 +58,7 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
   cargo dacc gate [--repo <directory>] [--journal-only] [<tree>]
   cargo dacc hook pre-commit | commit-msg <message> | pre-push <remote> <url>
   cargo dacc hooks install [--force]
-  cargo dacc work start <w-slug> | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]
+  cargo dacc work start <w-slug> | next [--format json] | land <w-slug> [--commit <revision>] | drop <w-slug> --reason <reason> | state [<w-slug>]
   cargo dacc slice close <s-slug>
   cargo dacc journal hash [<revision>]
   cargo dacc journal import --work <w-slug> [--close-finished-slices]

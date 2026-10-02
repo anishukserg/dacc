@@ -59,6 +59,8 @@ pub const NOT_WORK_ID: Code = "not-work-id";
 pub const EVENT_NOT_WRITTEN: Code = "event-not-written";
 pub const COMMIT_MESSAGE_NOT_WRITTEN: Code = "commit-message-not-written";
 pub const NOTHING_TO_IMPORT: Code = "nothing-to-import";
+pub const WIP_LIMIT: Code = "wip-limit";
+pub const NOTHING_TO_TAKE: Code = "nothing-to-take";
 pub const USAGE: Code = "usage";
 
 // Проверка сообщения.
@@ -177,6 +179,8 @@ pub const ALL: &[(&str, &str)] = &[
         "work: the commit message cannot be written",
     ),
     (NOTHING_TO_IMPORT, "journal import: nothing to import"),
+    (WIP_LIMIT, "work next: the WIP limit is reached"),
+    (NOTHING_TO_TAKE, "work next: no admissible work"),
     (USAGE, "work: invalid arguments"),
     (
         SUBJECT_FORM,
