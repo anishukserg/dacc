@@ -1162,3 +1162,7 @@ at = "2026-10-02T16:51:03Z"
 commit = "505a273a8e373ddf2d84fe8d93cbeed5ecc740c4"
 tree = "7a88e9f869178e6de6b738229e3e314d40f566d7"
 red_before = "import_refuses_to_guess_and_names_the_candidates"
+[[events]]
+event = "started"
+work = "w-red-before-test"
+at = "2026-10-02T16:52:03Z"
