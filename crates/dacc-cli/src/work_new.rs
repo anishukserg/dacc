@@ -56,6 +56,7 @@ struct OriginArgs {
 pub fn work_new(words: &[String]) -> Result<u8, crate::work::Refusal> {
     let spec = WorkSpec::parse(words)?;
     let context = crate::work::Context::open()?;
+    crate::work::ensure_no_drift(&context.repo)?;
     let path = context
         .repo
         .root

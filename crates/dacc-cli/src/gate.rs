@@ -465,6 +465,15 @@ impl Gate {
         // правка настройки в рабочей копии меняла бы вердикт для чужого дерева
         // (решение 20).
         let config = Config::read_dir(&tree).map_err(start_fail)?;
+        // Сверка версии инструмента с деревом (ADR-2026-048, работа
+        // w-tool-version-check): расхождение — отказ до шагов.
+        if let Some(problem) = crate::version::drift(&tree) {
+            return Err(Fail {
+                step: problem,
+                refusal: code::TOOL_VERSION_DRIFT,
+                exit_code: 2,
+            });
+        }
         let target = repo.root.join(layout::GATE_TARGET);
         fs::create_dir_all(&target)
             .map_err(|_| start_fail(format!("cannot create {}", target.display())))?;

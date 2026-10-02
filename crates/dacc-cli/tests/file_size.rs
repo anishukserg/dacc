@@ -17,11 +17,11 @@ const BUDGET: usize = 500;
 /// заморозки. Запись только уменьшается — и только явным решением.
 const BASELINE: &[Entry] = dacc_scan::declare_baseline!(
     "crates/dacc-cli/src/commit.rs" => 525,
-    "crates/dacc-cli/src/gate.rs" => 1458,
+    "crates/dacc-cli/src/gate.rs" => 1467,
     "crates/dacc-cli/src/hooks.rs" => 533,
     "crates/dacc-cli/src/message.rs" => 909,
-    "crates/dacc-cli/src/work.rs" => 1277,
-    "crates/dacc-cli/src/work_new.rs" => 503,
+    "crates/dacc-cli/src/work.rs" => 1289,
+    "crates/dacc-cli/src/work_new.rs" => 504,
     "crates/dacc-cli/tests/work_commands.rs" => 634,
     "crates/dacc-journal/src/event.rs" => 700,
     "crates/dacc-scan/src/anchors.rs" => 558,

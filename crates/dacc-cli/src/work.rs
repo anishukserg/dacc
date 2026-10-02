@@ -1088,10 +1088,21 @@ const JOURNAL_LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(5)
 /// (решение 43). Решение о событиях принимается под межпроцессным локом по
 /// свежей свёртке: параллельный процесс получает отказ с кодом причины, а не
 /// теряет событие в гонке за журнал (работы w-journal-lock и w-work-next).
+/// Сверка версии инструмента с деревом перед записью (ADR-2026-048, работа
+/// w-tool-version-check): расхождение — отказ мутирующей команды до события.
+/// Read-only команды слоя доступа сверку не проходят и не отказывают.
+pub(crate) fn ensure_no_drift(repo: &git::Repo) -> Result<(), Refusal> {
+    match crate::version::drift(&repo.root) {
+        Some(problem) => Err(refused(code::TOOL_VERSION_DRIFT, problem)),
+        None => Ok(()),
+    }
+}
+
 pub(crate) fn record_and_commit_under_lock(
     repo: &git::Repo,
     decide: impl FnOnce() -> Result<(Vec<Event>, String), Refusal>,
 ) -> Result<u8, Refusal> {
+    ensure_no_drift(repo)?;
     let _lock =
         crate::commit::Lock::acquire(&repo.git_dir.join(layout::JOURNAL_LOCK), JOURNAL_LOCK_WAIT)
             .map_err(|problem| {
@@ -1194,6 +1205,7 @@ pub(crate) fn record_and_commit(
     events: Vec<Event>,
     message: &str,
 ) -> Result<u8, Refusal> {
+    ensure_no_drift(repo)?;
     let message = message.to_owned();
     record_and_commit_under_lock(repo, move || Ok((events, message)))
 }

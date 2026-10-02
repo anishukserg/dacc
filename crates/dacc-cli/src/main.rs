@@ -35,6 +35,7 @@ mod layout;
 mod message;
 mod proof;
 mod record;
+mod version;
 mod work;
 mod work_new;
 mod work_next;

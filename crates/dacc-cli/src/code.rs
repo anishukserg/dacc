@@ -50,6 +50,7 @@ pub const PROOF_REPEATED: Code = "proof-kind-repeated";
 pub const IMPORT_UNATTESTED: Code = "import-unattested";
 pub const IMPORT_NO_COMMIT: Code = "import-no-commit";
 pub const IMPORT_BASIS: Code = "import-basis";
+pub const TOOL_VERSION_DRIFT: Code = "tool-version-drift";
 pub const SLICE_ID: Code = "not-slice-id";
 pub const SLICE_NO_WORKS: Code = "slice-has-no-works";
 pub const SLICE_ALREADY_CLOSED: Code = "slice-already-closed";
@@ -169,6 +170,10 @@ pub const ALL: &[(&str, &str)] = &[
     (
         OBLIGATION_NOT_REDEEMED,
         "slice close: an obligation of the slice's works is not redeemed",
+    ),
+    (
+        TOOL_VERSION_DRIFT,
+        "the tool and the tree pin different dacc-work versions",
     ),
     (JOURNAL_NOT_READ, "work: the journal cannot be read"),
     (JOURNAL_NOT_FOLD, "work: the journal does not fold"),
