@@ -49,6 +49,7 @@
   - [adr-2026-045 — Инвариант — отдельный тип invariant! со статусом](decisions/adr-2026-045.md)
   - [adr-2026-046 — Независимое чтение — отдельный тип review!](decisions/adr-2026-046.md)
   - [adr-2026-047 — Handoff-протокол независимого чтения вердикта](decisions/adr-2026-047.md)
+  - [adr-2026-048 — Сверка версии инструмента с деревом](decisions/adr-2026-048.md)
 - [Specifications](specifications/README.md)
   - [rfc-2026-001 — Слой знания](specifications/rfc-2026-001.md)
   - [rfc-2026-002 — Слой работы](specifications/rfc-2026-002.md)
