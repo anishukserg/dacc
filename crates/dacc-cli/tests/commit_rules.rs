@@ -48,6 +48,46 @@ fn commit(repo: &TempRepo, message: &str, extra: &[&str], paths: &[&str]) -> Run
     repo.tool(&args)
 }
 
+/// Revert проходит форму темы как отменяемая тема (работа w-revert-subject):
+/// git пишет Revert "…", обёртка не мешает проверке внутренней темы — тип,
+/// область, точка и предел длины берутся от неё, вложенная обёртка
+/// разворачивается, тема без формы внутри отказывается.
+#[test]
+fn revert_subject_is_checked_as_the_subject_it_reverts() {
+    let repo = planned_repo("revert-subject");
+    repo.write("new.txt", "new\n");
+    let run = commit(
+        &repo,
+        "Revert \"[FEAT](cli): новый файл\"\n\nThis reverts commit deadbeef.\n\nDacc-Work: w-001\n",
+        &[],
+        &["new.txt"],
+    );
+    assert_eq!(run.code, 0, "{}", run.output());
+
+    repo.write("other.txt", "other\n");
+    let run = commit(
+        &repo,
+        "Revert \"Revert \"[FEAT](cli): новый файл\"\"\n\nThis reverts commit deadbeef.\n\nDacc-Work: w-001\n",
+        &[],
+        &["other.txt"],
+    );
+    assert_eq!(run.code, 0, "{}", run.output());
+
+    repo.write("third.txt", "third\n");
+    let run = commit(
+        &repo,
+        "Revert \"fix: без формы\"\n\nThis reverts commit deadbeef.\n\nDacc-Work: w-001\n",
+        &[],
+        &["third.txt"],
+    );
+    assert_eq!(run.code, 4, "{}", run.output());
+    assert!(
+        run.output().contains("subject is not in the form"),
+        "{}",
+        run.output()
+    );
+}
+
 #[test]
 fn malformed_message_is_refused_before_commit() {
     let repo = planned_repo("malformed-message");

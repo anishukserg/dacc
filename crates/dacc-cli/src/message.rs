@@ -544,7 +544,11 @@ fn subject_problems(
     config: &Config,
     errors: &mut Vec<Problem>,
 ) {
-    match parse_subject(subject) {
+    // Revert "…" проверяется как тема, которую он отменяет (работа
+    // w-revert-subject): обёртка git не мешает форме.
+    let unwrapped = unwrap_revert(subject);
+    let checked = unwrapped.as_str();
+    match parse_subject(checked) {
         Some((kind, subject_scopes, summary)) => {
             if !config.commit_types.iter().any(|known| known == kind) {
                 errors.push(Problem {
@@ -572,7 +576,7 @@ fn subject_problems(
                     text: "subject ends with a period".to_owned(),
                 });
             }
-            let length = subject.chars().count();
+            let length = checked.chars().count();
             if length > config.subject_limit {
                 errors.push(Problem {
                     code: code::SUBJECT_TOO_LONG,
@@ -621,6 +625,19 @@ fn trailer_ids<'a>(
         .collect()
 }
 
+/// Обёртка git-отмены `Revert "…"` и вложенные обёртки снимаются: проверяется
+/// внутренняя тема — та, которую отменяет этот коммит (работа w-revert-subject).
+fn unwrap_revert(subject: &str) -> String {
+    let mut current = subject.trim().to_owned();
+    while let Some(rest) = current
+        .strip_prefix("Revert \"")
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        current = rest.replace("\\\"", "\"").trim().to_owned();
+    }
+    current
+}
+
 /// Тип, области и суть темы `[ТИП](область): суть`; `None` — тема не по форме.
 fn parse_subject(subject: &str) -> Option<(&str, &str, &str)> {
     let rest = subject.strip_prefix('[')?;
@@ -657,6 +674,25 @@ mod tests {
 
     fn planned(path: &str) -> bool {
         path == "doc/work/w-001.rs" || path == "doc/slice/s-001.rs"
+    }
+
+    /// Обёртка `Revert "…"` снимается до внутренней темы, включая вложенные
+    /// обёртки и экранированные кавычки (работа w-revert-subject).
+    #[test]
+    fn revert_unwraps_to_the_subject_it_reverts() {
+        assert_eq!(
+            unwrap_revert("Revert \"[FIX](cli): починка\""),
+            "[FIX](cli): починка"
+        );
+        assert_eq!(
+            unwrap_revert("Revert \"Revert \"[FEAT](work): изменение\"\""),
+            "[FEAT](work): изменение"
+        );
+        assert_eq!(
+            unwrap_revert("Revert \"Revert \\\"[FEAT](work): изменение\\\"\""),
+            "[FEAT](work): изменение"
+        );
+        assert_eq!(unwrap_revert("[FIX](cli): починка"), "[FIX](cli): починка");
     }
 
     /// `--format` читается в любом месте; позиционные аргументы остаются на
