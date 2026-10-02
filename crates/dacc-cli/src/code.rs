@@ -51,6 +51,7 @@ pub const SLICE_ID: Code = "not-slice-id";
 pub const SLICE_NO_WORKS: Code = "slice-has-no-works";
 pub const SLICE_ALREADY_CLOSED: Code = "slice-already-closed";
 pub const SLICE_UNFINISHED: Code = "slice-unfinished";
+pub const OBLIGATION_NOT_REDEEMED: Code = "obligation-not-redeemed";
 pub const JOURNAL_NOT_READ: Code = "journal-not-read";
 pub const JOURNAL_NOT_FOLD: Code = "journal-not-folding";
 pub const PLAN_NOT_READ: Code = "plan-not-read";
@@ -162,6 +163,10 @@ pub const ALL: &[(&str, &str)] = &[
     (SLICE_NO_WORKS, "slice: the slice has no works"),
     (SLICE_ALREADY_CLOSED, "slice: the slice is already closed"),
     (SLICE_UNFINISHED, "slice: the slice has unfinished works"),
+    (
+        OBLIGATION_NOT_REDEEMED,
+        "slice close: an obligation of the slice's works is not redeemed",
+    ),
     (JOURNAL_NOT_READ, "work: the journal cannot be read"),
     (JOURNAL_NOT_FOLD, "work: the journal does not fold"),
     (PLAN_NOT_READ, "work: the plan cannot be read"),

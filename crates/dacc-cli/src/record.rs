@@ -185,6 +185,16 @@ pub(crate) fn slug_of(value: &str) -> Option<String> {
     last_ident(value).map(|ident| ident.replace('_', "-"))
 }
 
+/// Ссылка на обязательство из происхождения работы (решение 35):
+/// `WorkOrigin::Obligation(crate::obligation::o_fix_x)` — `o-fix-x`.
+pub(crate) fn obligation_ref(value: &str) -> Option<String> {
+    let start = value.find("Obligation(")? + "Obligation(".len();
+    let end = value[start..]
+        .find(')')
+        .map_or(value.len(), |offset| start + offset);
+    slug_of(value[start..end].trim().trim_end_matches(','))
+}
+
 /// Текст без пробелов: сравнение путей и идентификаторов без формы.
 pub(crate) fn flat(text: &str) -> String {
     text.chars().filter(|c| !c.is_whitespace()).collect()
@@ -297,5 +307,23 @@ mod tests {
         let text =
             "invariant!(\"i-001\",\n    statement: NonEmptyStr::new(\"инвариант держится\"),\n);";
         assert_eq!(title(text), "инвариант держится");
+    }
+
+    /// Ссылка на обязательство читается из происхождения, включая переносы и
+    /// хвостовую запятую (работа w-close-obligation).
+    #[test]
+    fn obligation_ref_reads_the_origin() {
+        assert_eq!(
+            obligation_ref("WorkOrigin::Obligation(crate::obligation::o_fix_x)"),
+            Some("o-fix-x".to_owned())
+        );
+        assert_eq!(
+            obligation_ref("WorkOrigin::Obligation(\n        crate::obligation::o_fix_x,\n    )"),
+            Some("o-fix-x".to_owned())
+        );
+        assert_eq!(
+            obligation_ref("WorkOrigin::Divergence { specification: crate::rfc::rfc_001 }"),
+            None
+        );
     }
 }

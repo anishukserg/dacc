@@ -491,6 +491,63 @@ fn slice_close_demands_a_test_anchor_for_enforced() {
     assert_ok(&repo.tool(&["slice", "close", "s-001"]));
 }
 
+/// slice close отказывает, пока обязательство работ среза не погашено
+/// приземлённой работой WorkOrigin::Obligation (решение 35, работа
+/// w-close-obligation): отказ называет обязательство кодом
+/// obligation-not-redeemed, а погашение открывает закрытие.
+#[test]
+fn slice_close_refuses_an_unredeemed_obligation() {
+    let repo = planned_repo("work-obligation-close");
+    repo.write(
+        "doc/obligation/o-001.rs",
+        "dacc_work::obligation!(\"o-001\",\n    title: NonEmptyStr::new(\"Погасить открытый вопрос\"),\n    discharged_when: NonEmptyStr::new(\"когда приземлена работа с WorkOrigin::Obligation\"),\n    criteria: nonempty_str![\"названа мера решения\"],\n);\n",
+    );
+    repo.write(
+        "doc/work/w-003.rs",
+        "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Погашение обязательства\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Obligation(crate::obligation::o_001),\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+    );
+    minimal_crate(&repo);
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): обязательство и крейт",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+    assert_ok(&repo.tool(&["work", "land", "w-001"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-002", "--reason", "замещена"]));
+    assert_ok(&repo.tool(&["work", "drop", "w-003", "--reason", "вопрос отложен"]));
+
+    // Обязательство не погашено: закрытие отказывает и называет его.
+    let refused = repo.tool(&["slice", "close", "s-001"]);
+    assert_eq!(refused.code, 1, "{}", refused.output());
+    assert!(refused.verdict().contains("o-001"), "{}", refused.output());
+    assert!(
+        refused.verdict().contains("obligation-not-redeemed"),
+        "{}",
+        refused.output()
+    );
+
+    // Погашение — приземлённая работа с происхождением WorkOrigin::Obligation.
+    repo.write(
+        "doc/work/w-004.rs",
+        "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Настоящее погашение\"),\n    slice: crate::slice::s-001,\n    origin: WorkOrigin::Obligation(crate::obligation::o_001),\n    taxon: taxon!(Subsystem, Cli),\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): работа погашения",
+        "-m",
+        "Dacc-Work: w-004",
+    ]);
+    assert_ok(&repo.tool(&["work", "land", "w-004"]));
+    assert_ok(&repo.tool(&["slice", "close", "s-001"]));
+}
+
 /// Отказ коммита события откатывает запись журнала целиком: файла нет в
 /// дереве и нет в staged-индексе git, и работа остаётся запланированной
 /// (работа w-journal-transaction).

@@ -23,8 +23,8 @@
 use crate::code::{self, Code};
 use crate::format::{self, Format};
 use crate::record::{
-    anchor_list_is_empty, field_slug, field_string, field_value, flat, last_ident, record_fields,
-    string_literal,
+    anchor_list_is_empty, field_slug, field_string, field_value, flat, last_ident, obligation_ref,
+    record_fields, string_literal,
 };
 use crate::{commit, config, gate, git, hooks, layout, proof};
 use dacc_journal::{
@@ -708,8 +708,9 @@ fn close(id: &str, trailers: &[String]) -> Result<u8, Refusal> {
             format!("slice {id} is already closed by event {file}"),
         ));
     }
-    let works: Vec<(String, Record)> = context
-        .works()?
+    let all = context.works()?;
+    check_obligations(&context, id, &number, &all)?;
+    let works: Vec<(String, Record)> = all
         .into_iter()
         .filter(|(_, work)| work.slice.as_deref() == Some(number.as_str()))
         .collect();
@@ -805,6 +806,63 @@ fn check_contract(context: &Context, id: &str, slice: &Record) -> Result<(), Ref
         ));
     }
     Ok(())
+}
+
+/// Обязательство работ среза погашено приземлённой работой (решение 35, работа
+/// w-close-obligation): закрытие среза с непогашенным отказывает кодом
+/// obligation-not-redeemed и называет обязательство. Читаются обязательства
+/// реестра и происхождения работ; погашение — приземлённая работа любого среза
+/// с происхождением `WorkOrigin::Obligation`.
+fn check_obligations(
+    context: &Context,
+    id: &str,
+    number: &str,
+    works: &[(String, Record)],
+) -> Result<(), Refusal> {
+    let registry = registry_obligations(&context.repo);
+    for (work_id, work) in works {
+        if work.slice.as_deref() != Some(number) {
+            continue;
+        }
+        let Some(obligation) = &work.obligation else {
+            continue;
+        };
+        if !registry.iter().any(|known| known == obligation) {
+            continue;
+        }
+        let redeemed = works.iter().any(|(other, candidate)| {
+            candidate.obligation.as_deref() == Some(obligation.as_str())
+                && matches!(
+                    context.journal.stage(other),
+                    Stage::Landed | Stage::LandedFromHistory
+                )
+        });
+        if !redeemed {
+            return Err(refused(
+                code::OBLIGATION_NOT_REDEEMED,
+                format!(
+                    "slice {id} carries obligation {obligation} of work {work_id}: no landed work with WorkOrigin::Obligation redeems it"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Обязательства реестра: slug записей каталога `obligation` (решение 35).
+fn registry_obligations(repo: &git::Repo) -> Vec<String> {
+    let dir = repo.root.join(format!("{}/obligation", repo.config.doc));
+    let Ok(entries) = fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if let Some(Subject::Obligation(slug)) = name.strip_suffix(".rs").and_then(Subject::parse) {
+            out.push(slug);
+        }
+    }
+    out
 }
 
 /// Репозиторий и свёртка журнала рабочего дерева.
@@ -912,6 +970,9 @@ pub(crate) struct Record {
     /// Происхождение Divergence — расхождение есть дефект: его починка без
     /// RedBefore не приземляется.
     pub(crate) divergence: bool,
+    /// Обязательство происхождения `WorkOrigin::Obligation` — slug записи,
+    /// погашение которой приземляет эта работа (решение 35).
+    pub(crate) obligation: Option<String>,
     /// Спецификация записи: `specification: crate::rfc::X`. У среза — это
     /// спецификация, чей контракт проверяется на закрытии.
     pub(crate) specification: Option<String>,
@@ -939,6 +1000,7 @@ impl Record {
                 .map(|radius| radius.to_lowercase()),
             divergence: field_value(&fields, "origin")
                 .is_some_and(|value| flat(value).contains("Divergence")),
+            obligation: field_value(&fields, "origin").and_then(obligation_ref),
             specification: field_value(&fields, "specification").and_then(last_ident),
         }
     }
