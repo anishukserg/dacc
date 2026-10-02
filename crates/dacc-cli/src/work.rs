@@ -22,6 +22,10 @@
 
 use crate::code::{self, Code};
 use crate::format::{self, Format};
+use crate::record::{
+    anchor_list_is_empty, field_slug, field_string, field_value, flat, last_ident, record_fields,
+    string_literal,
+};
 use crate::{commit, config, gate, git, hooks, layout, proof};
 use dacc_journal::{
     fold, time, Event, Evidence, GateVerdict, Journal, Kind, Proof, Stage, Subject,
@@ -249,10 +253,10 @@ struct UpgradeRecord {
 impl UpgradeRecord {
     fn parse(text: &str) -> Option<UpgradeRecord> {
         Some(UpgradeRecord {
-            from: quoted_after(text, "from: NonEmptyStr::new(")?,
-            to: quoted_after(text, "to: NonEmptyStr::new(")?,
-            subject: quoted_after(text, "subject: NonEmptyStr::new(")?,
-            how: quoted_after(text, "how: NonEmptyStr::new(")?,
+            from: field_string(text, "from")?,
+            to: field_string(text, "to")?,
+            subject: field_string(text, "subject")?,
+            how: field_string(text, "how")?,
         })
     }
 }
@@ -885,164 +889,8 @@ impl Context {
     }
 }
 
-/// Мини-разбор записей реестра значениями полей (работа w-record-parse):
-/// комментарии снимаются по лексике строк, значение читается сбалансированной
-/// группой до запятой верхнего уровня. Форма записи не даёт спрятать значение
-/// в комментарий, перенос строки или мультилайн.
-pub(crate) fn record_fields(text: &str) -> Vec<(String, String)> {
-    let chars: Vec<char> = strip_comments(text).chars().collect();
-    let mut out = Vec::new();
-    let mut i = 0;
-    let mut depth = 0i32;
-    while i < chars.len() {
-        match chars[i] {
-            '"' => i = skip_string(&chars, i),
-            '(' | '[' | '{' => {
-                depth += 1;
-                i += 1;
-            }
-            ')' | ']' | '}' => {
-                depth -= 1;
-                i += 1;
-            }
-            c if depth == 1 && (c.is_ascii_alphabetic() || c == '_') => {
-                let start = i;
-                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
-                    i += 1;
-                }
-                let name: String = chars[start..i].iter().collect();
-                let mut j = i;
-                while j < chars.len() && chars[j].is_whitespace() {
-                    j += 1;
-                }
-                if chars.get(j) != Some(&':') {
-                    continue;
-                }
-                i = j + 1;
-                while i < chars.len() && chars[i].is_whitespace() {
-                    i += 1;
-                }
-                let vstart = i;
-                let mut level = 0i32;
-                while i < chars.len() {
-                    match chars[i] {
-                        '"' => i = skip_string(&chars, i),
-                        '(' | '[' | '{' => {
-                            level += 1;
-                            i += 1;
-                        }
-                        ')' | ']' | '}' if level == 0 => break,
-                        ')' | ']' | '}' => {
-                            level -= 1;
-                            i += 1;
-                        }
-                        ',' if level == 0 => break,
-                        _ => i += 1,
-                    }
-                }
-                let value: String = chars[vstart..i].iter().collect();
-                out.push((name, value.trim().to_owned()));
-            }
-            _ => i += 1,
-        }
-    }
-    out
-}
-
-/// Текст записи без комментариев: снятие идёт по лексике, строковые литералы
-/// не трогаются — значение не спрятать в комментарий.
-pub(crate) fn strip_comments(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut out = String::new();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        if c == '"' {
-            let end = skip_string(&chars, i);
-            out.extend(&chars[i..end]);
-            i = end;
-        } else if c == '/' && chars.get(i + 1) == Some(&'/') {
-            while i < chars.len() && chars[i] != '\n' {
-                i += 1;
-            }
-        } else if c == '/' && chars.get(i + 1) == Some(&'*') {
-            i += 2;
-            while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
-                i += 1;
-            }
-            i = (i + 2).min(chars.len());
-        } else {
-            out.push(c);
-            i += 1;
-        }
-    }
-    out
-}
-
-/// Индекс за закрывающей кавычкой строкового литерала.
-fn skip_string(chars: &[char], start: usize) -> usize {
-    let mut i = start + 1;
-    while i < chars.len() {
-        if chars[i] == '\\' {
-            i += 2;
-        } else if chars[i] == '"' {
-            return i + 1;
-        } else {
-            i += 1;
-        }
-    }
-    i
-}
-
-/// Пустой список якорей `&[]` в любой форме записи.
-fn anchor_list_is_empty(value: &str) -> bool {
-    let flat = flat(value);
-    let list = flat.trim_start_matches('&');
-    let inner = list
-        .strip_prefix('[')
-        .and_then(|rest| rest.strip_suffix(']'))
-        .unwrap_or(list);
-    inner.is_empty()
-}
-
-/// Значение поля записи.
-fn field_value<'a>(fields: &'a [(String, String)], key: &str) -> Option<&'a str> {
-    fields
-        .iter()
-        .find(|(name, _)| name == key)
-        .map(|(_, value)| value.as_str())
-}
-
-/// Текст без пробелов: сравнение путей и идентификаторов без формы.
-fn flat(text: &str) -> String {
-    text.chars().filter(|c| !c.is_whitespace()).collect()
-}
-
-/// Первый строковый литерал значения — заголовок записи.
-fn string_literal(value: &str) -> Option<String> {
-    let start = value.find('"')?;
-    let mut out = String::new();
-    let mut chars = value[start + 1..].chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '\\' => out.push(chars.next()?),
-            '"' => return Some(out),
-            c => out.push(c),
-        }
-    }
-    None
-}
-
-/// Последний сегмент пути `a::b::c` — идентификатор записи.
-fn last_ident(value: &str) -> Option<String> {
-    let ident = value
-        .rsplit("::")
-        .next()?
-        .trim()
-        .trim_end_matches(')')
-        .trim();
-    (!ident.is_empty()).then(|| ident.to_owned())
-}
+// Разбор записей реестра — в модуле `crate::record`: значениями полей, в
+// одном месте на инструмент (работа w-access-split).
 
 /// То, что команды читают из текста файла работы или среза.
 pub(crate) struct Record {
@@ -1065,9 +913,7 @@ impl Record {
             title: field_value(&fields, "title")
                 .and_then(string_literal)
                 .unwrap_or_default(),
-            slice: field_value(&fields, "slice")
-                .and_then(last_ident)
-                .map(|slug| slug.replace('_', "-")),
+            slice: field_slug(text, "slice"),
             area: field_value(&fields, "taxon").map(|value| {
                 value
                     .rsplit_once(',')
@@ -1233,24 +1079,6 @@ fn listed(items: &[String]) -> String {
     } else {
         items.join(", ")
     }
-}
-
-/// Строка в кавычках после `marker`; между маркером и кавычкой допустимы
-/// пробелы и переводы строк.
-pub(crate) fn quoted_after(text: &str, marker: &str) -> Option<String> {
-    let rest = text[text.find(marker)? + marker.len()..]
-        .trim_start()
-        .strip_prefix('"')?;
-    let mut out = String::new();
-    let mut chars = rest.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '\\' => out.push(chars.next()?),
-            '"' => return Some(out),
-            c => out.push(c),
-        }
-    }
-    None
 }
 
 /// Номер работы из `w-slug`.

@@ -33,6 +33,7 @@ mod journal;
 mod layout;
 mod message;
 mod proof;
+mod record;
 mod work;
 mod work_new;
 
