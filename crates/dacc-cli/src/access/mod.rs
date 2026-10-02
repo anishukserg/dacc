@@ -97,9 +97,10 @@ fn peek_format(args: &[OsString]) -> Format {
     format
 }
 
-/// Завершение команды слоя доступа: в json законный отказ несёт поле
-/// legitimate и отличается от сбоя (RFC-0003).
-fn finish_json(format: Format, outcome: Result<u8, Refusal>) -> u8 {
+/// Завершение команды: в json законный отказ несёт поле legitimate и
+/// отличается от сбоя (RFC-0003). Общий контракт отказа для всех команд
+/// инструмента (работа w-machine-refusals).
+pub(crate) fn finish_json(format: Format, outcome: Result<u8, Refusal>) -> u8 {
     match outcome {
         Ok(code) => code,
         Err(refusal) if format == Format::Json => {

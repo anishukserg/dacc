@@ -143,3 +143,77 @@ fn no_admissible_work_is_refused_by_code() {
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(run.stdout.contains("nothing-to-take"), "{}", run.output());
 }
+
+/// Отказ отвечает машиночитаемо и в json: dacc-error с полем legitimate, а не
+/// текст WORK REFUSED (работа w-machine-refusals).
+#[test]
+fn work_refusals_answer_json() {
+    let repo = planned_repo("next-refusal-json");
+    repo.tool(&["work", "drop", "w-001", "--reason", "не нужна"]);
+    repo.tool(&["work", "drop", "w-002", "--reason", "не нужна"]);
+
+    let run = repo.tool(&["work", "next", "--format", "json"]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(
+        run.stdout.contains("\"schema\": \"dacc-error\""),
+        "{}",
+        run.output()
+    );
+    assert!(
+        run.stdout.contains("\"legitimate\": true"),
+        "{}",
+        run.output()
+    );
+    assert!(run.stdout.contains("nothing-to-take"), "{}", run.output());
+
+    let missing = repo.tool(&["work", "start", "w-999", "--format", "json"]);
+    assert_eq!(missing.code, 1, "{}", missing.output());
+    assert!(
+        missing.stdout.contains("\"legitimate\": true"),
+        "{}",
+        missing.output()
+    );
+}
+
+/// Допуск пропускает дефектную запись без таксона и берёт следующую: одна
+/// испорченная запись не ставит всю очередь (работа w-machine-refusals).
+#[test]
+fn admission_skips_a_record_without_taxon() {
+    let repo = planned_repo("next-broken-record");
+    repo.write(
+        "doc/work/w-001.rs",
+        "dacc_work::work!(1,\n    title: NonEmptyStr::new(\"Первая работа\"),\n    slice: crate::slice::s-001,\n);\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "-m",
+        "[CHORE](cli): запись без таксона",
+        "-m",
+        "Dacc-Work: w-001",
+    ]);
+
+    let run = repo.tool(&["work", "next"]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    assert!(run.stdout.contains("work w-002 taken"), "{}", run.output());
+}
+
+/// xml отвергается везде, кроме map и where: код причины format-invalid, как
+/// и в слое доступа (работа w-machine-refusals).
+#[test]
+fn xml_is_refused_outside_map_and_where() {
+    let repo = planned_repo("next-xml");
+    for args in [
+        vec!["work", "next", "--format", "xml"],
+        vec!["work", "state", "--format", "xml"],
+    ] {
+        let run = repo.tool(&args);
+        assert_eq!(run.code, 2, "{args:?}: {}", run.output());
+        assert!(
+            run.stdout.contains("format-invalid"),
+            "{args:?}: {}",
+            run.output()
+        );
+    }
+}

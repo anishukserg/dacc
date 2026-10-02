@@ -13,13 +13,13 @@ use std::ffi::OsString;
 const CONTRACT: &[(&str, &str, &str, bool)] = &[
     (
         "map",
-        "map [--format json]",
+        "map [--format json|xml]",
         "read-only: the registry tree and the journal fold",
         false,
     ),
     (
         "where",
-        "where --file <path> [--format json]",
+        "where --file <path> [--format json|xml]",
         "read-only: one file and the registry",
         false,
     ),

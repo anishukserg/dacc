@@ -40,7 +40,8 @@ const SLICE_USAGE: &str = "slice close <s-slug>";
 
 /// `cargo dacc work …`.
 pub fn run_work(args: &[OsString]) -> u8 {
-    finish(words(args).and_then(|(words, trailers)| {
+    let format = format::scan(args);
+    let outcome = words(args).and_then(|(words, trailers)| {
         // `--format` относится только к `state`: извлекается из любого места.
         let mut format = Format::Text;
         let mut rest = Vec::new();
@@ -74,12 +75,14 @@ pub fn run_work(args: &[OsString]) -> u8 {
             }
             _ => Err(usage(code::USAGE, WORK_USAGE)),
         }
-    }))
+    });
+    crate::access::finish_json(format, outcome)
 }
 
 /// `cargo dacc slice …`.
 pub fn run_slice(args: &[OsString]) -> u8 {
-    finish(words(args).and_then(|(words, trailers)| {
+    let format = format::scan(args);
+    let outcome = words(args).and_then(|(words, trailers)| {
         match words
             .iter()
             .map(String::as_str)
@@ -89,7 +92,8 @@ pub fn run_slice(args: &[OsString]) -> u8 {
             ["close", id] => close(id, &trailers),
             _ => Err(usage(code::USAGE, SLICE_USAGE)),
         }
-    }))
+    });
+    crate::access::finish_json(format, outcome)
 }
 
 /// `cargo dacc metrics` (решение 44): счётчики пилота одной командой — коммиты
@@ -628,7 +632,13 @@ fn state(id: Option<&str>, format: Format) -> Result<u8, Refusal> {
         .filter(|(n, _)| selected.as_ref().is_none_or(|selected| selected == n))
         .collect();
     match format {
-        Format::Text | Format::Xml => {
+        Format::Xml => {
+            return Err(usage(
+                code::FORMAT_CHOICE,
+                "xml is supported by map and where",
+            ))
+        }
+        Format::Text => {
             for (number, work) in filtered {
                 let slice = work.slice.clone().unwrap_or_else(|| "s????".to_owned());
                 println!(

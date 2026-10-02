@@ -18,7 +18,7 @@ const BASELINE: &[(&str, usize)] = &[
     ("crates/dacc-cli/src/gate.rs", 1458),
     ("crates/dacc-cli/src/hooks.rs", 533),
     ("crates/dacc-cli/src/message.rs", 873),
-    ("crates/dacc-cli/src/work.rs", 1331),
+    ("crates/dacc-cli/src/work.rs", 1341),
     ("crates/dacc-cli/src/work_new.rs", 503),
     ("crates/dacc-journal/src/event.rs", 700),
     ("crates/dacc-scan/src/anchors.rs", 558),

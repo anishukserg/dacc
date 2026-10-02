@@ -9,12 +9,21 @@
 use crate::code;
 use crate::config;
 use crate::format::Format;
-use crate::work::{message, record_and_commit_under_lock, refused, stage_text, Context, Refusal};
+use crate::work::{
+    message, record_and_commit_under_lock, refused, stage_text, usage, Context, Refusal,
+};
 use dacc_journal::{time, Event, Kind, Stage, Subject};
 use std::cell::Cell;
 
 /// `cargo dacc work next [--format json]` — допуск следующей задачи.
 pub(crate) fn next(format: Format) -> Result<u8, Refusal> {
+    // xml поддержан map и where — как в слое доступа (работа w-machine-refusals).
+    if format == Format::Xml {
+        return Err(usage(
+            code::FORMAT_CHOICE,
+            "xml is supported by map and where",
+        ));
+    }
     // Ранний отказ вне лока: журнал, который не сворачивается, не
     // допускает задач.
     let context = Context::open()?;
@@ -37,8 +46,12 @@ pub(crate) fn next(format: Format) -> Result<u8, Refusal> {
                 ),
             ));
         }
+        // Допуск пропускает дефектную запись без таксона и берёт следующую:
+        // одна испорченная запись не ставит всю очередь (работа
+        // w-machine-refusals).
         let candidate = works.iter().find(|(number, work)| {
             context.journal.stage(number) == Stage::Planned
+                && work.area.is_some()
                 && work
                     .slice
                     .as_deref()
@@ -47,7 +60,7 @@ pub(crate) fn next(format: Format) -> Result<u8, Refusal> {
         let Some((number, work)) = candidate else {
             return Err(refused(
                 code::NOTHING_TO_TAKE,
-                "no admissible work: the plan is empty or every planned work belongs to a closed slice",
+                "no admissible work: every planned work is finished, belongs to a closed slice, or its record has no taxon subsystem",
             ));
         };
         let id = number.clone();

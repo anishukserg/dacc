@@ -25,9 +25,9 @@ struct Slice {
 }
 
 pub(super) fn run(args: &[OsString]) -> Result<u8, Refusal> {
-    let scan = scan_args(args, "map [--format json]")?;
+    let scan = scan_args(args, "map [--format json|xml]")?;
     if scan.position.is_some() || scan.status.is_some() || scan.file.is_some() || scan.check {
-        return Err(usage(code::USAGE, "map [--format json]"));
+        return Err(usage(code::USAGE, "map [--format json|xml]"));
     }
     let context = Context::open()?;
     let root = &context.repo.root;

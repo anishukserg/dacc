@@ -45,8 +45,8 @@ const USAGE: &str = "cargo dacc — commit rules and the DACC journal (decisions
 
   cargo dacc commit -F <message> [--log <file>] [--timeout <seconds>] -- <paths…>
   cargo dacc msg-check [--form-only] <message> | --range <range>
-  cargo dacc map [--format json]
-  cargo dacc where --file <path> [--format json]
+  cargo dacc map [--format json|xml]
+  cargo dacc where --file <path> [--format json|xml]
   cargo dacc emit all [--check]
   cargo dacc ls <kind> [--status <status>] [--format json]
   cargo dacc show <id> [--format json]
