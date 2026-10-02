@@ -1,7 +1,8 @@
-//! Сценарии импорта истории в журнал (решение 15): работа с коммитом по
-//! трейлеру приземляется из истории, работа без коммита остаётся
-//! запланированной, основание импорта не импортируется, а срез, все работы
-//! которого завершены, закрывается по флагу.
+//! Сценарии импорта истории в журнал (решение 15, работа
+//! w-import-attestation): импорт не угадывает — каждое приземление из истории
+//! подтверждает человек аргументом `--land <work>` или `--land <work>=<commit>`;
+//! без подтверждения команда отказывает и называет кандидатов, а история до
+//! трейлеров восстанавливается только названным коммитом.
 
 mod common;
 
@@ -57,9 +58,33 @@ fn history_repo(name: &str) -> TempRepo {
     repo
 }
 
+fn state_of(repo: &TempRepo) -> String {
+    repo.tool(&["work", "state"]).stdout
+}
+
+/// Без `--land` импорт не приземляет ничего: он отказывает и называет
+/// кандидатов — работы с коммитами по их трейлерам.
 #[test]
-fn history_lands_traced_works_and_closes_finished_slices() {
-    let repo = history_repo("journal-import");
+fn import_refuses_to_guess_and_names_the_candidates() {
+    let repo = history_repo("import-no-guess");
+
+    let run = repo.tool(&["journal", "import", "--work", "w-003"]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(run.verdict().contains("does not guess"), "{}", run.output());
+    assert!(run.verdict().contains("w-001"), "{}", run.output());
+    assert!(!run.verdict().contains("w-003"), "{}", run.output());
+
+    let state = state_of(&repo);
+    assert!(state.contains("w-001  planned"), "{state}");
+    assert!(state.contains("w-002  planned"), "{state}");
+}
+
+/// Подтверждённое приземление записывается по коммиту с трейлером, основание
+/// импорта не импортируется, а срез с завершёнными работами закрывается по
+/// флагу.
+#[test]
+fn import_attests_each_landing_explicitly() {
+    let repo = history_repo("import-attested");
     let first = repo
         .git(&["rev-list", "--max-parents=0", "HEAD"])
         .trim()
@@ -70,12 +95,14 @@ fn history_lands_traced_works_and_closes_finished_slices() {
         "import",
         "--work",
         "w-003",
+        "--land",
+        "w-001",
         "--close-finished-slices",
     ]);
     assert_eq!(run.code, 0, "{}", run.output());
     assert!(run.verdict().starts_with("COMMIT OK "), "{}", run.output());
 
-    let state = repo.tool(&["work", "state"]).stdout;
+    let state = state_of(&repo);
     assert!(state.contains("w-001  landed from history"), "{state}");
     assert!(state.contains("w-002  planned"), "{state}");
     assert!(
@@ -96,7 +123,12 @@ fn history_lands_traced_works_and_closes_finished_slices() {
         journal.contains(&first),
         "приземление не на коммите с трейлером: {journal}"
     );
+    assert!(
+        journal.contains("evidence = \"history\""),
+        "подтверждённое приземление не помечено историей: {journal}"
+    );
 
+    // Второй импорт без подтверждений не находит кандидатов и отказывает.
     let run = repo.tool(&["journal", "import", "--work", "w-003"]);
     assert_eq!(run.code, 1, "{}", run.output());
     assert!(
@@ -104,4 +136,63 @@ fn history_lands_traced_works_and_closes_finished_slices() {
         "{}",
         run.output()
     );
+}
+
+/// История до трейлеров восстанавливается только названным коммитом:
+/// `--land <work>=<commit>` приземляет работу на нём, а несуществующий коммит
+/// отказывает.
+#[test]
+fn import_attests_pre_trailer_history_by_named_commit() {
+    let repo = history_repo("import-pre-trailer");
+    let first = repo
+        .git(&["rev-list", "--max-parents=0", "HEAD"])
+        .trim()
+        .to_owned();
+
+    let run = repo.tool(&[
+        "journal",
+        "import",
+        "--work",
+        "w-003",
+        "--land",
+        &format!("w-002={first}"),
+    ]);
+    assert_eq!(run.code, 0, "{}", run.output());
+    let state = state_of(&repo);
+    assert!(state.contains("w-002  landed from history"), "{state}");
+    assert!(state.contains("w-001  planned"), "не подтверждено: {state}");
+
+    let run = repo.tool(&[
+        "journal",
+        "import",
+        "--work",
+        "w-003",
+        "--land",
+        "w-001=not-a-commit",
+    ]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(
+        run.verdict().contains("is not a commit"),
+        "{}",
+        run.output()
+    );
+}
+
+/// Основание импорта не приземляется своим же импортом, а работа без коммита
+/// по трейлеру требует назвать коммит явно.
+#[test]
+fn import_refuses_the_basis_and_an_untraced_work() {
+    let repo = history_repo("import-basis");
+
+    let run = repo.tool(&["journal", "import", "--work", "w-003", "--land", "w-003"]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(
+        run.verdict().contains("cannot attest its own landing"),
+        "{}",
+        run.output()
+    );
+
+    let run = repo.tool(&["journal", "import", "--work", "w-003", "--land", "w-002"]);
+    assert_eq!(run.code, 1, "{}", run.output());
+    assert!(run.verdict().contains("w-002=<commit>"), "{}", run.output());
 }

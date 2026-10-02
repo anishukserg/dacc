@@ -912,7 +912,7 @@ impl Context {
     }
 
     /// Запись работы из плана.
-    fn work(&self, id: &str) -> Result<Record, Refusal> {
+    pub(crate) fn work(&self, id: &str) -> Result<Record, Refusal> {
         self.record(&self.repo.config.work_dir(), id)
     }
 
@@ -1016,144 +1016,6 @@ impl Record {
     }
 }
 
-/// `cargo dacc journal import --work <w-slug> [--close-finished-slices]`.
-pub fn run_import(args: &[OsString]) -> u8 {
-    finish(words(args).and_then(|(words, trailers)| {
-        match words
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>()
-            .as_slice()
-        {
-            ["--work", basis] => import(basis, false, &trailers),
-            ["--work", basis, "--close-finished-slices"]
-            | ["--close-finished-slices", "--work", basis] => import(basis, true, &trailers),
-            _ => Err(usage(
-                code::USAGE,
-                "journal import --work <w-slug> [--close-finished-slices]",
-            )),
-        }
-    }))
-}
-
-/// Приземления из истории (решение 15): каждая запланированная работа, у
-/// которой в истории HEAD есть коммит с её трейлером, приземляется по
-/// последнему такому коммиту. Работа без коммита остаётся запланированной —
-/// импорт не угадывает. Основание импорта пропускается: оно ещё в работе.
-/// С `close_slices` закрываются срезы, все работы которых после импорта
-/// завершены.
-fn import(basis: &str, close_slices: bool, trailers: &[String]) -> Result<u8, Refusal> {
-    let context = Context::open()?;
-    let basis_number = work_number(basis)?;
-    let area = context.work(basis)?.area(basis)?.to_owned();
-    let root = &context.repo.root;
-
-    // История идёт от новых коммитов к старым: первый встреченный — последний.
-    // Читаются оба трейлера: новый Dacc-Work и прежний Slipway-Work (до
-    // переименования, решение 29), чтобы импорт видел старую историю.
-    let log = git::read(
-        root,
-        &[
-            "log",
-            "--format=%H %(trailers:key=Dacc-Work,valueonly,separator=%x20) %(trailers:key=Slipway-Work,valueonly,separator=%x20)",
-            "HEAD",
-        ],
-    )
-    .unwrap_or_default();
-    let mut latest = std::collections::BTreeMap::new();
-    for line in log.lines() {
-        let mut fields = line.split_whitespace();
-        let Some(commit) = fields.next() else {
-            continue;
-        };
-        for id in fields {
-            if let Some(Subject::Work(number)) = Subject::parse(id) {
-                latest.entry(number).or_insert_with(|| commit.to_owned());
-            }
-        }
-    }
-
-    let at = time::now();
-    let works = context.works()?;
-    let mut events = Vec::new();
-    let mut imported = std::collections::BTreeSet::new();
-    for (number, _) in &works {
-        if number.as_str() == basis_number.as_str()
-            || context.journal.stage(number) != Stage::Planned
-        {
-            continue;
-        }
-        let Some(commit) = latest.get(number) else {
-            continue;
-        };
-        let tree = proof::content_hash(root, &context.repo.config.journal_dir(), commit)
-            .ok_or_else(|| {
-                usage(
-                    code::TREE_NOT_READ,
-                    format!("the tree of commit {} cannot be read", short(commit)),
-                )
-            })?;
-        events.push(Event::new(
-            Subject::Work(number.clone()),
-            at.clone(),
-            Kind::Landed {
-                commit: commit.clone(),
-                tree,
-                evidence: Evidence::History,
-                proofs: Vec::new(),
-            },
-        ));
-        imported.insert(number.clone());
-    }
-
-    let mut closed = Vec::new();
-    if close_slices {
-        let mut finished = std::collections::BTreeMap::new();
-        for (number, work) in &works {
-            let Some(slice) = &work.slice else {
-                continue;
-            };
-            let done = context.journal.stage(number).is_finished() || imported.contains(number);
-            let all = finished.entry(slice.clone()).or_insert(true);
-            *all = *all && done;
-        }
-        for (slice, done) in finished {
-            if done && !context.journal.closed_slices.contains_key(&slice) {
-                closed.push(slice.clone());
-                events.push(Event::new(Subject::Slice(slice), at.clone(), Kind::Closed));
-            }
-        }
-    }
-
-    if events.is_empty() {
-        return Err(refused(
-            code::NOTHING_TO_IMPORT,
-            "nothing to import: planned works have no commits carrying their trailer",
-        ));
-    }
-    let imported: Vec<String> = imported.into_iter().collect();
-    let body = format!(
-        "Landed from history: {}.\nClosed slices: {}.",
-        listed(&imported),
-        listed(&closed)
-    );
-    let message = message(
-        &config::fill(&context.repo.config.subject_imported, &area, basis),
-        &body,
-        &format!("Dacc-Work: {basis}"),
-        trailers,
-    );
-    record_and_commit(&context.repo, events, &message)
-}
-
-fn listed(items: &[String]) -> String {
-    if items.is_empty() {
-        "none".to_owned()
-    } else {
-        items.join(", ")
-    }
-}
-
 /// Номер работы из `w-slug`.
 pub(crate) fn work_number(id: &str) -> Result<String, Refusal> {
     match Subject::parse(id) {
@@ -1180,7 +1042,7 @@ pub(crate) fn stage_text(stage: Stage) -> &'static str {
     STAGE_TEXTS[stage_index(stage)]
 }
 
-fn short(hash: &str) -> &str {
+pub(crate) fn short(hash: &str) -> &str {
     hash.get(..12).unwrap_or(hash)
 }
 
@@ -1338,7 +1200,11 @@ fn journal_events(repo: &git::Repo) -> Vec<Event> {
 }
 
 /// Дописывает готовые события и коммитит их под локом записи журнала.
-fn record_and_commit(repo: &git::Repo, events: Vec<Event>, message: &str) -> Result<u8, Refusal> {
+pub(crate) fn record_and_commit(
+    repo: &git::Repo,
+    events: Vec<Event>,
+    message: &str,
+) -> Result<u8, Refusal> {
     let message = message.to_owned();
     record_and_commit_under_lock(repo, move || Ok((events, message)))
 }

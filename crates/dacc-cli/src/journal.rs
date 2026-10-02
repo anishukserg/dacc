@@ -2,14 +2,15 @@
 //!
 //! ```text
 //! cargo dacc journal hash [<revision>]
-//! cargo dacc journal import --work <w-slug> [--close-finished-slices] [--trailer <trailer>]…
+//! cargo dacc journal import --work <w-slug> [--land <w-slug>[=<commit>]]… [--close-finished-slices] [--trailer <trailer>]…
 //! ```
 //!
 //! `hash` печатает хэш дерева ревизии без каталога журнала — тот, к которому
 //! привязано доказательство готовности. `import` восстанавливает прошлое по
-//! трейлерам истории: работа с коммитом по трейлеру приземляется из истории.
+//! подтверждению человека: `--land` называет приземляемые работы и коммиты,
+//! импорт не угадывает (работа w-import-attestation).
 
-use crate::{git, proof, work};
+use crate::{git, import, proof};
 use std::ffi::OsString;
 use std::path::Path;
 
@@ -17,10 +18,10 @@ use std::path::Path;
 pub fn run(args: &[OsString]) -> u8 {
     match args.first().and_then(|name| name.to_str()) {
         Some("hash") if args.len() <= 2 => hash(args.get(1).and_then(|rev| rev.to_str())),
-        Some("import") => work::run_import(&args[1..]),
+        Some("import") => import::run_import(&args[1..]),
         _ => {
             eprintln!(
-                "journal: hash [<revision>] | import --work <w-slug> [--close-finished-slices]"
+                "journal: hash [<revision>] | import --work <w-slug> [--land <w-slug>[=<commit>]]… [--close-finished-slices]"
             );
             2
         }

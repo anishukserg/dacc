@@ -9,7 +9,7 @@
 //! cargo dacc hooks install [--force]
 //! cargo dacc work start | next | land | drop | state …
 //! cargo dacc slice close <s-slug>
-//! cargo dacc journal hash [<revision>] | import --work <w-slug> [--close-finished-slices]
+//! cargo dacc journal hash [<revision>] | import --work <w-slug> [--land <w-slug>[=<commit>]]… [--close-finished-slices]
 //! ```
 //!
 //! Соглашения, которым подлежит настройка продукта, читает модуль `config` из
@@ -29,6 +29,7 @@ mod format;
 mod gate;
 mod git;
 mod hooks;
+mod import;
 mod journal;
 mod layout;
 mod message;
