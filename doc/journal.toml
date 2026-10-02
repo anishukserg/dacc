@@ -1184,3 +1184,7 @@ at = "2026-10-02T17:32:14Z"
 commit = "cd2f0deebcb33667cc7e419cdd75f2ff9b076e13"
 tree = "a1c26b974b19862cd0eaaf3a1ac689c7031c7adb"
 red_before = "red_before_proves_a_test_not_a_function_name"
+[[events]]
+event = "started"
+work = "w-revert-subject"
+at = "2026-10-02T17:33:36Z"
