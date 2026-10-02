@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.5.0 — 2026-10-02
+
+### Upgrade notes
+
+No library migration: the published API of `dacc-*` crates is unchanged.
+Machine consumers of the CLI should read two answer changes: `ls --format
+json` carries honest `shown`/`total`/`truncated` fields instead of a
+constant `truncated`, and every refusal in `--format json` — including
+`work` commands — answers `{"schema": "dacc-error", "legitimate": true,
+…}` instead of plain text.
+
+### Agent task model
+
+`cargo dacc work next [--format json]` admits the next planned work of an
+open slice and writes its `started` event under the journal lock; the
+`wip_limit` setting in `dacc.toml` refuses overflow with the `wip-limit`
+code and names the works in flight, an empty admission answers
+`nothing-to-take`. Admitting skips a record without a taxon subsystem
+instead of stalling the queue.
+
+### Migration ratchet
+
+`dacc_scan::declare_baseline!` and `dacc_scan::baseline::ratchet`
+implement decision 40: a check declares its known debt — violations with
+names and frozen measures — and any deviation (new violation, growth,
+silent shrink, discharged entry) is a build error demanding an explicit
+decision. The file-size budget test is the first consumer of the
+mechanism.
+
+### Honest answers
+
+Map counters name every journal stage including `landed from history`;
+argument errors name the argument; `where` and `refs` read records by
+field values with comments stripped — a mention in a comment no longer
+links records; string literals parse real escape sequences; the map tree
+renders slices and works whose links are written as path idents. A failed
+journal commit rolls back the file and the git index, and the journal
+lock waits briefly before refusing.
+
 ## 0.4.0 — 2026-10-01
 
 ### Upgrade notes (breaking)
