@@ -1140,3 +1140,7 @@ at = "2026-10-02T15:28:18Z"
 commit = "3b03465b317528b1a573cedb4588a738c09afc1e"
 tree = "e0f05abd81d97d0b681ac589b283c7f6e9cc67bb"
 red_before = "slice_close_refuses_an_unredeemed_obligation"
+[[events]]
+event = "started"
+work = "w-import-attestation"
+at = "2026-10-02T15:28:47Z"
