@@ -1166,6 +1166,11 @@ pub(crate) fn message(subject: &str, body: &str, basis: &str, trailers: &[String
     text
 }
 
+/// Сколько секунд запись журнала ждёт чужой лок, прежде чем отказывать:
+/// параллельный агент получает короткое ожидание, а не мгновенный отказ
+/// (работа w-journal-transaction).
+const JOURNAL_LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Дописывает события в одну запись журнала `journal.toml` и коммитит ровно её
 /// (решение 43). Решение о событиях принимается под межпроцессным локом по
 /// свежей свёртке: параллельный процесс получает отказ с кодом причины, а не
@@ -1174,16 +1179,14 @@ pub(crate) fn record_and_commit_under_lock(
     repo: &git::Repo,
     decide: impl FnOnce() -> Result<(Vec<Event>, String), Refusal>,
 ) -> Result<u8, Refusal> {
-    let _lock = crate::commit::Lock::acquire(
-        &repo.git_dir.join(layout::JOURNAL_LOCK),
-        std::time::Duration::ZERO,
-    )
-    .map_err(|problem| {
-        refused(
-            code::LOCK_NOT_ACQUIRED,
-            format!("journal write is locked: {problem}"),
-        )
-    })?;
+    let _lock =
+        crate::commit::Lock::acquire(&repo.git_dir.join(layout::JOURNAL_LOCK), JOURNAL_LOCK_WAIT)
+            .map_err(|problem| {
+            refused(
+                code::LOCK_NOT_ACQUIRED,
+                format!("journal write is locked: {problem}"),
+            )
+        })?;
     let (events, message) = decide()?;
     let file = repo.root.join(repo.config.journal_file());
     // Событие сверяется со свёрткой под локом: переход поверх нарушения или
@@ -1203,6 +1206,7 @@ pub(crate) fn record_and_commit_under_lock(
     }
     // Append-only: прежняя версия записи — префикс новой, поэтому читаем текущую
     // и дописываем события таблицами [[events]].
+    let existed = file.exists();
     let previous = fs::read_to_string(&file).unwrap_or_default();
     let mut text = previous.clone();
     for event in &all[start..] {
@@ -1216,28 +1220,43 @@ pub(crate) fn record_and_commit_under_lock(
     }
     let message_file = repo.git_dir.join(layout::JOURNAL_MESSAGE);
     if let Err(error) = fs::write(&message_file, &message) {
-        let _ = fs::write(&file, previous);
+        rollback(repo, &file, &previous, existed);
         return Err(usage(
             code::COMMIT_MESSAGE_NOT_WRITTEN,
             format!("commit message not written: {error}"),
         ));
     }
+    let relative = file.strip_prefix(&repo.root).unwrap_or(&file).to_owned();
     let args = vec![
         OsString::from("-F"),
         message_file.clone().into_os_string(),
         OsString::from("--"),
-        file.strip_prefix(&repo.root)
-            .unwrap_or(&file)
-            .as_os_str()
-            .to_owned(),
+        relative.as_os_str().to_owned(),
     ];
     let code = commit::run(&args);
     let _ = fs::remove_file(&message_file);
     if code != 0 {
         // Откатить дописанные события: событие без коммита — не история.
-        let _ = fs::write(&file, previous);
+        rollback(repo, &file, &previous, existed);
     }
     Ok(code)
+}
+
+/// Откат записи журнала (работа w-journal-transaction): файл возвращается в
+/// прежнее состояние — вплоть до отсутствия, — и его staged-копия
+/// вычищается из индекса git, чтобы сбой не оставлял следа в репозитории.
+fn rollback(repo: &git::Repo, file: &Path, previous: &str, existed: bool) {
+    if existed {
+        let _ = fs::write(file, previous);
+    } else {
+        let _ = fs::remove_file(file);
+    }
+    if let Ok(relative) = file.strip_prefix(&repo.root) {
+        git::succeeds(
+            &repo.root,
+            &["reset", "-q", "--", &relative.to_string_lossy()],
+        );
+    }
 }
 
 /// События журнала рабочего дерева: одна запись и прежний каталог вместе.

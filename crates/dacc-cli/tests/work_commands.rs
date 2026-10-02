@@ -490,3 +490,27 @@ fn slice_close_demands_a_test_anchor_for_enforced() {
     );
     assert_ok(&repo.tool(&["slice", "close", "s-001"]));
 }
+
+/// Отказ коммита события откатывает запись журнала целиком: файла нет в
+/// дереве и нет в staged-индексе git, и работа остаётся запланированной
+/// (работа w-journal-transaction).
+#[test]
+fn failed_commit_leaves_the_index_clean() {
+    let repo = planned_repo("work-rollback");
+    // Хук отказывает: коммит события падает после записи файла.
+    repo.executable("hooks/commit-msg", "#!/bin/sh\nexit 1\n");
+
+    let run = repo.tool(&["work", "drop", "w-001", "--reason", "не нужна"]);
+    assert_ne!(run.code, 0, "{}", run.output());
+    assert!(run.stdout.contains("commit-failed"), "{}", run.output());
+    let status = repo.git(&["status", "--porcelain"]);
+    assert!(
+        !status.contains("journal.toml"),
+        "след записи в дереве или индексе: {status}"
+    );
+    assert!(
+        state_of(&repo, "w-001").contains("planned"),
+        "{}",
+        state_of(&repo, "w-001")
+    );
+}
