@@ -1232,3 +1232,7 @@ red_before = "a_version_drift_refuses_the_tool"
 event = "closed"
 slice = "s-pilot-tool-findings"
 at = "2026-10-02T18:38:26Z"
+[[events]]
+event = "closed"
+slice = "s-proof-close-honesty"
+at = "2026-10-02T18:39:06Z"
